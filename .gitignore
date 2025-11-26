@@ -1,0 +1,8 @@
+# Ignore common OS files
+.DS_Store
+Thumbs.db
+
+# Ignore any project files/backups that Construct 2 might create
+*.bak
+*.c2p
+*.c2addon
