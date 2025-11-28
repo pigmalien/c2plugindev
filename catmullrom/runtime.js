@@ -38,35 +38,45 @@ cr.behaviors.SplineMover = function(runtime)
 
 	behaviorInstProto.onCreate = function()
 	{
-		this.speed = this.properties[0]; // Movement speed in pixels/second
+		this.tension = this.properties[0]; // Curve tension
+		this.acceleration = this.properties[1];
+		this.deceleration = this.properties[2];
+
+		this.targetSpeed = 100; // The desired maximum speed
+		this.currentSpeed = 0; // The actual speed this frame
+
         this.pointStack = []; // Array of {x: number, y: number} points
         
         this.isMoving = false;
-        this.timeElapsed = 0;
 
 		// These will be calculated when movement starts
 		this.pathLength = 0;
-		this.totalDuration = 0;
-
-		this.pathLength_bakeQuality = 100; // Number of segments to bake for length calculation
+		this.distanceTraveled = 0;
+		this.arcLengthMap = []; // Lookup table for constant speed
+		this.pathLength_bakeQuality = 200; // Segments to bake for length/speed calculation. Higher is more accurate.
 	};	
 	
     // --- Core Spline Calculation ---
     
     // Catmull-Rom Spline Interpolation function
     // p0, p1, p2, p3 are points. t is the normalized time (0.0 to 1.0) within the segment.
-    behaviorInstProto.catmullRom = function(p0, p1, p2, p3, t) {
+    behaviorInstProto.catmullRom = function(p0, p1, p2, p3, t, tension) {
         var t2 = t * t;
         var t3 = t * t * t;
         
-        // Coefficients for Catmull-Rom
-        var c0 = p1;
-        var c1 = 0.5 * (p2 - p0);
-        var c2 = 0.5 * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3);
-        var c3 = 0.5 * (-p0 + 3.0 * p1 - 3.0 * p2 + p3);
+        // Using the Cardinal spline formulation where Catmull-Rom is a special case.
+        // The 's' parameter is derived from tension. s=0 is standard Catmull-Rom.
+        var s = (1 - tension) / 2;
         
-        // Final interpolated value
-        return c0 + c1 * t + c2 * t2 + c3 * t3;
+        var v1 = s * (p2 - p0);
+        var v2 = s * (p3 - p1);
+        
+        var c1 =  2 * t3 - 3 * t2 + 1;
+        var c2 = -2 * t3 + 3 * t2;
+        var c3 =      t3 - 2 * t2 + t;
+        var c4 =      t3 -     t2;
+
+        return c1 * p1 + c2 * p2 + c3 * v1 + c4 * v2;
     };
 
     // Main position calculation based on overall normalized time (T_total)
@@ -120,31 +130,56 @@ cr.behaviors.SplineMover = function(runtime)
         var p3 = this.pointStack[p3Index];
         
         // Calculate the interpolated X and Y positions
-        var x = this.catmullRom(p0.x, p1.x, p2.x, p3.x, t_local);
-        var y = this.catmullRom(p0.y, p1.y, p2.y, p3.y, t_local);
+        var x = this.catmullRom(p0.x, p1.x, p2.x, p3.x, t_local, this.tension);
+        var y = this.catmullRom(p0.y, p1.y, p2.y, p3.y, t_local, this.tension);
         
         return {x: x, y: y};
     };
 
-	// Approximates the total length of the spline by sampling points
-	behaviorInstProto.calculatePathLength = function()
+	// Creates a lookup table to map distance to normalized time 'T'
+	behaviorInstProto.buildArcLengthMap = function()
 	{
 		if (this.pointStack.length < 2)
-			return 0;
+		{
+			this.arcLengthMap = [];
+			this.pathLength = 0;
+			return;
+		}
 
 		var totalDist = 0;
 		var lastPos = this.getSplinePosition(0);
 		var curPos;
 
-		// Bake the path into segments to measure length
+		this.arcLengthMap = [{t: 0, dist: 0}];
+
 		var segments = this.pathLength_bakeQuality;
 		for (var i = 1; i <= segments; i++)
 		{
-			curPos = this.getSplinePosition(i / segments);
+			var t = i / segments;
+			curPos = this.getSplinePosition(t);
 			totalDist += cr.distanceTo(lastPos.x, lastPos.y, curPos.x, curPos.y);
 			lastPos = curPos;
+			this.arcLengthMap.push({t: t, dist: totalDist});
 		}
-		return totalDist;
+		this.pathLength = totalDist;
+	};
+
+	// Gets the normalized time 'T' for a given distance along the path
+	behaviorInstProto.getTforDistance = function(dist)
+	{
+		if (dist <= 0) return 0;
+		if (dist >= this.pathLength) return 1;
+
+		// Find the two points in the map that bracket the distance
+		for (var i = 1; i < this.arcLengthMap.length; i++) {
+			if (this.arcLengthMap[i].dist >= dist) {
+				var p1 = this.arcLengthMap[i-1];
+				var p2 = this.arcLengthMap[i];
+				// Interpolate between the two points to find the precise 't'
+				return cr.lerp(p1.t, p2.t, (dist - p1.dist) / (p2.dist - p1.dist));
+			}
+		}
+		return 1; // Should not be reached
 	};
 
     // --- Time-based Movement ---
@@ -157,32 +192,52 @@ cr.behaviors.SplineMover = function(runtime)
 
     behaviorInstProto.tick2 = function()
     {
-        if (!this.isMoving || this.pointStack.length < 2 || this.totalDuration <= 0) {
+        if (!this.isMoving) {
             return;
         }
 
         var dt = this.runtime.getDt();
 
-        this.timeElapsed += dt;
-        
-        // Total normalized time T (0.0 to 1.0)
-        var T = this.timeElapsed / this.totalDuration;
+		// --- Acceleration & Deceleration Logic ---
+		var distanceToStop = 0;
+		if (this.deceleration > 0) {
+			distanceToStop = (this.currentSpeed * this.currentSpeed) / (2 * this.deceleration);
+		}
 
-        if (T >= 1.0) {
+		// If acceleration is 0, snap to target speed (unless we need to decelerate)
+		if (this.acceleration === 0 && this.targetSpeed > 0) {
+			this.currentSpeed = this.targetSpeed;
+		}
+
+		// If we are in the deceleration zone to stop at the end, or if speed is 0 (stopping)
+		if ((this.pathLength - this.distanceTraveled) <= distanceToStop || this.targetSpeed === 0) {
+			// Decelerate
+			this.currentSpeed = Math.max(0, this.currentSpeed - this.deceleration * dt);
+		}
+		else if (this.currentSpeed < this.targetSpeed) {
+			// Accelerate
+			this.currentSpeed = Math.min(this.targetSpeed, this.currentSpeed + this.acceleration * dt);
+		}
+
+        this.distanceTraveled += this.currentSpeed * dt;
+
+        if (this.distanceTraveled >= this.pathLength) {
             // Path finished: Snap to final point and stop
-            T = 1.0;
+            this.distanceTraveled = this.pathLength;
             this.isMoving = false;
+			this.currentSpeed = 0;
             
-            // Snap to the absolute last point defined in the stack
             var lastPoint = this.pointStack[this.pointStack.length - 1];
             this.inst.x = lastPoint.x;
             this.inst.y = lastPoint.y;
             
             this.runtime.trigger(cr.behaviors.SplineMover.prototype.cnds.OnPathFinished, this.inst);
-
         } else {
-            // Calculate and set position based on T
+            // Find the normalized time 'T' that corresponds to the current distance
+            var T = this.getTforDistance(this.distanceTraveled);
+            // Get the position at that 'T'
             var newPos = this.getSplinePosition(T);
+
             this.inst.x = newPos.x;
             this.inst.y = newPos.y;
         }
@@ -207,7 +262,6 @@ cr.behaviors.SplineMover = function(runtime)
 	{
 		this.pointStack = [];
         this.isMoving = false;
-        this.timeElapsed = 0;
 	};
 
     // ACT 2: Start Spline Movement
@@ -217,11 +271,11 @@ cr.behaviors.SplineMover = function(runtime)
             return; // Need at least 2 points for any movement
         }
         
-		this.speed = speed;
-		this.pathLength = this.calculatePathLength();
-        this.totalDuration = (this.speed > 0) ? (this.pathLength / this.speed) : 0;
-        this.timeElapsed = 0;
+		this.targetSpeed = speed;
+		this.buildArcLengthMap();
         this.isMoving = true;
+		this.distanceTraveled = 0;
+		this.currentSpeed = 0; // Always start from 0 speed
         
         // Start movement from the calculated beginning of the spline, which might not be the first point
         // if there are enough points for a curve.
@@ -233,13 +287,30 @@ cr.behaviors.SplineMover = function(runtime)
     // ACT 3: Stop Spline Movement
 	Acts.prototype.StopMovement = function ()
 	{
-		this.isMoving = false;
+		// If deceleration is set, smoothly stop. Otherwise, stop instantly.
+		if (this.deceleration > 0) {
+			this.targetSpeed = 0;
+		} else {
+			this.isMoving = false;
+			this.currentSpeed = 0;
+		}
 	};
 
 	// ACT 4: Set Speed
 	Acts.prototype.SetSpeed = function (speed)
 	{
-		this.speed = Math.max(0, speed);
+		this.targetSpeed = Math.max(0, speed);
+	};
+
+	// ACT 5: Set Tension
+	Acts.prototype.SetTension = function (tension)
+	{
+		this.tension = tension;
+	};
+
+	// ACT 6 & 7: Set Acceleration/Deceleration
+	Acts.prototype.SetAcceleration = function (accel) { this.acceleration = Math.max(0, accel); };
+	Acts.prototype.SetDeceleration = function (decel) { this.deceleration = Math.max(0, decel);
 	};
 
 	behaviorProto.acts = new Acts();
@@ -276,7 +347,7 @@ cr.behaviors.SplineMover = function(runtime)
     // EXP 0: Current Path Time (0.0 to 1.0)
     Exps.prototype.CurrentTimeT = function (ret)
     {
-        var T = (this.totalDuration > 0) ? (this.timeElapsed / this.totalDuration) : 0;
+        var T = (this.pathLength > 0) ? (this.distanceTraveled / this.pathLength) : 0;
         ret.set_float(Math.min(1.0, Math.max(0.0, T)));
     };
 

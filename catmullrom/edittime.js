@@ -34,6 +34,18 @@ AddAction(3, af_none, "Stop movement", "Control", "Stop movement", "Immediately 
 AddNumberParam("Speed", "The speed of movement in pixels per second.", "100");
 AddAction(4, af_none, "Set speed", "Control", "Set speed to {0} pixels/second", "Sets the speed for subsequent movements.", "SetSpeed");
 
+// ACT 5: Set Tension
+AddNumberParam("Tension", "The tension of the curve (0=normal, higher=tighter).", "0.0");
+AddAction(5, af_none, "Set tension", "Path Management", "Set tension to {0}", "Sets the tension of the spline curve.", "SetTension");
+
+// ACT 6: Set Acceleration
+AddNumberParam("Acceleration", "The acceleration in pixels/second² (0 for none).", "0");
+AddAction(6, af_none, "Set acceleration", "Control", "Set acceleration to {0}", "Sets the rate of acceleration.", "SetAcceleration");
+
+// ACT 7: Set Deceleration
+AddNumberParam("Deceleration", "The deceleration in pixels/second² (0 for none).", "0");
+AddAction(7, af_none, "Set deceleration", "Control", "Set deceleration to {0}", "Sets the rate of deceleration.", "SetDeceleration");
+
 
 ////////////////////////////////////////
 // Conditions
@@ -61,7 +73,9 @@ AddExpression(1, ef_return_number, "Total points in path", "Path Management", "T
 ACESDone();
 
 var property_list = [
-    new cr.Property(ept_float, "Speed", 100.0, "The default speed of movement in pixels per second."),
+    new cr.Property(ept_float, "Tension", 0.0, "The tension of the curve (0=normal)."),
+    new cr.Property(ept_float, "Acceleration", 0, "Rate of acceleration in pixels/second². 0 for instant."),
+    new cr.Property(ept_float, "Deceleration", 0, "Rate of deceleration in pixels/second². 0 for instant."),
 	];
 	
 function CreateIDEBehaviorType() { return new IDEBehaviorType(); }
