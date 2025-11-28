@@ -4,14 +4,14 @@
 assert2(cr, "cr namespace not created");
 assert2(cr.behaviors, "cr.behaviors not created");
 
-cr.behaviors.FieldSwarm = function(runtime)
+cr.behaviors.FindPath = function(runtime)
 {
 	this.runtime = runtime;
 };
 
 (function ()
 {
-	var behaviorProto = cr.behaviors.FieldSwarm.prototype;
+	var behaviorProto = cr.behaviors.FindPath.prototype;
 		
 	/////////////////////////////////////
 	// Behavior type class
@@ -43,20 +43,17 @@ cr.behaviors.FieldSwarm = function(runtime)
 	behaviorInstProto.onCreate = function()
 	{
 		// Load properties (assuming edittime has been updated with these properties)
-		// NOTE: Assuming 3 properties from previous edittime, adding new one at index 3
 		this.cellWidth = this.properties[0];
 		this.cellHeight = this.properties[1];
-		this.moveSpeed = this.properties[2]; // Cells per second
+		this.maxIterations = this.properties[2];
 
-		// State variables
-		this.isMoving = false;
-		this.path = []; // Array of {x: pixelX, y: pixelY}
-		this.pathIndex = -1;
-		this.targetX = 0; // Current cell target in pixels
-		this.targetY = 0;
+		this.path = null; // Array of {x: pixelX, y: pixelY}
 
 		// This will be populated by the 'AddWallObstacle' action
 		this.wallObjectTypes = [];
+
+		// For the 'For each node' loop
+		this.loop_path_index = 0;
 	};
 
 	behaviorInstProto.onDestroy = function ()
@@ -126,7 +123,7 @@ cr.behaviors.FieldSwarm = function(runtime)
 		gridStart.h = heuristic(gridStart, gridEnd);
 		gridStart.f = gridStart.g + gridStart.h;
 
-		var max_iterations = 15000; // Safeguard against extreme cases
+		var max_iterations = this.maxIterations; // Safeguard against extreme cases
 		var iterations = 0;
 
 		while (openList.length > 0 && iterations < max_iterations)
@@ -155,7 +152,6 @@ cr.behaviors.FieldSwarm = function(runtime)
 					path.push({x: this.toPixelX(curr.x), y: this.toPixelY(curr.y)});
 					curr = curr.parent;
 				}
-				path.pop(); // Remove the current location's pixel coordinates
 				return path.reverse();
 			}
 
@@ -226,60 +222,42 @@ cr.behaviors.FieldSwarm = function(runtime)
 
 	behaviorInstProto.tick = function ()
 	{
-		var dt = this.runtime.getDt(this.inst);
-
-		if (!this.isMoving || !this.path || this.path.length === 0 || dt === 0) return;
-
-		// Movement logic remains the same (smooth transition between cell centers)
-		var target = this.path[this.pathIndex];
-		
-		var dx = target.x - this.inst.x;
-		var dy = target.y - this.inst.y;
-		var dist = Math.sqrt(dx*dx + dy*dy);
-		
-		var moveAmount = this.moveSpeed * this.cellWidth * dt;
-		
-		if (moveAmount >= dist)
-		{
-			this.inst.x = target.x;
-			this.inst.y = target.y;
-			
-			this.pathIndex++;
-			
-			if (this.pathIndex >= this.path.length)
-			{
-				this.isMoving = false;
-				this.runtime.trigger(cr.behaviors.FieldSwarm.prototype.cnds.OnMoveFinished, this.inst);
-			}
-			else
-			{
-				this.targetX = this.path[this.pathIndex].x;
-				this.targetY = this.path[this.pathIndex].y;
-			}
-		}
-		else
-		{
-			var normX = dx / dist;
-			var normY = dy / dist;
-			
-			this.inst.x += normX * moveAmount;
-			this.inst.y += normY * moveAmount;
-			
-			this.inst.angle = Math.atan2(normY, normX);
-		}
-
-		this.inst.set_bbox_changed();
+		// No movement logic needed in the tick function anymore.
 	};
 
 	//////////////////////////////////////
 	// Conditions (Unchanged)
 	function Cnds() {};
-	
 	Cnds.prototype.OnPathFound = function () { return true; };
 	Cnds.prototype.OnPathFailed = function () { return true; };
-	Cnds.prototype.OnMoveFinished = function () { return true; };
-	Cnds.prototype.IsMoving = function () { return this.isMoving; };
-	
+
+	Cnds.prototype.ForEachNode = function ()
+	{
+		if (!this.path || this.path.length === 0)
+			return false;
+
+		var current_event = this.runtime.getCurrentEventStack().current_event;
+		var sol = this.type.objtype.getCurrentSol();
+		var solModifierAfterCnds = !sol.select_all;
+
+		var loop_path = this.path;
+		var loop_count = loop_path.length;
+		this.loop_path_index = 0;
+
+		for (; this.loop_path_index < loop_count; this.loop_path_index++)
+		{
+			if (solModifierAfterCnds)
+				this.runtime.pushCopySol(sol);
+
+			current_event.retrigger();
+
+			if (solModifierAfterCnds)
+				this.runtime.popSol(sol);
+		}
+
+		return false;
+	};
+
 	behaviorProto.cnds = new Cnds();
 
 	//////////////////////////////////////
@@ -287,20 +265,27 @@ cr.behaviors.FieldSwarm = function(runtime)
 	function Acts() {};
 	
 	// Existing actions (SetGridSize, SetMoveSpeed, SetWall, ClearWall) remain here.
-	
 	Acts.prototype.SetGridSize = function (w, h)
 	{
 		this.cellWidth = w;
 		this.cellHeight = h;
 	};
 
-	Acts.prototype.SetMoveSpeed = function (s)
+	Acts.prototype.AddWallObstacle = function (objType)
 	{
-		this.moveSpeed = s;
+		if (!objType) return;
+		// Avoid adding duplicates
+		var i = this.wallObjectTypes.indexOf(objType);
+		if (i === -1) {
+			this.wallObjectTypes.push(objType);
+		}
 	};
 
 	Acts.prototype.FindPath = function (pixelX, pixelY)
 	{
+		// Clear the previous path at the start of a new search.
+		this.path = null;
+
 		var startGridX = this.toGridX(this.inst.x);
 		var startGridY = this.toGridY(this.inst.y);
 		var endGridX = this.toGridX(pixelX);
@@ -322,43 +307,28 @@ cr.behaviors.FieldSwarm = function(runtime)
 		if (startGridX === endGridX && startGridY === endGridY)
 		{
 			this.path = [];
-			this.runtime.trigger(cr.behaviors.FieldSwarm.prototype.cnds.OnPathFound, this.inst);
+			this.runtime.trigger(cr.behaviors.FindPath.prototype.cnds.OnPathFound, this.inst);
 			return;
 		}
 
 		this.path = this.AStarPathfinding(startGridX, startGridY, endGridX, endGridY, pathfindingGridMap);
 		
-		if (this.path && this.path.length > 0)
+		if (this.path)
 		{
-			this.runtime.trigger(cr.behaviors.FieldSwarm.prototype.cnds.OnPathFound, this.inst);
+			// The A* function returns the full path including the start node.
+			// We remove the start node here as it's the object's current location.
+			if (this.path.length > 0)
+				this.path.shift();
+
+			this.runtime.trigger(cr.behaviors.FindPath.prototype.cnds.OnPathFound, this.inst);
 		}
 		else
 		{
-			this.path = null;
-			this.runtime.trigger(cr.behaviors.FieldSwarm.prototype.cnds.OnPathFailed, this.inst);
+			// this.path is already null from A* failing, just trigger failure.
+			this.runtime.trigger(cr.behaviors.FindPath.prototype.cnds.OnPathFailed, this.inst);
 		}
 	};
 	
-	Acts.prototype.MoveAlongPath = function ()
-	{
-		if (!this.path || this.path.length === 0) return;
-		
-		this.isMoving = true;
-		this.pathIndex = 0;
-		this.targetX = this.path[0].x;
-		this.targetY = this.path[0].y;
-	};
-	
-	Acts.prototype.AddWallObstacle = function (objType)
-	{
-		if (!objType) return;
-		// Avoid adding duplicates
-		var i = this.wallObjectTypes.indexOf(objType);
-		if (i === -1) {
-			this.wallObjectTypes.push(objType);
-		}
-	};
-
 	Acts.prototype.ClearWallObstacles = function ()
 	{
 		this.wallObjectTypes.length = 0;
@@ -370,15 +340,33 @@ cr.behaviors.FieldSwarm = function(runtime)
 	// Expressions (Unchanged)
 	function Exps() {};
 	
-	Exps.prototype.TargetGridX = function (ret)
+	Exps.prototype.PathNodeCount = function (ret)
 	{
-		ret.set_int(this.toGridX(this.targetX));
+		ret.set_int(this.path ? this.path.length : 0);
 	};
 
-	Exps.prototype.TargetGridY = function (ret)
+	Exps.prototype.PathNodeXAt = function (ret, index)
 	{
-		ret.set_int(this.toGridY(this.targetY));
+		index = Math.floor(index);
+		if (this.path && index >= 0 && index < this.path.length)
+			ret.set_float(this.path[index].x);
+		else
+			ret.set_float(0);
 	};
 	
+	Exps.prototype.PathNodeYAt = function (ret, index)
+	{
+		index = Math.floor(index);
+		if (this.path && index >= 0 && index < this.path.length)
+			ret.set_float(this.path[index].y);
+		else
+			ret.set_float(0);
+	};
+	
+	Exps.prototype.CurrentNodeIndex = function (ret)
+	{
+		ret.set_int(this.loop_path_index);
+	};
+
 	behaviorProto.exps = new Exps();
 }());

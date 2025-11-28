@@ -1,8 +1,8 @@
 ﻿﻿function GetBehaviorSettings()
 {
 	return {
-		"name":			"Field Swarm", // Updated name
-		"id":			"FieldSwarm",  // Updated ID
+		"name":			"Find Path",
+		"id":			"FindPath",
 		"version":		"1.0",
 		"description":	"Enables movement on a defined grid with pathfinding capabilities (A*).",
 		"author":		"Gemini Code Assist",
@@ -21,23 +21,16 @@ AddNumberParam("Cell Height", "The vertical size of one grid cell in pixels.", "
 AddAction(0, af_none, "Set grid size", "Setup", "Set grid cell size to {0}x{1}", "Defines the grid dimensions.", "SetGridSize");
 
 // ACT 1: Set Movement Speed
-AddNumberParam("Speed", "The speed of movement in cells per second.", "5");
-AddAction(1, af_none, "Set move speed", "Movement", "Set movement speed to {0} cells/sec", "Sets the rate at which the object traverses cells.", "SetMoveSpeed");
+AddObjectParam("Object", "Select an object type to treat as a wall.");
+AddAction(1, af_none, "Add wall obstacle", "Walls", "Add {0} as a wall obstacle", "Adds an object type to be treated as a wall.", "AddWallObstacle");
 
 // ACT 2: Find Path
 AddNumberParam("Target X", "The X coordinate (pixels) of the target.", "0");
 AddNumberParam("Target Y", "The Y coordinate (pixels) of the target.", "0");
 AddAction(2, af_none, "Find path to", "Pathfinding", "Find path to ({0}, {1})", "Calculates a path using A*.", "FindPath");
 
-// ACT 3: Start moving
-AddAction(3, af_none, "Move along path", "Movement", "Start moving along current path", "Begins movement toward the target.", "MoveAlongPath");
-
-// ACT 4: Add Wall Obstacle
-AddObjectParam("Object", "Select an object type to treat as a wall.");
-AddAction(4, af_none, "Add wall obstacle", "Walls", "Add {0} as a wall obstacle", "Adds an object type to be treated as a wall.", "AddWallObstacle");
-
-// ACT 5: Clear Wall Obstacles
-AddAction(5, af_none, "Clear all wall obstacles", "Walls", "Clear all wall obstacles", "Removes all object types from the wall obstacle list.", "ClearWallObstacles");
+// ACT 3: Clear Wall Obstacles
+AddAction(3, af_none, "Clear all wall obstacles", "Walls", "Clear all wall obstacles", "Removes all object types from the wall obstacle list.", "ClearWallObstacles");
 
 ////////////////////////////////////////
 // Conditions
@@ -48,29 +41,32 @@ AddCondition(0, cf_trigger, "On path found", "Pathfinding", "On path found", "Tr
 // CND 1: On Path Failed
 AddCondition(1, cf_trigger, "On path failed", "Pathfinding", "On path failed", "Triggers if no path could be found to the target.", "OnPathFailed");
 
-// CND 2: On Movement Finished
-AddCondition(2, cf_trigger, "On movement finished", "Movement", "On movement finished", "Triggers when the object reaches its target cell.", "OnMoveFinished");
-
-// CND 3: Is Moving
-AddCondition(3, cf_none, "Is moving", "Movement", "Is moving", "Returns true while the object is traversing cells.", "IsMoving");
-
+// CND 2: For Each Node
+AddCondition(2, cf_looping | cf_not_invertible, "For each node", "Path", "For each node in path", "Loop through each node in the calculated path.", "ForEachNode");
 
 ////////////////////////////////////////
 // Expressions
 
-// EXP 0: Target Grid X
-AddExpression(0, ef_return_number, "Target Grid X", "Pathfinding", "TargetGridX", "Returns the grid X index of the current target cell.");
+// EXP 0: PathNodeCount
+AddExpression(0, ef_return_number, "PathNodeCount", "Path", "PathNodeCount", "Returns the number of nodes in the current path.");
 
-// EXP 1: Target Grid Y
-AddExpression(1, ef_return_number, "Target Grid Y", "Pathfinding", "TargetGridY", "Returns the grid Y index of the current target cell.");
+// EXP 1: PathNodeXAt
+AddNumberParam("Index", "The index of the path node to retrieve.");
+AddExpression(1, ef_return_number, "PathNodeXAt", "Path", "PathNodeXAt", "Returns the X coordinate of a node in the path.");
 
+// EXP 2: PathNodeYAt
+AddNumberParam("Index", "The index of the path node to retrieve.");
+AddExpression(2, ef_return_number, "PathNodeYAt", "Path", "PathNodeYAt", "Returns the Y coordinate of a node in the path.");
+
+// EXP 3: CurrentNodeIndex
+AddExpression(3, ef_return_number, "CurrentNodeIndex", "Path", "CurrentNodeIndex", "Get the index of the current node in a 'For each node' loop.");
 
 ACESDone();
 
 var property_list = [
 	new cr.Property(ept_integer, 	"Cell Width",	32,		"The width of a single grid cell."),
 	new cr.Property(ept_integer,	"Cell Height",	32,		"The height of a single grid cell."),
-	new cr.Property(ept_float,		"Move Speed",	5,		"The speed in cells per second."),
+	new cr.Property(ept_integer,	"Max Iterations", 15000, "The maximum search iterations before pathfinding fails."),
 	];
 	
 function CreateIDEBehaviorType() { return new IDEBehaviorType(); }
