@@ -51,7 +51,7 @@ cr.behaviors.SmoothMove = function(runtime)
 	behinstProto.onCreate = function()
 	{
 		// Load properties
-		this.isActive = (this.properties[0] === 0); // 0=Active, 1=Inactive
+		this.enabled = (this.properties[0] === 0); // 0=Enabled, 1=Disabled
 		this.movementMode = this.properties[1]; // 0=Steering, 1=Direct
 		this.maxSpeed = this.properties[2];
 		this.minSpeed = this.properties[3];
@@ -82,7 +82,7 @@ cr.behaviors.SmoothMove = function(runtime)
 		// note you MUST use double-quote syntax (e.g. "property": value) to prevent
 		// Closure Compiler renaming and breaking the save format
 		return {
-			"isActive": this.isActive,
+			"enabled": this.enabled,
 			"tuid": this.type.targetUid,
 			"max": this.maxSpeed,
 			"min": this.minSpeed,
@@ -92,7 +92,8 @@ cr.behaviors.SmoothMove = function(runtime)
 			"vel": this.velocity,
 			"hpt": this.hasPositionTarget,
 			"tx": this.targetX,
-			"ty": this.targetY
+			"ty": this.targetY,
+			"iat": false // No longer used, for savegame compatibility
 		};
 	};
 	
@@ -101,7 +102,7 @@ cr.behaviors.SmoothMove = function(runtime)
 	{
 		// load from the state previously saved by saveToJSON
 		// 'o' provides the same object that you saved, e.g.
-		this.isActive = o["isActive"];
+		this.enabled = o["enabled"];
 		this.type.targetUid = o["tuid"];
 		this.maxSpeed = o["max"];
 		this.minSpeed = o["min"];
@@ -112,6 +113,7 @@ cr.behaviors.SmoothMove = function(runtime)
 		this.hasPositionTarget = o["hpt"];
 		this.targetX = o["tx"];
 		this.targetY = o["ty"];
+		// this.isAtTarget is no longer used
 		// note you MUST use double-quote syntax (e.g. o["property"]) to prevent
 		// Closure Compiler renaming and breaking the save format
 	};
@@ -122,12 +124,16 @@ cr.behaviors.SmoothMove = function(runtime)
 		var inst = this.inst;
 		var vel = this.velocity;
 		var targetObj = this.runtime.getObjectByUID(this.type.targetUid);
+		var hasTarget = targetObj || this.hasPositionTarget;
 
-		var targetX = this.hasPositionTarget ? this.targetX : (targetObj ? targetObj.x : 0);
-		var targetY = this.hasPositionTarget ? this.targetY : (targetObj ? targetObj.y : 0);
-
-		// Do nothing if behavior is inactive or the required Mouse plugin is missing.
-		if (!this.isActive)
+		// If following an object, update the target coordinates.
+		if (targetObj) {
+			this.targetX = targetObj.x;
+			this.targetY = targetObj.y;
+		}
+		
+		// Do nothing if behavior is inactive.
+		if (!this.enabled)
 		{
 			// Decelerate to a stop if inactive
 			const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
@@ -139,18 +145,10 @@ cr.behaviors.SmoothMove = function(runtime)
                 vel.y *= ratio;
             }
 		}
-		else if (targetObj || this.hasPositionTarget) // Is active and has a target
+		else if (hasTarget) // Is enabled and has a target to move to
 		{
             // --- Rotation ---
-            const targetAngle = cr.angleTo(inst.x, inst.y, targetX, targetY);
-			
-			// Only rotate the object if in 'Steering' mode.
-			if (this.movementMode === 0) // 0 = Steering
-			{
-				inst.angle = cr.anglelerp(inst.angle, targetAngle, this.rotationSpeed * dt);
-			}
-
-            const distance = cr.distanceTo(inst.x, inst.y, targetX, targetY);
+            const distance = cr.distanceTo(inst.x, inst.y, this.targetX, this.targetY);
 
             // If very close to the target, snap to position and stop.
             // This prevents jittering or orbiting the target point.
@@ -159,33 +157,32 @@ cr.behaviors.SmoothMove = function(runtime)
             {
                 vel.x = 0;
                 vel.y = 0;
-                inst.x = targetX;
-                inst.y = targetY;
+                inst.x = this.targetX;
+                inst.y = this.targetY;
                 inst.set_bbox_changed();
             }
-            else
-			{
-				// Calculate speed based on distance.
-				const speedRatio = Math.min(distance / this.effectiveRadius, 1.0);
-				const targetSpeed = cr.lerp(this.minSpeed, this.maxSpeed, speedRatio);
-
-				var angleToUse;
+			else {
+				const targetAngle = cr.angleTo(inst.x, inst.y, this.targetX, this.targetY);
+			
+				// Only rotate the object if in 'Steering' mode.
 				if (this.movementMode === 0) // 0 = Steering
 				{
-					angleToUse = inst.angle;
+					inst.angle = cr.anglelerp(inst.angle, targetAngle, this.rotationSpeed * dt);
 				}
-				else // 1 = Direct
-				{
-					angleToUse = targetAngle;
-				}
-				vel.x = Math.cos(angleToUse) * targetSpeed;
-				vel.y = Math.sin(angleToUse) * targetSpeed;
+
+				// Calculate speed based on distance.
+				const speedRatio = Math.min(distance / this.effectiveRadius, 1.0);
+				let targetSpeed = cr.lerp(this.minSpeed, this.maxSpeed, speedRatio);
+				targetSpeed = Math.min(targetSpeed, distance / dt); // Prevent overshooting
+
+				// Always calculate velocity based on the direct angle to the target
+				// to ensure accurate movement and prevent orbiting.
+				vel.x = Math.cos(targetAngle) * targetSpeed;
+				vel.y = Math.sin(targetAngle) * targetSpeed;
 			}
         }
-		else // Is active but has no target
-		{
-			return;
-		}
+		else // Is enabled but has no target
+		{ /* No target, do nothing, allow deceleration from !enabled case if needed */ }
 
 		// --- Limit Velocity (Safety check) ---
         const speedSq = vel.x * vel.x + vel.y * vel.y;
@@ -220,7 +217,7 @@ cr.behaviors.SmoothMove = function(runtime)
 		propsections.push({
 			"title": this.type.name,
 			"properties": [
-				{"name": "Active", "value": this.isActive, "readonly": true},
+				{"name": "Enabled", "value": this.enabled, "readonly": true},
 				{"name": "Current Speed", "value": Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y).toFixed(2), "readonly": true},
 				{"name": "Max speed", "value": this.maxSpeed},
 				{"name": "Min speed", "value": this.minSpeed},
@@ -251,16 +248,20 @@ cr.behaviors.SmoothMove = function(runtime)
 	// Conditions
 	function Cnds() {};
 	
-	Cnds.prototype.IsActive = function () { return this.isActive; };
-	
+	Cnds.prototype.IsEnabled = function () { return this.enabled; };
+
+	Cnds.prototype.IsMoving = function () { return this.velocity.x !== 0 || this.velocity.y !== 0; };
+
 	behaviorProto.cnds = new Cnds();
 
 	//////////////////////////////////////
 	// Actions
 	function Acts() {};
-	
-	Acts.prototype.SetActive = function () { this.isActive = true; };
-	Acts.prototype.SetInactive = function () { this.isActive = false; };
+
+	Acts.prototype.SetEnabled = function (e)
+	{
+		this.enabled = (e === 1);
+	};
 
 	Acts.prototype.SetTarget = function (obj)
 	{
@@ -268,7 +269,7 @@ cr.behaviors.SmoothMove = function(runtime)
 		var inst = obj.getFirstPicked(this.inst);
 		if (!inst) return;
 		this.type.targetUid = inst.uid;
-		this.hasPositionTarget = false; // An object target overrides a position target
+		this.hasPositionTarget = false; // An object target overrides a position target.
 	};
 	
 	Acts.prototype.SetTargetPosition = function (x, y)

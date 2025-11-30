@@ -1,4 +1,4 @@
-﻿﻿function GetBehaviorSettings()
+﻿﻿﻿﻿function GetBehaviorSettings()
 {
 	return {
 		"name":			"Smooth Move",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
@@ -39,7 +39,9 @@
 //				description,		// appears in event wizard dialog when selected
 //				script_name);		// corresponding runtime function name
 				
-AddCondition(0, cf_none, "Is active", "State", "{my} is active", "True if the behavior is currently active and processing.", "IsActive");
+AddCondition(0, cf_none, "Is enabled", "State", "{my} is enabled", "True if the behavior is currently enabled and processing.", "IsEnabled");
+
+AddCondition(1, cf_none, "Is moving", "State", "{my} is moving", "True if the object has a speed greater than zero.", "IsMoving");
 
 
 ////////////////////////////////////////
@@ -53,11 +55,10 @@ AddCondition(0, cf_none, "Is active", "State", "{my} is active", "True if the be
 //			 description,		// appears in event wizard dialog when selected
 //			 script_name);		// corresponding runtime function name
 
-AddAction(0, af_none, "Set active", "State", "Set {my} active", "Enable the smooth movement behavior.", "SetActive");
-AddAction(1, af_none, "Set inactive", "State", "Set {my} inactive", "Disable the smooth movement behavior.", "SetInactive");
+AddAction(0, af_none, "Set enabled", "State", "Set {my} enabled to <b>{0}</b>", "Enable or disable the smooth movement behavior.", "SetEnabled");
 
 AddObjectParam("Target", "The object to follow.");
-AddAction(2, af_none, "Set target", "Target", "Set target to {0}", "Set the object to follow.", "SetTarget");
+AddAction(1, af_none, "Set target", "Target", "Set target to {0}", "Set the object to follow.", "SetTarget");
 
 AddNumberParam("X", "The X coordinate of the target position.");
 AddNumberParam("Y", "The Y coordinate of the target position.");
@@ -99,7 +100,7 @@ ACESDone();
 // new cr.Property(ept_combo,		name,	"Item 1",		description, "Item 1|Item 2|Item 3")	// a dropdown list (initial_value is string of initially selected item)
 
 var property_list = [
-	new cr.Property(ept_combo,	"Initial state",	"Active",		"Set whether the behavior is initially active or inactive.", "Active|Inactive"),
+	new cr.Property(ept_combo,	"Initial state",	"Enabled",		"Set whether the behavior is initially enabled or disabled.", "Enabled|Disabled"),
 	new cr.Property(ept_combo,	"Movement mode",	"Steering (Use object angle)", "Choose how the object moves: 'Steering' uses the object's angle, creating a turning motion. 'Direct' moves straight towards the target.", "Steering (Use object angle)|Direct (Use target angle)"),
 	new cr.Property(ept_float, 	"Max speed",		100,	"Maximum speed in pixels per second."),
 	new cr.Property(ept_float, 	"Min speed",		20,		"Minimum speed when the object is close to the target."),
