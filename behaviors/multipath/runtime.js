@@ -174,6 +174,7 @@ cr.behaviors.Multipath = function (runtime)
 		return !this.pathCollections.hasOwnProperty(pathName) || this.pathCollections[pathName].list.length === 0;
 	};
 
+
 	behaviorProto.cnds = new Cnds();
 
 	//////////////////////////////////////
