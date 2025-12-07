@@ -1,14 +1,13 @@
-function GetBehaviorSettings()
-{
+function GetBehaviorSettings() {
 	return {
-		"name":			"Multipath",
-		"id":			"Multipath",
-		"version":		"0.1",
-		"description":	"Stores and navigates multiple reusable lists of X/Y coordinates (paths).",
-		"author":		"Gemini Code Assist",
-		"help url":		"",
-		"category":		"Data & Utility",
-		"flags":		0
+		"name": "Multipath",
+		"id": "Multipath",
+		"version": "0.1",
+		"description": "Stores and navigates multiple reusable lists of X/Y coordinates (paths).",
+		"author": "Gemini Code Assist",
+		"help url": "",
+		"category": "Data & Utility",
+		"flags": 0
 	};
 };
 
@@ -44,18 +43,25 @@ AddAction(6, af_none, "Insert point at index", "Path Management", "Insert point 
 AddStringParam("Path", "The name of the path collection to delete.", "\"Default\"");
 AddAction(7, af_none, "Delete path", "Path Management", "Delete path collection '{0}'", "Removes the named path list entirely.", "DeletePath");
 
+AddStringParam("Path", "The name of the path to iterate.", "\"Default\"");
+AddCondition(3, cf_looping | cf_not_invertible, "For each node", "Iteration", "For each node in path '{0}'", "Repeat the event for each node in the path.", "ForEachNode");
+
+AddStringParam("Path", "The name of the path to delete the point from.", "\"Default\"");
+AddNumberParam("Index", "The 0-based index of the point to delete.", "0");
+AddAction(8, af_none, "Delete point at index", "Path Management", "Delete point at index {1} from path '{0}'", "Removes the point at the specified index from the path.", "DeletePoint");
+
 ////////////////////////////////////////
 // Expressions
 AddStringParam("Path", "The name of the path list to query.", "\"Default\"");
-AddExpression(0, ef_return_number, "Points in path", "Path Status", "PointsInPath", "Returns the total number of points in the specified path list.");
+AddExpression(0, ef_return_number, "Path node count", "Path Status", "PathNodeCount", "Returns the total number of nodes in the specified path list.");
 
 AddStringParam("Path", "The name of the path list to query.", "\"Default\"");
-AddNumberParam("Index", "The 0-based index of the point to get.", "0");
-AddExpression(1, ef_return_number, "X coordinate at index", "Points", "PointX", "Returns the X coordinate of a point at a specific index on a path.");
+AddNumberParam("Index", "The 0-based index of the node to get.", "0");
+AddExpression(1, ef_return_number, "Node X at index", "Nodes", "PathNodeXAt", "Returns the X coordinate of a node at a specific index on a path.");
 
 AddStringParam("Path", "The name of the path list to query.", "\"Default\"");
-AddNumberParam("Index", "The 0-based index of the point to get.", "0");
-AddExpression(2, ef_return_number, "Y coordinate at index", "Points", "PointY", "Returns the Y coordinate of a point at a specific index on a path.");
+AddNumberParam("Index", "The 0-based index of the node to get.", "0");
+AddExpression(2, ef_return_number, "Node Y at index", "Nodes", "PathNodeYAt", "Returns the Y coordinate of a node at a specific index on a path.");
 
 AddStringParam("Path", "The name of the path list to query.", "\"Default\"");
 AddExpression(3, ef_return_number, "Current X", "Current Point", "CurrentPointX", "Returns the X coordinate of the current point on a path.");
@@ -67,7 +73,9 @@ AddStringParam("Path", "The name of the path list to query.", "\"Default\"");
 AddExpression(5, ef_return_number, "Current index", "Index Control", "CurrentIndex", "Returns the 0-based index of the current point on a path.");
 
 AddStringParam("Path", "The name of the path list to query.", "\"Default\"");
-AddExpression(6, ef_return_number, "Last index", "Path Status", "LastIndex", "Returns the index of the last point on a path (PointsInPath - 1).");
+AddExpression(6, ef_return_number, "Last index", "Path Status", "LastIndex", "Returns the index of the last point on a path (PathNodeCount - 1).");
+
+AddExpression(7, ef_return_number, "Current node index", "Iteration", "CurrentNodeIndex", "Returns the current index in a 'For each node' loop.");
 
 
 ////////////////////////////////////////
@@ -90,9 +98,8 @@ var property_list = [
 
 function CreateIDEBehaviorType() { return new IDEBehaviorType(); }
 function IDEBehaviorType() { assert2(this instanceof arguments.callee, "Constructor called as a function"); }
-IDEBehaviorType.prototype.CreateInstance = function(instance, type) { return new IDEInstance(instance, type); }
-function IDEInstance(instance, type)
-{
+IDEBehaviorType.prototype.CreateInstance = function (instance, type) { return new IDEInstance(instance, type); }
+function IDEInstance(instance, type) {
 	assert2(this instanceof arguments.callee, "Constructor called as a function");
 	this.instance = instance;
 	this.type = type;
@@ -101,8 +108,7 @@ function IDEInstance(instance, type)
 	for (var i = 0; i < property_list.length; i++)
 		this.properties[property_list[i].name] = property_list[i].initial_value;
 }
-IDEInstance.prototype.OnPropertyChanged = function(property_name)
-{
+IDEInstance.prototype.OnPropertyChanged = function (property_name) {
 }
 
 // The runtime script file to include in the exported project
