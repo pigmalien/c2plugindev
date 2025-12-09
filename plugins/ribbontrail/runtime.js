@@ -51,6 +51,8 @@ cr.plugins_.RibbonTrail = function (runtime) {
 		// Properties
 		this.ribbonWidth = this.properties[0];
 		this.trailLifespan = this.properties[1];
+		// Property 2 is Initial visibility (0 = Visible, 1 = Invisible)
+		this.visible = (this.properties[2] === 0);
 		// Replaced textScrollSpeed with logic optimized static tiling
 
 		// Turn on ticking for garbage collection
@@ -112,6 +114,7 @@ cr.plugins_.RibbonTrail = function (runtime) {
 	};
 
 	instanceProto.drawGL = function (glw) {
+		if (!this.visible) return;
 		// Use glw.quad processing.
 		var count = this.pointHistory.length;
 		if (count < 2) return;
@@ -144,7 +147,7 @@ cr.plugins_.RibbonTrail = function (runtime) {
 		// Normals are now cached in pointHistory during UpdateTrailPosition.
 		// We only calculate W (Width) and Alpha here.
 
-		var objectOpacity = this.opacity;
+
 
 		// Loop through segments
 		for (var i = 0; i < count - 1; i++) {
@@ -157,7 +160,7 @@ cr.plugins_.RibbonTrail = function (runtime) {
 			// Fallback for missing normals (if old points exist before optimization)
 			// But user reloads, so clean start.
 
-			// 1. Calculate Widths and Alphas
+			// 1. Calculate Widths (Shrinking only, no alpha fade)
 			var age1 = now - p1.time;
 			var lifeRatio1 = 1.0 - (age1 / this.trailLifespan);
 			if (lifeRatio1 < 0) lifeRatio1 = 0; if (lifeRatio1 > 1) lifeRatio1 = 1;
@@ -172,7 +175,9 @@ cr.plugins_.RibbonTrail = function (runtime) {
 			var w2 = this.ribbonWidth * lifeRatio2;
 			var hw2 = w2 * 0.5;
 
-			var alpha = (lifeRatio1 + lifeRatio2) * 0.5 * objectOpacity;
+			// Global Object Opacity only (No fade out)
+			// User requested removal of Opacity setting. Texture alpha is used solely.
+			var alpha = 1;
 
 			// 2. Vertex positions
 			// P1
@@ -204,11 +209,12 @@ cr.plugins_.RibbonTrail = function (runtime) {
 
 	Acts.prototype.UpdateTrailPosition = function (x, y) {
 		// Minimum distance check
+		// Optimization: Increase threshold to reduce vertex count for WEAK GPUs
 		if (this.pointHistory.length > 0) {
 			var last = this.pointHistory[0];
 			var dx = x - last.x;
 			var dy = y - last.y;
-			if (dx * dx + dy * dy < 2) return;
+			if (dx * dx + dy * dy < 16) return; // 4 pixel threshold
 		}
 
 		var now = this.runtime.kahanTime.sum;
@@ -265,6 +271,22 @@ cr.plugins_.RibbonTrail = function (runtime) {
 		}
 
 		this.runtime.redraw = true;
+	};
+
+	Acts.prototype.LoadURL = function (url, cross_origin) {
+		var img = new Image();
+		var self = this;
+
+		img.onload = function () {
+			self.webGL_texture = self.runtime.glwrap.loadTexture(img, false, self.runtime.linearSampling, self.type.texture_pixelformat);
+			self.runtime.redraw = true;
+		};
+
+		// 0 = Anonymous, 1 = None
+		if (cross_origin === 0)
+			img.crossOrigin = "anonymous";
+
+		img.src = url;
 	};
 
 	pluginProto.acts = new Acts();

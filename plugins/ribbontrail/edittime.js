@@ -39,6 +39,12 @@ AddNumberParam("X", "The X coordinate tracking position.");
 AddNumberParam("Y", "The Y coordinate tracking position.");
 AddAction(0, af_none, "Update Trail Position", "Ribbon", "Update trail position by ({0}, {1})", "Add a new tracking point to the ribbon trail.", "UpdateTrailPosition");
 
+AddStringParam("URI", "Enter the URL on the web to load the image from.", "\"http://\"");
+AddComboParamOption("Anonymous");
+AddComboParamOption("None");
+AddComboParam("Cross-origin", "Interpretation of the cross-origin policy for this image.");
+AddAction(1, af_none, "Load image from URL", "Web", "Load image from {0} (cross-origin {1})", "Replace the current texture with an image from a web URL.", "LoadURL");
+
 ////////////////////////////////////////
 // Expressions
 ACESDone();
@@ -47,7 +53,8 @@ ACESDone();
 // Array of property grid properties for this plugin
 var property_list = [
 	new cr.Property(ept_float, "Ribbon Width", 40, "The maximum width of the ribbon mesh at its head (in pixels)."),
-	new cr.Property(ept_float, "Trail Lifespan", 0.5, "The total duration (in seconds) that a segment of the ribbon persists.")
+	new cr.Property(ept_float, "Trail Lifespan", 0.5, "The total duration (in seconds) that a segment of the ribbon persists."),
+	new cr.Property(ept_combo, "Initial visibility", "Visible", "Choose whether the object is visible when the layout starts.", "Visible|Invisible")
 ];
 
 // Called by IDE when a new object type is to be created
