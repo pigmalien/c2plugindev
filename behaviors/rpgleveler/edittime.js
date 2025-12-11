@@ -1,14 +1,14 @@
 ﻿function GetBehaviorSettings()
 {
 	return {
-		"name":			"MyBehavior",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
-		"id":			"MyBehavior",			// this is used to identify this behavior and is saved to the project; never change it
+		"name":			"RPG Leveler",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
+		"id":			"RPGLeveler",			// this is used to identify this behavior and is saved to the project; never change it
 		"version":		"1.0",					// (float in x.y format) Behavior version - C2 shows compatibility warnings based on this
-		"description":	"<appears at the bottom of the add behavior dialog>",
-		"author":		"<your name/organisation>",
-		"help url":		"<your website or a manual entry on Scirra.com>",
-		"category":		"General",				// Prefer to re-use existing categories, but you can set anything here
-		"flags":		0						// uncomment lines to enable flags...
+		"description":	"Manages experience points and leveling for characters using configurable mathematical curves.",
+		"author":		"Gemini Code Assist",
+		"help url":		"https://www.construct.net",
+		"category":		"General",
+		"flags":		bf_onlyone						// uncomment lines to enable flags...
 					//	| bf_onlyone			// can only be added once to an object, e.g. solid
 	};
 };
@@ -39,8 +39,9 @@
 //				description,		// appears in event wizard dialog when selected
 //				script_name);		// corresponding runtime function name
 				
-// example				
-AddCondition(0, cf_none, "Is moving", "My category", "{my} is moving", "Description for my condition!", "IsMoving");
+// Conditions
+AddCondition(0, cf_trigger, "On level up", "Leveling", "{my} On level up", "Triggered when the object levels up.", "OnLevelUp");
+AddCondition(1, cf_trigger, "On max level reached", "Leveling", "{my} On max level reached", "Triggered once when the object reaches the maximum level.", "OnMaxLevelReached");
 
 ////////////////////////////////////////
 // Actions
@@ -52,9 +53,22 @@ AddCondition(0, cf_none, "Is moving", "My category", "{my} is moving", "Descript
 //			 display_str,		// as appears in event sheet - use {0}, {1} for parameters and also <b></b>, <i></i>
 //			 description,		// appears in event wizard dialog when selected
 //			 script_name);		// corresponding runtime function name
+AddNumberParam("Amount", "The amount of experience to add.");
+AddAction(0, af_none, "Add experience", "Experience", "Add {0} experience to {my}", "Add experience points to the object.", "AddXP");
 
-// example
-AddAction(0, af_none, "Stop", "My category", "Stop {my}", "Description for my action!", "Stop");
+AddComboParamOption("Polynomial (Base * L^2)");
+AddComboParamOption("Exponential (Base * Factor^(L-1))");
+AddComboParamOption("Linear (Base * L)");
+AddComboParam("Curve Type", "Select the formula for calculating XP requirements.");
+AddAction(1, af_none, "Set curve type", "Configuration", "Set curve type to {0}", "Set the experience curve formula.", "SetCurveType");
+
+AddAction(2, af_none, "Reset level", "Leveling", "Reset level and XP for {my}", "Reset the object's level to 1 and XP to 0.", "ResetLevel");
+
+AddNumberParam("Level", "The level to set the object to.");
+AddAction(3, af_none, "Set level", "Debug", "Set level to {0}", "Instantly set the object's level (for debugging).", "SetLevel");
+
+AddNumberParam("Experience", "The total experience to set the object to.");
+AddAction(4, af_none, "Set experience", "Debug", "Set total experience to {0}", "Instantly set the object's total experience (for debugging).", "SetXP");
 
 ////////////////////////////////////////
 // Expressions
@@ -66,9 +80,12 @@ AddAction(0, af_none, "Stop", "My category", "Stop {my}", "Description for my ac
 //				 category,		// category in expressions panel
 //				 exp_name,		// the expression name after the dot, e.g. "foo" for "myobject.foo" - also the runtime function name
 //				 description);	// description in expressions panel
-
-// example
-AddExpression(0, ef_return_number, "Leet expression", "My category", "MyExpression", "Return the number 1337.");
+AddExpression(0, ef_return_number, "CurrentLevel", "Leveling", "CurrentLevel", "The current level of the object.");
+AddExpression(1, ef_return_number, "CurrentXP", "Experience", "CurrentXP", "The total accumulated experience points.");
+AddExpression(2, ef_return_number, "XPRemaining", "Experience", "XPRemaining", "The remaining experience points needed to reach the next level.");
+AddExpression(3, ef_return_number, "XPForNextLevel", "Experience", "XPForNextLevel", "The total experience points required for the next level up.");
+AddExpression(4, ef_return_number, "BonusPointsAvailable", "Stats", "BonusPointsAvailable", "The number of unspent bonus points from leveling up.");
+AddExpression(5, ef_return_number, "XPPercentageToNextLevel", "UI", "XPPercentageToNextLevel", "The progress to the next level as a value from 0 to 1.");
 
 ////////////////////////////////////////
 ACESDone();
@@ -81,7 +98,13 @@ ACESDone();
 // new cr.Property(ept_combo,		name,	"Item 1",		description, "Item 1|Item 2|Item 3")	// a dropdown list (initial_value is string of initially selected item)
 
 var property_list = [
-	new cr.Property(ept_integer, 	"My property",		77,		"An example property.")
+	new cr.Property(ept_integer, 	"Initial level",		1,		"The starting level of the object."),
+	new cr.Property(ept_integer, 	"Max level",			99,		"The maximum level the object can achieve."),
+	new cr.Property(ept_combo,		"Curve type",			"Polynomial (Base * L^2)", "The formula used to calculate the XP required for the next level.", "Polynomial (Base * L^2)|Exponential (Base * Factor^(L-1))|Linear (Base * L)"),
+	new cr.Property(ept_float,		"Base XP",				100,	"The base value used in the XP curve formula."),
+	new cr.Property(ept_float,		"Growth factor",		1.5,	"The growth factor used in the 'Exponential' curve formula."),
+	new cr.Property(ept_integer,	"Bonus points per level", 1,	"The number of bonus stat points awarded on each level up."),
+	new cr.Property(ept_text,		"Custom curve formula",	"",		"A custom JavaScript expression for XP calculation, e.g. '100 * Math.pow(L, 3)'. Overrides 'Curve type' if set. 'L' is the current level.")
 	];
 	
 // Called by IDE when a new behavior type is to be created
