@@ -65,6 +65,11 @@ AddAction(5, af_none, "Set repulsion radius", "Parameters", "Set repulsion radiu
 AddNumberParam("Force", "The new repulsion force (0 to 1).");
 AddAction(6, af_none, "Set repulsion force", "Parameters", "Set repulsion force to {0}", "Set the repulsion force for the object.", "SetRepulsionForce");
 
+AddObjectParam("Obstacle", "The object to avoid.");
+AddAction(7, af_none, "Add obstacle", "Obstacles", "Add obstacle {0}", "Add an object type to avoid.", "AddObstacle");
+
+AddAction(8, af_none, "Clear obstacles", "Obstacles", "Clear obstacles", "Remove all added obstacles.", "ClearObstacles");
+
 ////////////////////////////////////////
 // Expressions
 

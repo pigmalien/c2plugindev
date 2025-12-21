@@ -68,6 +68,7 @@ cr.behaviors.MobsMovement = function(runtime)
 
 		// For restoring width when flipping
 		this.lastKnownWidth = this.inst.width;
+		this.obstacleTypes = [];
 	};
 	
 	behinstProto.onDestroy = function ()
@@ -181,11 +182,18 @@ cr.behaviors.MobsMovement = function(runtime)
 
 		for (var i = 0; i < movers.length; i++) {
 			var moverA = movers[i];
-			// Skip inactive movers in the force calculation
-			if (!moverA.behavior_insts[0].isActive)
+			
+			// Find the correct behavior instance for this mover
+			var behA = null;
+			for (var b = 0; b < moverA.behavior_insts.length; b++) {
+				if (moverA.behavior_insts[b].type === this.type) {
+					behA = moverA.behavior_insts[b];
+					break;
+				}
+			}
+
+			if (!behA || !behA.isActive)
 				continue;
-				
-			var behA = moverA.behavior_insts[0]; // Assuming this is the only behavior
 
 			var totalForceX = 0;
 			var totalForceY = 0;
@@ -216,6 +224,27 @@ cr.behaviors.MobsMovement = function(runtime)
 					totalForceY -= (dy / dist) * forceMagnitude * behA.repulsionForce;
 				}
 			}
+
+			// C. Obstacle Avoidance
+			for (var k = 0; k < behA.obstacleTypes.length; k++) {
+				var obstacleType = behA.obstacleTypes[k];
+				var obstacles = obstacleType.instances;
+				for (var m = 0; m < obstacles.length; m++) {
+					var obstacle = obstacles[m];
+					
+					var dx = obstacle.x - moverA.x;
+					var dy = obstacle.y - moverA.y;
+					var distSq = (dx * dx) + (dy * dy);
+
+					if (distSq > 0 && distSq < behA.repulsionRadiusSq) {
+						var dist = Math.sqrt(distSq);
+						var forceMagnitude = (behA.repulsionRadius - dist) / behA.repulsionRadius;
+						totalForceX -= (dx / dist) * forceMagnitude * behA.repulsionForce;
+						totalForceY -= (dy / dist) * forceMagnitude * behA.repulsionForce;
+					}
+				}
+			}
+
 			forces[moverA.uid] = { x: totalForceX, y: totalForceY };
 		}
 	};
@@ -313,6 +342,18 @@ cr.behaviors.MobsMovement = function(runtime)
 	Acts.prototype.SetRepulsionForce = function (f)
 	{
 		this.repulsionForce = f;
+	};
+	
+	Acts.prototype.AddObstacle = function (obj)
+	{
+		if (!obj) return;
+		if (this.obstacleTypes.indexOf(obj) === -1)
+			this.obstacleTypes.push(obj);
+	};
+
+	Acts.prototype.ClearObstacles = function ()
+	{
+		this.obstacleTypes.length = 0;
 	};
 	
 	// ... other actions here ...
