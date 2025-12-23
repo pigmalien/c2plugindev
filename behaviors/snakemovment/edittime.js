@@ -27,6 +27,14 @@ AddAction(2, af_none, "Reorganise chain", "Chain", "Reorganise chain", "Remove d
 // ACT 3: Add Segment
 AddAction(3, af_none, "Add segment", "Chain", "Add segment", "Add a new segment to the end of the chain.", "AddSegment");
 
+// ACT 4: Set Body Object
+AddObjectParam("Object", "The object type to use for body segments.");
+AddAction(4, af_none, "Set body object", "Chain", "Set body object to {0}", "Set the object type used for body segments.", "SetBodyObject");
+
+// ACT 5: Add Segment (Object)
+AddObjectParam("Object", "The object type to use for this segment.");
+AddAction(5, af_none, "Add segment (object)", "Chain", "Add segment {0}", "Add a new segment of a specific object type to the end of the chain.", "AddSegmentObject");
+
 
 ////////////////////////////////////////
 // Expressions
