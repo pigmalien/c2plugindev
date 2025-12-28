@@ -52,6 +52,7 @@ cr.plugins_.SysTime = function(runtime)
 	instanceProto.onCreate = function()
 	{
 		this.timers = {};
+		this.chains = {};
 		
 		// Properties
 		this.timescaleMode = this.properties[0]; // 0 = Normal, 1 = dt-independent
@@ -59,6 +60,7 @@ cr.plugins_.SysTime = function(runtime)
 		
 		this.lastRealTime = Date.now();
 		this.triggerTimerName = "";
+		this.triggerChainName = "";
 		
 		this.runtime.tickMe(this);
 	};
@@ -69,6 +71,7 @@ cr.plugins_.SysTime = function(runtime)
 	instanceProto.onDestroy = function ()
 	{
 		this.timers = {};
+		this.chains = {};
 	};
 	
 	// called when saving the full state of the game
@@ -80,6 +83,7 @@ cr.plugins_.SysTime = function(runtime)
 		return {
 			// e.g.
 			"timers": this.timers,
+			"chains": this.chains,
 			"lastRealTime": this.lastRealTime
 		};
 	};
@@ -94,6 +98,7 @@ cr.plugins_.SysTime = function(runtime)
 		// Closure Compiler renaming and breaking the save format
 		
 		if (o["timers"]) this.timers = o["timers"];
+		if (o["chains"]) this.chains = o["chains"];
 		if (o["lastRealTime"]) this.lastRealTime = o["lastRealTime"];
 		
 		// Reset real time to now to avoid huge jump after load
@@ -129,6 +134,43 @@ cr.plugins_.SysTime = function(runtime)
 							timer.elapsed = 0;
 						} else {
 							timer.active = false;
+						}
+					}
+				}
+			}
+		}
+		
+		// Process Chains
+		for (var name in this.chains)
+		{
+			if (this.chains.hasOwnProperty(name))
+			{
+				var chain = this.chains[name];
+				if (chain.active && chain.links.length > 0)
+				{
+					chain.elapsed += dt;
+					var currentDuration = chain.links[chain.currentIndex];
+					
+					if (chain.elapsed >= currentDuration)
+					{
+						// Link Finished
+						chain.elapsed = 0;
+						chain.currentIndex++;
+						
+						if (chain.currentIndex >= chain.links.length)
+						{
+							if (chain.loop) {
+								chain.currentIndex = 0;
+								this.triggerChainName = name;
+								this.runtime.trigger(cr.plugins_.SysTime.prototype.cnds.OnChainStep, this);
+							} else {
+								chain.active = false;
+								this.triggerChainName = name;
+								this.runtime.trigger(cr.plugins_.SysTime.prototype.cnds.OnChainFinished, this);
+							}
+						} else {
+							this.triggerChainName = name;
+							this.runtime.trigger(cr.plugins_.SysTime.prototype.cnds.OnChainStep, this);
 						}
 					}
 				}
@@ -190,6 +232,30 @@ cr.plugins_.SysTime = function(runtime)
 		return false;
 	};
 	
+	Cnds.prototype.OnChainStep = function (name)
+	{
+		return cr.equals_nocase(name, this.triggerChainName);
+	};
+
+	Cnds.prototype.OnChainFinished = function (name)
+	{
+		return cr.equals_nocase(name, this.triggerChainName);
+	};
+
+	Cnds.prototype.IsChainRunning = function (name)
+	{
+		if (this.chains.hasOwnProperty(name))
+			return this.chains[name].active;
+		return false;
+	};
+
+	Cnds.prototype.CompareChainIndex = function (name, cmp, value)
+	{
+		if (this.chains.hasOwnProperty(name))
+			return cr.do_cmp(this.chains[name].currentIndex, cmp, value);
+		return false;
+	};
+	
 	pluginProto.cnds = new Cnds();
 	
 	//////////////////////////////////////
@@ -231,6 +297,69 @@ cr.plugins_.SysTime = function(runtime)
 		}
 	};
 	
+	Acts.prototype.CreateChain = function (name)
+	{
+		this.chains[name] = {
+			links: [],
+			currentIndex: 0,
+			elapsed: 0,
+			active: false,
+			loop: false
+		};
+	};
+
+	Acts.prototype.AddChainLink = function (name, duration)
+	{
+		if (this.chains.hasOwnProperty(name)) {
+			duration = parseFloat(duration);
+			if (isNaN(duration)) duration = 0;
+			this.chains[name].links.push(duration);
+		}
+	};
+
+	Acts.prototype.StartChain = function (name)
+	{
+		if (this.chains.hasOwnProperty(name) && this.chains[name].links.length > 0) {
+			var chain = this.chains[name];
+			chain.currentIndex = 0;
+			chain.elapsed = 0;
+			chain.active = true;
+			
+			this.triggerChainName = name;
+			this.runtime.trigger(cr.plugins_.SysTime.prototype.cnds.OnChainStep, this);
+		}
+	};
+
+	Acts.prototype.StopChain = function (name)
+	{
+		if (this.chains.hasOwnProperty(name)) {
+			this.chains[name].active = false;
+			this.chains[name].currentIndex = 0;
+			this.chains[name].elapsed = 0;
+		}
+	};
+
+	Acts.prototype.SetChainLoop = function (name, mode)
+	{
+		if (this.chains.hasOwnProperty(name)) {
+			this.chains[name].loop = (mode === 1);
+		}
+	};
+
+	Acts.prototype.SetChainIndex = function (name, index)
+	{
+		if (this.chains.hasOwnProperty(name)) {
+			var chain = this.chains[name];
+			index = Math.floor(index);
+			if (index < 0) index = 0;
+			// We allow setting index out of bounds if logic requires it, 
+			// but usually we clamp to length-1 or handle it in tick.
+			// For safety, let's just set it. Tick will handle overflow if active.
+			chain.currentIndex = index;
+			chain.elapsed = 0;
+		}
+	};
+
 	pluginProto.acts = new Acts();
 	
 	//////////////////////////////////////
@@ -276,6 +405,51 @@ cr.plugins_.SysTime = function(runtime)
 		ret.set_float(val);
 	};
 	
+	Exps.prototype.ChainProgress = function (ret, name)
+	{
+		var val = 0;
+		if (this.chains.hasOwnProperty(name)) {
+			var c = this.chains[name];
+			if (c.active && c.currentIndex < c.links.length) {
+				var dur = c.links[c.currentIndex];
+				if (dur > 0) val = c.elapsed / dur;
+				else val = 1;
+			}
+		}
+		if (val > 1) val = 1;
+		ret.set_float(val);
+	};
+
+	Exps.prototype.TotalChainProgress = function (ret, name)
+	{
+		var val = 0;
+		if (this.chains.hasOwnProperty(name)) {
+			var c = this.chains[name];
+			var totalDur = 0;
+			var currentTotal = 0;
+			
+			for (var i = 0; i < c.links.length; i++) {
+				totalDur += c.links[i];
+				if (i < c.currentIndex) currentTotal += c.links[i];
+			}
+			currentTotal += c.elapsed;
+			
+			if (totalDur > 0) val = currentTotal / totalDur;
+			else val = 1;
+		}
+		if (val > 1) val = 1;
+		ret.set_float(val);
+	};
+
+	Exps.prototype.ChainIndex = function (ret, name)
+	{
+		var val = 0;
+		if (this.chains.hasOwnProperty(name)) {
+			val = this.chains[name].currentIndex;
+		}
+		ret.set_int(val);
+	};
+
 	pluginProto.exps = new Exps();
 
 }());

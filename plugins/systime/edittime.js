@@ -63,6 +63,20 @@ AddCondition(1, cf_trigger, "On timer", "Timer", "On timer {0}", "Triggered when
 AddStringParam("Name", "The name of the timer.");
 AddCondition(2, cf_none, "Is timer running", "Timer", "Is timer {0} running", "True if the named timer is currently active.", "IsTimerRunning");
 
+AddStringParam("Name", "The name of the chain.");
+AddCondition(3, cf_trigger, "On chain step", "Chain Timer", "On chain {0} step", "Triggered when a chain moves to the next step.", "OnChainStep");
+
+AddStringParam("Name", "The name of the chain.");
+AddCondition(4, cf_trigger, "On chain finished", "Chain Timer", "On chain {0} finished", "Triggered when a chain finishes.", "OnChainFinished");
+
+AddStringParam("Name", "The name of the chain.");
+AddCondition(5, cf_none, "Is chain running", "Chain Timer", "Is chain {0} running", "True if the chain is currently active.", "IsChainRunning");
+
+AddStringParam("Name", "The name of the chain.");
+AddCmpParam("Comparison", "Comparison to the current index.");
+AddNumberParam("Index", "The index to compare to.");
+AddCondition(6, cf_none, "Compare chain index", "Chain Timer", "Chain {0} index {1} {2}", "Compare the current index of a chain.", "CompareChainIndex");
+
 ////////////////////////////////////////
 // Actions
 
@@ -84,6 +98,29 @@ AddStringParam("Name", "The name of the timer.");
 AddNumberParam("Current Value", "The new current value for the timer.");
 AddAction(1, af_none, "Sync To Value", "Timer", "Sync timer {0} to {1}", "Manually set the elapsed time of a named timer.", "SyncToValue");
 
+AddStringParam("Name", "The name of the chain.");
+AddAction(2, af_none, "Create Chain", "Chain Timer", "Create chain {0}", "Initialize a new chain.", "CreateChain");
+
+AddStringParam("Name", "The name of the chain.");
+AddNumberParam("Duration", "The duration of the link.");
+AddAction(3, af_none, "Add Link", "Chain Timer", "Add link {1}s to chain {0}", "Add a duration link to a chain.", "AddChainLink");
+
+AddStringParam("Name", "The name of the chain.");
+AddAction(4, af_none, "Start Chain", "Chain Timer", "Start chain {0}", "Start a chain.", "StartChain");
+
+AddStringParam("Name", "The name of the chain.");
+AddAction(5, af_none, "Stop Chain", "Chain Timer", "Stop chain {0}", "Stop and reset a chain.", "StopChain");
+
+AddStringParam("Name", "The name of the chain.");
+AddComboParamOption("No Loop");
+AddComboParamOption("Loop");
+AddComboParam("Mode", "Set loop mode.");
+AddAction(6, af_none, "Set Chain Loop", "Chain Timer", "Set chain {0} loop to {1}", "Set whether the chain loops.", "SetChainLoop");
+
+AddStringParam("Name", "The name of the chain.");
+AddNumberParam("Index", "The index to jump to.");
+AddAction(7, af_none, "Set Chain Index", "Chain Timer", "Set chain {0} index to {1}", "Jump to a specific index in the chain.", "SetChainIndex");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -104,6 +141,15 @@ AddExpression(1, ef_return_number, "TimeElapsed", "Timer", "TimeElapsed", "Get t
 
 AddStringParam("Name", "The name of the timer.");
 AddExpression(2, ef_return_number, "TimeElapsedNormalised", "Timer", "TimeElapsedNormalised", "Get the normalised progress (0 to 1) of a named timer.");
+
+AddStringParam("Name", "The name of the chain.");
+AddExpression(3, ef_return_number, "ChainProgress", "Chain Timer", "ChainProgress", "Get the progress (0-1) of the current link.");
+
+AddStringParam("Name", "The name of the chain.");
+AddExpression(4, ef_return_number, "TotalChainProgress", "Chain Timer", "TotalChainProgress", "Get the progress (0-1) of the entire chain.");
+
+AddStringParam("Name", "The name of the chain.");
+AddExpression(5, ef_return_number, "ChainIndex", "Chain Timer", "ChainIndex", "Get the current index of the chain.");
 
 ////////////////////////////////////////
 ACESDone();
