@@ -54,11 +54,14 @@
 //				script_name);		// corresponding runtime function name
 				
 // example				
-AddCondition(0, cf_trigger, "On timer start", "Timer", "On timer start", "Triggered when the timer starts.", "OnTimerStart");
+AddStringParam("Name", "The name of the timer.");
+AddCondition(0, cf_trigger, "On timer start", "Timer", "On timer {0} start", "Triggered when a named timer starts.", "OnTimerStart");
 
-AddCondition(1, cf_trigger, "On timer", "Timer", "On timer", "Triggered when the timer finishes.", "OnTimer");
+AddStringParam("Name", "The name of the timer.");
+AddCondition(1, cf_trigger, "On timer", "Timer", "On timer {0}", "Triggered when a named timer finishes.", "OnTimer");
 
-AddCondition(2, cf_none, "Is timer running", "Timer", "Is timer running", "True if the timer is currently active.", "IsTimerRunning");
+AddStringParam("Name", "The name of the timer.");
+AddCondition(2, cf_none, "Is timer running", "Timer", "Is timer {0} running", "True if the named timer is currently active.", "IsTimerRunning");
 
 ////////////////////////////////////////
 // Actions
@@ -72,11 +75,13 @@ AddCondition(2, cf_none, "Is timer running", "Timer", "Is timer running", "True 
 //			 script_name);		// corresponding runtime function name
 
 // example
+AddStringParam("Name", "The name of the timer.");
 AddNumberParam("Duration", "The duration of the timer.");
-AddAction(0, af_none, "Start Timer", "Timer", "Start timer for {0}", "Start the timer.", "StartTimer");
+AddAction(0, af_none, "Start Timer", "Timer", "Start timer {0} for {1}", "Start a named timer.", "StartTimer");
 
+AddStringParam("Name", "The name of the timer.");
 AddNumberParam("Current Value", "The new current value for the timer.");
-AddAction(1, af_none, "Sync To Value", "Timer", "Sync timer to {0}", "Manually set the elapsed time.", "SyncToValue");
+AddAction(1, af_none, "Sync To Value", "Timer", "Sync timer {0} to {1}", "Manually set the elapsed time of a named timer.", "SyncToValue");
 
 ////////////////////////////////////////
 // Expressions
@@ -90,11 +95,14 @@ AddAction(1, af_none, "Sync To Value", "Timer", "Sync timer to {0}", "Manually s
 //				 description);	// description in expressions panel
 
 // example
-AddExpression(0, ef_return_number, "TimeRemaining", "Timer", "TimeRemaining", "Get the time remaining.");
+AddStringParam("Name", "The name of the timer.");
+AddExpression(0, ef_return_number, "TimeRemaining", "Timer", "TimeRemaining", "Get the time remaining for a named timer.");
 
-AddExpression(1, ef_return_number, "TimeElapsed", "Timer", "TimeElapsed", "Get the time elapsed.");
+AddStringParam("Name", "The name of the timer.");
+AddExpression(1, ef_return_number, "TimeElapsed", "Timer", "TimeElapsed", "Get the time elapsed for a named timer.");
 
-AddExpression(2, ef_return_number, "TimeElapsedNormalised", "Timer", "TimeElapsedNormalised", "Get the normalised progress (0 to 1).");
+AddStringParam("Name", "The name of the timer.");
+AddExpression(2, ef_return_number, "TimeElapsedNormalised", "Timer", "TimeElapsedNormalised", "Get the normalised progress (0 to 1) of a named timer.");
 
 ////////////////////////////////////////
 ACESDone();

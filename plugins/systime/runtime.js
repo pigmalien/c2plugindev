@@ -51,15 +51,14 @@ cr.plugins_.SysTime = function(runtime)
 	// called whenever an instance is created
 	instanceProto.onCreate = function()
 	{
-		this.active = false;
-		this.duration = 0;
-		this.elapsed = 0;
+		this.timers = {};
 		
 		// Properties
 		this.timescaleMode = this.properties[0]; // 0 = Normal, 1 = dt-independent
 		this.precision = this.properties[1];     // 0 = Seconds, 1 = Milliseconds
 		
 		this.lastRealTime = Date.now();
+		this.triggerTimerName = "";
 		
 		this.runtime.tickMe(this);
 	};
@@ -69,7 +68,7 @@ cr.plugins_.SysTime = function(runtime)
 	// to release/recycle/reset any references to other objects in this function.
 	instanceProto.onDestroy = function ()
 	{
-		this.active = false;
+		this.timers = {};
 	};
 	
 	// called when saving the full state of the game
@@ -80,9 +79,7 @@ cr.plugins_.SysTime = function(runtime)
 		// Closure Compiler renaming and breaking the save format
 		return {
 			// e.g.
-			"active": this.active,
-			"duration": this.duration,
-			"elapsed": this.elapsed,
+			"timers": this.timers,
 			"lastRealTime": this.lastRealTime
 		};
 	};
@@ -96,9 +93,7 @@ cr.plugins_.SysTime = function(runtime)
 		// note you MUST use double-quote syntax (e.g. o["property"]) to prevent
 		// Closure Compiler renaming and breaking the save format
 		
-		this.active = o["active"];
-		this.duration = o["duration"];
-		this.elapsed = o["elapsed"];
+		if (o["timers"]) this.timers = o["timers"];
 		if (o["lastRealTime"]) this.lastRealTime = o["lastRealTime"];
 		
 		// Reset real time to now to avoid huge jump after load
@@ -115,14 +110,22 @@ cr.plugins_.SysTime = function(runtime)
 		var dt = (this.timescaleMode === 0) ? this.runtime.getDt() : realDt;
 		if (typeof dt !== "number" || isNaN(dt)) dt = 0;
 		
-		if (this.active)
+		for (var name in this.timers)
 		{
-			this.elapsed += dt;
-			
-			if (this.elapsed >= this.duration)
+			if (this.timers.hasOwnProperty(name))
 			{
-				this.active = false;
-				this.runtime.trigger(cr.plugins_.SysTime.prototype.cnds.OnTimer, this);
+				var timer = this.timers[name];
+				if (timer.active)
+				{
+					timer.elapsed += dt;
+					
+					if (timer.elapsed >= timer.duration)
+					{
+						timer.active = false;
+						this.triggerTimerName = name;
+						this.runtime.trigger(cr.plugins_.SysTime.prototype.cnds.OnTimer, this);
+					}
+				}
 			}
 		}
 	};
@@ -164,19 +167,21 @@ cr.plugins_.SysTime = function(runtime)
 	// Conditions
 	function Cnds() {};
 
-	Cnds.prototype.OnTimerStart = function ()
+	Cnds.prototype.OnTimerStart = function (name)
 	{
-		return true;
+		return cr.equals_nocase(name, this.triggerTimerName);
 	};
 	
-	Cnds.prototype.OnTimer = function ()
+	Cnds.prototype.OnTimer = function (name)
 	{
-		return true;
+		return cr.equals_nocase(name, this.triggerTimerName);
 	};
 	
-	Cnds.prototype.IsTimerRunning = function ()
+	Cnds.prototype.IsTimerRunning = function (name)
 	{
-		return this.active;
+		if (this.timers.hasOwnProperty(name))
+			return this.timers[name].active;
+		return false;
 	};
 	
 	pluginProto.cnds = new Cnds();
@@ -185,7 +190,7 @@ cr.plugins_.SysTime = function(runtime)
 	// Actions
 	function Acts() {};
 
-	Acts.prototype.StartTimer = function (duration)
+	Acts.prototype.StartTimer = function (name, duration)
 	{
 		duration = parseFloat(duration);
 
@@ -194,21 +199,27 @@ cr.plugins_.SysTime = function(runtime)
 		// Convert duration to seconds if precision is Milliseconds
 		var dur = (this.precision === 1) ? (duration / 1000.0) : duration;
 		
-		this.duration = dur;
-		this.elapsed = 0;
-		this.active = true;
+		this.timers[name] = {
+			duration: dur,
+			elapsed: 0,
+			active: true
+		};
 
+		this.triggerTimerName = name;
 		this.runtime.trigger(cr.plugins_.SysTime.prototype.cnds.OnTimerStart, this);
 	};
 	
-	Acts.prototype.SyncToValue = function (val)
+	Acts.prototype.SyncToValue = function (name, val)
 	{
 		val = parseFloat(val);
 		if (isNaN(val)) val = 0;
 
-		// Convert input value to seconds if needed
-		var v = (this.precision === 1) ? (val / 1000.0) : val;
-		this.elapsed = v;
+		if (this.timers.hasOwnProperty(name))
+		{
+			// Convert input value to seconds if needed
+			var v = (this.precision === 1) ? (val / 1000.0) : val;
+			this.timers[name].elapsed = v;
+		}
 	};
 	
 	pluginProto.acts = new Acts();
@@ -217,28 +228,38 @@ cr.plugins_.SysTime = function(runtime)
 	// Expressions
 	function Exps() {};
 	
-	Exps.prototype.TimeRemaining = function (ret)
-	{
-		var val = this.duration - this.elapsed;
-		if (val < 0) val = 0;
-		if (this.precision === 1) val *= 1000;
-		ret.set_float(val);
-	};
-	
-	Exps.prototype.TimeElapsed = function (ret)
-	{
-		var val = this.elapsed;
-		if (this.precision === 1) val *= 1000;
-		ret.set_float(val);
-	};
-	
-	Exps.prototype.TimeElapsedNormalised = function (ret)
+	Exps.prototype.TimeRemaining = function (ret, name)
 	{
 		var val = 0;
-		if (this.duration > 0)
-			val = this.elapsed / this.duration;
-		else
-			val = 1;
+		if (this.timers.hasOwnProperty(name)) {
+			var t = this.timers[name];
+			val = t.duration - t.elapsed;
+			if (val < 0) val = 0;
+		}
+		if (this.precision === 1) val *= 1000;
+		ret.set_float(val);
+	};
+	
+	Exps.prototype.TimeElapsed = function (ret, name)
+	{
+		var val = 0;
+		if (this.timers.hasOwnProperty(name)) {
+			val = this.timers[name].elapsed;
+		}
+		if (this.precision === 1) val *= 1000;
+		ret.set_float(val);
+	};
+	
+	Exps.prototype.TimeElapsedNormalised = function (ret, name)
+	{
+		var val = 0;
+		if (this.timers.hasOwnProperty(name)) {
+			var t = this.timers[name];
+			if (t.duration > 0)
+				val = t.elapsed / t.duration;
+			else
+				val = 1;
+		}
 
 		// Clamp 0-1
 		if (val < 0) val = 0;
