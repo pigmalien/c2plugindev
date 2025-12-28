@@ -119,6 +119,7 @@ cr.plugins_.Lifeguard = function(runtime)
             var inst = this.runtime.createInstance(objType, layer);
             if (inst) {
                 inst.visible = false;
+                inst.lifeguard_pooled = true;
                 pool.array.push(inst);
             } else {
                 // Stop if we can't create more instances (e.g., instance limit reached).
@@ -192,8 +193,8 @@ cr.plugins_.Lifeguard = function(runtime)
         for (var i = 0; i < instances.length; i++)
         {
             var inst = instances[i];
-            // Only recycle if it's currently active/visible
-            if (inst.visible)
+            // Only recycle if it's currently active/visible and belongs to the pool
+            if (inst.visible && inst.lifeguard_pooled)
             {
                 // Hide the instance and return it to the available pool
                 inst.visible = false;
