@@ -121,9 +121,15 @@ cr.plugins_.SysTime = function(runtime)
 					
 					if (timer.elapsed >= timer.duration)
 					{
-						timer.active = false;
 						this.triggerTimerName = name;
 						this.runtime.trigger(cr.plugins_.SysTime.prototype.cnds.OnTimer, this);
+						
+						if (timer.loopCount > 1) {
+							timer.loopCount--;
+							timer.elapsed = 0;
+						} else {
+							timer.active = false;
+						}
 					}
 				}
 			}
@@ -190,11 +196,13 @@ cr.plugins_.SysTime = function(runtime)
 	// Actions
 	function Acts() {};
 
-	Acts.prototype.StartTimer = function (name, duration)
+	Acts.prototype.StartTimer = function (name, duration, loopCount)
 	{
 		duration = parseFloat(duration);
+		loopCount = parseInt(loopCount, 10);
 
 		if (isNaN(duration)) duration = 0;
+		if (isNaN(loopCount)) loopCount = 1;
 
 		// Convert duration to seconds if precision is Milliseconds
 		var dur = (this.precision === 1) ? (duration / 1000.0) : duration;
@@ -202,6 +210,7 @@ cr.plugins_.SysTime = function(runtime)
 		this.timers[name] = {
 			duration: dur,
 			elapsed: 0,
+			loopCount: loopCount,
 			active: true
 		};
 

@@ -77,7 +77,8 @@ AddCondition(2, cf_none, "Is timer running", "Timer", "Is timer {0} running", "T
 // example
 AddStringParam("Name", "The name of the timer.");
 AddNumberParam("Duration", "The duration of the timer.");
-AddAction(0, af_none, "Start Timer", "Timer", "Start timer {0} for {1}", "Start a named timer.", "StartTimer");
+AddNumberParam("Loop Count", "Number of times to repeat (1 for once).", "1");
+AddAction(0, af_none, "Start Timer", "Timer", "Start timer {0} for {1} ({2} loops)", "Start a named timer.", "StartTimer");
 
 AddStringParam("Name", "The name of the timer.");
 AddNumberParam("Current Value", "The new current value for the timer.");
