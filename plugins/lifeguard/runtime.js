@@ -160,6 +160,9 @@ cr.plugins_.Lifeguard = function(runtime)
             this.type.last_spawned_inst = inst;
             this.runtime.trigger(cr.plugins_.Lifeguard.prototype.cnds.OnSpawned, this);
             this.type.last_spawned_inst = null; // Clear after triggering
+            
+            // Pick the instance in the SOL so subsequent actions in the same event can use it
+            objType.getCurrentSol().pick_one(inst);
         } else {
             // No inactive instances found.
         }
