@@ -143,7 +143,7 @@ cr.behaviors.Encircle = function (runtime) {
 			// If relative Y < 0, move to back (of target).
 
 			// Check standard layer function
-			if (this.inst.layer && this.inst.layer.moveInstanceAdjacent) {
+			if (this.inst.layer && target.layer && this.inst.layer === target.layer && this.inst.layer.moveInstanceAdjacent) {
 				var relY = Math.sin(this.angle) * this.ry; // This is the component relative to target center
 
 				// If relY > 0: In front -> After target

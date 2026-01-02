@@ -119,6 +119,10 @@ cr.plugins_.Lifeguard = function(runtime)
             var inst = this.runtime.createInstance(objType, layer);
             if (inst) {
                 inst.visible = false;
+                // Move off-screen immediately to prevent collisions
+                inst.x = -10000;
+                inst.y = -10000;
+                inst.set_bbox_changed();
                 inst.lifeguard_pooled = true;
                 pool.array.push(inst);
             } else {

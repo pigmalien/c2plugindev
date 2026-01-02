@@ -130,21 +130,28 @@ cr.behaviors.MobsMovement = function(runtime)
 		// Normalize the final force vector to ensure consistent speed.
 		var forceMagnitude = Math.sqrt(force.x * force.x + force.y * force.y);
 		if (forceMagnitude > 0) {
+			// Scale speed by force magnitude if less than 1 to prevent jitter when forces are weak
+			var currentSpeed = this.maxSpeed * Math.min(forceMagnitude, 1);
+
 			var finalForceX = (force.x / forceMagnitude);
 			var finalForceY = (force.y / forceMagnitude);
+
+			// Safety check to prevent NaN/Infinity values from breaking collision
+			if (!isFinite(finalForceX) || !isFinite(finalForceY) || !isFinite(currentSpeed))
+				return;
 
 			// Apply movement based on the final force, max speed, and delta-time.
 			var oldx = this.inst.x;
 			var oldy = this.inst.y;
 
-			this.inst.x += finalForceX * this.maxSpeed * dt;
+			this.inst.x += finalForceX * currentSpeed * dt;
 			this.inst.set_bbox_changed();
 			if (this.testObstacleOverlap()) {
 				this.inst.x = oldx;
 				this.inst.set_bbox_changed();
 			}
 
-			this.inst.y += finalForceY * this.maxSpeed * dt;
+			this.inst.y += finalForceY * currentSpeed * dt;
 			this.inst.set_bbox_changed();
 			if (this.testObstacleOverlap()) {
 				this.inst.y = oldy;
@@ -213,9 +220,15 @@ cr.behaviors.MobsMovement = function(runtime)
 			var totalForceY = 0;
 
 			// A. Steering Force (towards target)
-			var angleToTarget = cr.angleTo(moverA.x, moverA.y, target.x, target.y);
-			totalForceX += Math.cos(angleToTarget);
-			totalForceY += Math.sin(angleToTarget);
+			var dx = target.x - moverA.x;
+			var dy = target.y - moverA.y;
+			var distToTarget = Math.sqrt(dx * dx + dy * dy);
+			
+			// Scale steering by distance if close (arrival behavior) to stop jitter at target
+			var steerAmount = (distToTarget < 10 ? distToTarget / 10 : 1);
+			var angleToTarget = Math.atan2(dy, dx);
+			totalForceX += Math.cos(angleToTarget) * steerAmount;
+			totalForceY += Math.sin(angleToTarget) * steerAmount;
 
 			// B. Repulsion Force (from other movers)
 			for (var j = 0; j < movers.length; j++) {
@@ -237,7 +250,13 @@ cr.behaviors.MobsMovement = function(runtime)
 					continue;
 					
 				var dx = moverB.x - moverA.x;
+				// Optimization: Skip if too far on X axis
+				if (Math.abs(dx) > behA.repulsionRadius) continue;
+
 				var dy = moverB.y - moverA.y;
+				// Optimization: Skip if too far on Y axis
+				if (Math.abs(dy) > behA.repulsionRadius) continue;
+
 				var distSq = (dx * dx) + (dy * dy);
 
 				if (distSq > 0 && distSq < behA.repulsionRadiusSq) {
