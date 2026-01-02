@@ -223,8 +223,17 @@ cr.behaviors.MobsMovement = function(runtime)
 
 				var moverB = movers[j];
 				
+				// Find the behavior instance for moverB
+				var behB = null;
+				for (var b = 0; b < moverB.behavior_insts.length; b++) {
+					if (moverB.behavior_insts[b].type === this.type) {
+						behB = moverB.behavior_insts[b];
+						break;
+					}
+				}
+
 				// Also skip inactive movers for repulsion checks
-				if (!moverB.behavior_insts[0].isActive)
+				if (!behB || !behB.isActive)
 					continue;
 					
 				var dx = moverB.x - moverA.x;
