@@ -55,6 +55,9 @@ AddCondition(1, cf_none, "Is moving", "State", "{my} is moving", "True if the ob
 //			 description,		// appears in event wizard dialog when selected
 //			 script_name);		// corresponding runtime function name
 
+AddComboParamOption("Disabled");
+AddComboParamOption("Enabled");
+AddComboParam("State", "Set whether to enable or disable the behavior.");
 AddAction(0, af_none, "Set enabled", "State", "Set {my} enabled to <b>{0}</b>", "Enable or disable the smooth movement behavior.", "SetEnabled");
 
 AddObjectParam("Target", "The object to follow.");
