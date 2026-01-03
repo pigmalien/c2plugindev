@@ -41,6 +41,8 @@
 AddCondition(0, cf_trigger, "On path finished", "Path", "On path finished", "Triggered when the object reaches the end of the path.", "OnPathFinished");
 AddCondition(1, cf_none, "Is moving", "Path", "{my} is moving", "True if the object is currently moving along a path.", "IsMoving");
 
+AddCondition(2, cf_trigger, "On solid collision", "Collisions", "On solid collision", "Triggered when the object collides with a solid.", "OnSolidCollision");
+
 ////////////////////////////////////////
 // Actions
 
@@ -74,6 +76,11 @@ AddAction(6, af_none, "Set deceleration", "Path", "Set deceleration to {0}", "Se
 AddNumberParam("Rounding", "The distance from a node to begin rounding the corner, in pixels.", "0");
 AddAction(7, af_none, "Set corner rounding", "Path", "Set corner rounding to {0}", "Set the distance from a node to begin rounding the corner.", "SetRounding");
 
+AddComboParamOption("No");
+AddComboParamOption("Yes");
+AddComboParam("State", "Choose whether to enable or disable stopping on solids.");
+AddAction(8, af_none, "Set stop on solids", "Collisions", "Set stop on solids to {0}", "Enable or disable stopping on solid objects.", "SetStopOnSolids");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -95,6 +102,7 @@ ACESDone();
 // new cr.Property(ept_combo,		name,	"Item 1",		description, "Item 1|Item 2|Item 3")	// a dropdown list (initial_value is string of initially selected item)
 
 var property_list = [
+	new cr.Property(ept_combo, "Stop on solids", "Yes", "Whether to stop when hitting an object with the Solid behavior.", "No|Yes"),
 	new cr.Property(ept_float, "Speed", 100, "The speed of movement, in pixels per second."),
 	new cr.Property(ept_float, "Acceleration", 0, "The acceleration, in pixels per second per second."),
 	new cr.Property(ept_float, "Deceleration", 0, "The deceleration, in pixels per second per second."),

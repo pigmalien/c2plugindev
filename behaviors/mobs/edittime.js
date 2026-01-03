@@ -70,6 +70,10 @@ AddAction(7, af_none, "Add obstacle", "Obstacles", "Add obstacle {0}", "Add an o
 
 AddAction(8, af_none, "Clear obstacles", "Obstacles", "Clear obstacles", "Remove all added obstacles.", "ClearObstacles");
 
+AddObjectParam("Solid", "The object to block movement.");
+AddAction(9, af_none, "Add solid", "Obstacles", "Add solid {0}", "Add an object type to block movement.", "AddSolid");
+AddAction(10, af_none, "Clear solids", "Obstacles", "Clear solids", "Remove all added solids.", "ClearSolids");
+
 ////////////////////////////////////////
 // Expressions
 

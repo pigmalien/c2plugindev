@@ -39,6 +39,7 @@ cr.behaviors.MobsMovement = function(runtime)
 		// This will hold the final movement vector for each mover instance.
 		this.forces = {}; // Using an object with UIDs as keys
 		this.obstacleTypes = [];
+		this.solidTypes = [];
 	};
 
 	/////////////////////////////////////
@@ -146,14 +147,14 @@ cr.behaviors.MobsMovement = function(runtime)
 
 			this.inst.x += finalForceX * currentSpeed * dt;
 			this.inst.set_bbox_changed();
-			if (this.testObstacleOverlap()) {
+			if (this.testObstacleOverlap() || this.testSolidOverlap()) {
 				this.inst.x = oldx;
 				this.inst.set_bbox_changed();
 			}
 
 			this.inst.y += finalForceY * currentSpeed * dt;
 			this.inst.set_bbox_changed();
-			if (this.testObstacleOverlap()) {
+			if (this.testObstacleOverlap() || this.testSolidOverlap()) {
 				this.inst.y = oldy;
 				this.inst.set_bbox_changed();
 			}
@@ -304,6 +305,19 @@ cr.behaviors.MobsMovement = function(runtime)
 		return false;
 	};
 	
+	behinstProto.testSolidOverlap = function()
+	{
+		for (var k = 0; k < this.type.solidTypes.length; k++) {
+			var solidType = this.type.solidTypes[k];
+			var solids = solidType.instances;
+			for (var m = 0; m < solids.length; m++) {
+				if (this.runtime.testOverlap(this.inst, solids[m]))
+					return true;
+			}
+		}
+		return false;
+	};
+
 	// The comments around these functions ensure they are removed when exporting, since the
 	// debugger code is no longer relevant after publishing.
 	/**BEGIN-PREVIEWONLY**/
@@ -409,6 +423,18 @@ cr.behaviors.MobsMovement = function(runtime)
 	Acts.prototype.ClearObstacles = function ()
 	{
 		this.type.obstacleTypes.length = 0;
+	};
+
+	Acts.prototype.AddSolid = function (obj)
+	{
+		if (!obj) return;
+		if (this.type.solidTypes.indexOf(obj) === -1)
+			this.type.solidTypes.push(obj);
+	};
+
+	Acts.prototype.ClearSolids = function ()
+	{
+		this.type.solidTypes.length = 0;
 	};
 	
 	// ... other actions here ...

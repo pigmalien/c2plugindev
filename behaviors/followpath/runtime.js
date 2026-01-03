@@ -47,10 +47,11 @@ cr.behaviors.FollowPath = function(runtime)
 	behinstProto.onCreate = function()
 	{
 		// Load properties
-		this.speed = this.properties[0];
-		this.accel = this.properties[1];
-		this.decel = this.properties[2];
-		this.rounding = this.properties[3];
+		this.stopOnSolids = (this.properties[0] === 1); // 0=No, 1=Yes
+		this.speed = this.properties[1];
+		this.accel = this.properties[2];
+		this.decel = this.properties[3];
+		this.rounding = this.properties[4];
 
 		// Behavior state
 		this.active = false;
@@ -162,11 +163,26 @@ cr.behaviors.FollowPath = function(runtime)
 		} else {
 			// Find position on the baked path
 			var pos = this.getPositionAtDistance(this.distanceTraveled);
+			var oldX = this.inst.x;
+			var oldY = this.inst.y;
+			
 			this.inst.x = pos.x;
 			this.inst.y = pos.y;
-			
-			// Update currentNode for expression, purely for user feedback
-			this.currentNode = Math.floor(pos.nodeIndex);
+			this.inst.set_bbox_changed();
+
+			if (this.stopOnSolids && this.testSolidOverlap()) {
+				this.inst.x = oldX;
+				this.inst.y = oldY;
+				this.inst.set_bbox_changed();
+				this.distanceTraveled -= (this.currentSpeed * this.runtime.getDt(this.inst));
+				this.active = false;
+				this.currentSpeed = 0;
+				this.targetSpeed = 0;
+				this.runtime.trigger(cr.behaviors.FollowPath.prototype.cnds.OnSolidCollision, this.inst);
+			} else {
+				// Update currentNode for expression, purely for user feedback
+				this.currentNode = Math.floor(pos.nodeIndex);
+			}
 		}
 
 		var inst = this.inst;
@@ -187,6 +203,11 @@ cr.behaviors.FollowPath = function(runtime)
 		}
 		var last = this.bakedPath[this.bakedPath.length - 1];
 		return { x: last.x, y: last.y, nodeIndex: last.nodeIndex };
+	};
+
+	behinstProto.testSolidOverlap = function()
+	{
+		return this.runtime.testOverlapSolid(this.inst);
 	};
 
 	/**BEGIN-PREVIEWONLY**/
@@ -233,6 +254,8 @@ cr.behaviors.FollowPath = function(runtime)
 
 	Cnds.prototype.OnPathFinished = function () { return true; };
 	Cnds.prototype.IsMoving = function () { return this.active; };
+
+	Cnds.prototype.OnSolidCollision = function () { return true; };
 	
 	behaviorProto.cnds = new Cnds();
 
@@ -371,6 +394,11 @@ cr.behaviors.FollowPath = function(runtime)
 	Acts.prototype.SetRounding = function (r)
 	{
 		this.rounding = r;
+	};
+
+	Acts.prototype.SetStopOnSolids = function (s)
+	{
+		this.stopOnSolids = (s === 1); // 0=No, 1=Yes
 	};
 	
 	behaviorProto.acts = new Acts();
