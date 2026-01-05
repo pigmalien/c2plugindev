@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<c2effect>
+	<!-- About -->
+	<id>spritebolt</id>
+	<name>Sprite Bolt</name>
+	<category>Distortion</category>
+	<description>Creates a lightning bolt effect down the middle of the sprite.</description>
+	<author>Gemini</author>
+	
+	<!-- Settings -->
+	<extend-box-horizontal>0</extend-box-horizontal>
+	<extend-box-vertical>0</extend-box-vertical>
+	<blends-background>false</blends-background>
+	<cross-sampling>false</cross-sampling>
+	<animated>true</animated>
+	
+	<!-- Parameters -->
+	<parameters>
+		<param>
+			<name>Bolt Width</name>
+			<description>Width of the lightning bolt.</description>
+			<type>float</type>
+			<initial>0.05</initial>
+			<uniform>boltWidth</uniform>
+		</param>
+		<param>
+			<name>Wonkiness</name>
+			<description>Controls the jaggedness and height of the bolt's peaks.</description>
+			<type>float</type>
+			<initial>0.15</initial>
+			<uniform>wonkiness</uniform>
+		</param>
+		<param>
+			<name>Bolt Color R</name>
+			<description>Red component of the bolt color.</description>
+			<type>float</type>
+			<initial>1.0</initial>
+			<uniform>boltColorR</uniform>
+		</param>
+		<param>
+			<name>Bolt Color G</name>
+			<description>Green component of the bolt color.</description>
+			<type>float</type>
+			<initial>1.0</initial>
+			<uniform>boltColorG</uniform>
+		</param>
+		<param>
+			<name>Bolt Color B</name>
+			<description>Blue component of the bolt color.</description>
+			<type>float</type>
+			<initial>1.0</initial>
+			<uniform>boltColorB</uniform>
+		</param>
+		<param>
+			<name>Bolt Color A</name>
+			<description>Alpha component of the bolt color.</description>
+			<type>float</type>
+			<initial>1.0</initial>
+			<uniform>boltColorA</uniform>
+		</param>
+	</parameters>
+	
+</c2effect>
