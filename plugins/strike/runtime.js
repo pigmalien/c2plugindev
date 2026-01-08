@@ -229,6 +229,25 @@ cr.plugins_.LightningStrike = function (runtime)
 		this.branchChance = cr.clamp(chance, 0, 1);
 	};
 
+	Acts.prototype.SetColor = function (c)
+	{
+		if (typeof c === "string") {
+			var parts = c.match(/\d+/g);
+			if (parts && parts.length >= 3) {
+				this.r = parseInt(parts[0], 10) / 255;
+				this.g = parseInt(parts[1], 10) / 255;
+				this.b = parseInt(parts[2], 10) / 255;
+			} else {
+				this.r = 1; this.g = 1; this.b = 1;
+			}
+		} else {
+			this.r = cr.GetRValue(c) / 255;
+			this.g = cr.GetGValue(c) / 255;
+			this.b = cr.GetBValue(c) / 255;
+		}
+		this.runtime.redraw = true;
+	};
+
 	pluginProto.acts = new Acts();
 	
 	function Exps() {}

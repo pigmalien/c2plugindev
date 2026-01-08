@@ -63,6 +63,9 @@ AddAction(0, af_none, "Strike towards", "Lightning", "Strike towards {0} degrees
 
 AddNumberParam("Chance", "Probability of branching (0 to 1).");
 AddAction(1, af_none, "Enable Branching", "Lightning", "Set branching chance to {0}", "Set the probability of sub-bolts spawning.", "EnableBranching");
+
+AddAnyTypeParam("Color", "The new color of the lightning. Use rgb(r, g, b).");
+AddAction(2, af_none, "Set color", "Appearance", "Set color to {0}", "Set the color of the lightning.", "SetColor");
 ////////////////////////////////////////
 // Expressions
 
