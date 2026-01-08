@@ -63,8 +63,7 @@ cr.plugins_.LightningStrike = function (runtime)
 			this.b = cr.GetBValue(c) / 255;
 		}
 
-		this.seed         = this.properties[4];
-		this.width        = this.properties[5];
+		this.width        = this.properties[4];
 
 		this.branchChance = 0;
 		
@@ -168,11 +167,7 @@ cr.plugins_.LightningStrike = function (runtime)
 	{
 		this.lines.length = 0;
 
-		this.srand(
-			this.seed === 0 ?
-			Math.floor(Math.random() * 233280) :
-			this.seed
-		);
+		this.srand(Math.floor(Math.random() * 233280));
 
 		this._recurse(x1, y1, x2, y2, displacement, this.detail);
 	};
@@ -245,6 +240,27 @@ cr.plugins_.LightningStrike = function (runtime)
 			this.g = cr.GetGValue(c) / 255;
 			this.b = cr.GetBValue(c) / 255;
 		}
+		this.runtime.redraw = true;
+	};
+
+	Acts.prototype.SetDisplacement = function (d)
+	{
+		this.displacement = d;
+	};
+
+	Acts.prototype.SetDetail = function (d)
+	{
+		this.detail = Math.floor(d);
+	};
+
+	Acts.prototype.SetDuration = function (d)
+	{
+		this.duration = d;
+	};
+
+	Acts.prototype.SetWidth = function (w)
+	{
+		this.width = w;
 		this.runtime.redraw = true;
 	};
 

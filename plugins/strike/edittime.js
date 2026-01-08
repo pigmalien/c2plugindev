@@ -66,6 +66,18 @@ AddAction(1, af_none, "Enable Branching", "Lightning", "Set branching chance to 
 
 AddAnyTypeParam("Color", "The new color of the lightning. Use rgb(r, g, b).");
 AddAction(2, af_none, "Set color", "Appearance", "Set color to {0}", "Set the color of the lightning.", "SetColor");
+
+AddNumberParam("Displacement", "Maximum displacement for jaggedness.");
+AddAction(3, af_none, "Set displacement", "Appearance", "Set displacement to {0}", "Set the jaggedness displacement.", "SetDisplacement");
+
+AddNumberParam("Detail", "Number of iterations for the displacement algorithm.");
+AddAction(4, af_none, "Set detail", "Appearance", "Set detail to {0}", "Set the number of iterations.", "SetDetail");
+
+AddNumberParam("Duration", "Time in seconds the lightning remains visible.");
+AddAction(5, af_none, "Set duration", "Appearance", "Set duration to {0}", "Set the visibility duration.", "SetDuration");
+
+AddNumberParam("Width", "Width of the lightning bolt.");
+AddAction(6, af_none, "Set width", "Appearance", "Set width to {0}", "Set the line width.", "SetWidth");
 ////////////////////////////////////////
 // Expressions
 
@@ -98,7 +110,6 @@ var property_list = [
 	new cr.Property(ept_integer, 	"Detail",		5,		"Number of iterations for the displacement algorithm."),
 	new cr.Property(ept_float, 	"Duration",		0.5,		"Time in seconds the lightning remains visible."),
 	new cr.Property(ept_color, "Color", cr.RGB(255, 255, 255), "The color of the lightning."),
-	new cr.Property(ept_integer, 	"Seed",		0,		"Random seed (0 for random)."),
 	new cr.Property(ept_float, 	"Width",		2,		"Width of the lightning bolt.")
 	];
 	
