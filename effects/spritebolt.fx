@@ -117,5 +117,5 @@ void main()
 	vec4 final_bolt_color = bolt_color * bolt_intensity + vec4(1.0, 1.0, 1.0, 1.0) * core_intensity;
 	
 	// Mix with original texture color, but only if the original pixel was not transparent
-    gl_FragColor = original_color.a == 0.0 ? vec4(0.0, 0.0, 0.0, 0.0) : mix(original_color, final_bolt_color, final_bolt_color.a);
+    gl_FragColor = mix(original_color, final_bolt_color, final_bolt_color.a);
 }

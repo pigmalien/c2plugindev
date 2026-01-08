@@ -11,6 +11,29 @@ cr.plugins_.SpawnPoint = function(runtime)
 
 (function ()
 {
+	// Mulberry32 PRNG
+	function mulberry32(a) {
+		return function() {
+		  var t = a += 0x6D2B79F5;
+		  t = Math.imul(t ^ t >>> 15, t | 1);
+		  t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+		  return ((t ^ t >>> 14) >>> 0) / 4294967296;
+		}
+	}
+
+	// cyrb53 (string hashing function)
+	function cyrb53(str, seed = 0) {
+		let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+		for (let i = 0, ch; i < str.length; i++) {
+			ch = str.charCodeAt(i);
+			h1 = Math.imul(h1 ^ ch, 2654435761);
+			h2 = Math.imul(h2 ^ ch, 1597334677);
+		}
+		h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+		h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+		return 4294967296 * (2097151 & h2) + (h1>>>0);
+	};
+
 	var pluginProto = cr.plugins_.SpawnPoint.prototype;
 		
 	pluginProto.Type = function(plugin)
@@ -33,9 +56,18 @@ cr.plugins_.SpawnPoint = function(runtime)
 	
 	var instanceProto = pluginProto.Instance.prototype;
 
+	instanceProto.reseed = function (seed) {
+		this.seed = seed;
+		if (this.seed) {
+			this.random = mulberry32(cyrb53(this.seed));
+		} else {
+			this.random = Math.random;
+		}
+	};
+
 	instanceProto.onCreate = function()
 	{
-		this.mode_is_random = true; // true = random, false = target
+		this.spawn_mode = 0; // 0 = outside area, 1 = inside area
 		this.area_x = 0;
 		this.area_y = 0;
 		this.area_w = 100;
@@ -44,28 +76,8 @@ cr.plugins_.SpawnPoint = function(runtime)
 
 		this.pointX = 0;
 		this.pointY = 0;
-		
-		this.target_uid = -1;
-		this.target_x = 0;
-		this.target_y = 0;
 
-		this.runtime.tick(this);
-	};
-
-	instanceProto.tick = function()
-	{
-		if (this.target_uid === -1)
-			return;
-
-		var inst = this.runtime.getObjectByUID(this.target_uid);
-		if (!inst)
-		{
-			this.target_uid = -1;
-			return;
-		}
-		
-		this.target_x = inst.x;
-		this.target_y = inst.y;
+		this.reseed(this.properties[0]);
 	};
 
 	instanceProto.onDestroy = function ()
@@ -75,7 +87,7 @@ cr.plugins_.SpawnPoint = function(runtime)
 	instanceProto.saveToJSON = function ()
 	{
 		return {
-			"mir": this.mode_is_random,
+			"sm": this.spawn_mode,
 			"ax": this.area_x,
 			"ay": this.area_y,
 			"aw": this.area_w,
@@ -83,13 +95,13 @@ cr.plugins_.SpawnPoint = function(runtime)
 			"p": this.padding,
 			"px": this.pointX,
 			"py": this.pointY,
-			"tuid": this.target_uid
+			"seed": this.seed
 		};
 	};
 	
 	instanceProto.loadFromJSON = function (o)
 	{
-		this.mode_is_random = o["mir"];
+		this.spawn_mode = o["sm"];
 		this.area_x = o["ax"];
 		this.area_y = o["ay"];
 		this.area_w = o["aw"];
@@ -97,26 +109,27 @@ cr.plugins_.SpawnPoint = function(runtime)
 		this.padding = o["p"];
 		this.pointX = o["px"];
 		this.pointY = o["py"];
-		this.target_uid = o["tuid"];
+		
+		this.reseed(o["seed"]);
 	};
 
 	function Cnds() {};
-	Cnds.prototype.IsRandom = function () { return this.mode_is_random; };
-	Cnds.prototype.HasTargetObject = function () { return this.target_uid !== -1; };
+	Cnds.prototype.IsSpawningOutside = function () { return this.spawn_mode === 0; };
+	Cnds.prototype.IsSpawningInside = function () { return this.spawn_mode === 1; };
 	Cnds.prototype.OnSetPoint = function () { return true; };
 	pluginProto.cnds = new Cnds();
 	
 	function Acts() {};
 
-	Acts.prototype.SetMode = function (mode) { this.mode_is_random = (mode === 0); };
-	Acts.prototype.SetRandomArea = function (x, y, w, h) { this.area_x = x; this.area_y = y; this.area_w = w; this.area_h = h; };
+	Acts.prototype.SetMode = function (mode) { this.spawn_mode = mode; };
+	Acts.prototype.SetArea = function (x, y, w, h) { this.area_x = x; this.area_y = y; this.area_w = w; this.area_h = h; };
 	Acts.prototype.SetPadding = function (padding) { this.padding = padding; };
 
 	Acts.prototype.SetPoint = function () {
 		var x = 0;
 		var y = 0;
 
-		if (this.mode_is_random) {
+		if (this.spawn_mode === 0) { // Spawn outside area
 			// Define inner "keep-out" zone, expanded by padding
 			var inner_x1 = this.area_x - this.padding;
 			var inner_y1 = this.area_y - this.padding;
@@ -131,49 +144,46 @@ cr.plugins_.SpawnPoint = function(runtime)
 			var outer_x2 = inner_x2 + this.padding;
 			var outer_y2 = inner_y2 + this.padding;
 
-			const side = Math.floor(Math.random() * 4);
+			const side = Math.floor(this.random() * 4);
 
 			switch (side) {
 				case 0: // Top slice
-					x = Math.random() * (outer_x2 - outer_x1) + outer_x1;
-					y = Math.random() * (inner_y1 - outer_y1) + outer_y1;
+					x = this.random() * (outer_x2 - outer_x1) + outer_x1;
+					y = this.random() * (inner_y1 - outer_y1) + outer_y1;
 					break;
 				case 1: // Bottom slice
-					x = Math.random() * (outer_x2 - outer_x1) + outer_x1;
-					y = Math.random() * (outer_y2 - inner_y2) + inner_y2;
+					x = this.random() * (outer_x2 - outer_x1) + outer_x1;
+					y = this.random() * (outer_y2 - inner_y2) + inner_y2;
 					break;
 				case 2: // Left slice
-					x = Math.random() * (inner_x1 - outer_x1) + outer_x1;
-					y = Math.random() * (inner_y2 - inner_y1) + inner_y1;
+					x = this.random() * (inner_x1 - outer_x1) + outer_x1;
+					y = this.random() * (inner_y2 - inner_y1) + inner_y1;
 					break;
 				case 3: // Right slice
-					x = Math.random() * (outer_x2 - inner_x2) + inner_x2;
-					y = Math.random() * (inner_y2 - inner_y1) + inner_y1;
+					x = this.random() * (outer_x2 - inner_x2) + inner_x2;
+					y = this.random() * (inner_y2 - inner_y1) + inner_y1;
 					break;
 			}
-			
-			// Handle potential NaN results if width/height/spread are invalid
-			if (isNaN(x)) x = this.area_x;
-			if (isNaN(y)) y = this.area_y;
-
-		} else { // Target object mode
-			x = this.target_x;
-			y = this.target_y;
+		} 
+		else { // Spawn inside area
+			x = this.random() * this.area_w + this.area_x;
+			y = this.random() * this.area_h + this.area_y;
 		}
+		
+		// Handle potential NaN results if width/height/spread are invalid
+		if (isNaN(x)) x = this.area_x;
+		if (isNaN(y)) y = this.area_y;
 
 		this.pointX = x;
 		this.pointY = y;
 		this.runtime.trigger(cr.plugins_.SpawnPoint.prototype.cnds.OnSetPoint, this);
 	};
-	Acts.prototype.SetTargetObject = function (obj) {
-		if (!obj) return;
-		var inst = obj.getFirstPicked();
-		if (!inst) return;
-		this.target_uid = inst.uid;
-		this.target_x = inst.x;
-		this.target_y = inst.y;
+	
+	Acts.prototype.SetSeed = function (seed)
+	{
+		this.reseed(seed);
 	};
-	Acts.prototype.ClearTargetObject = function () { this.target_uid = -1; };
+	
 	pluginProto.acts = new Acts();
 	
 	function Exps() {};
