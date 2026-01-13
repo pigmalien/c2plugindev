@@ -30,36 +30,51 @@ cr.behaviors.TileToMob = function(runtime)
         this.managedMobs = new Map(); // Map UID -> MobData object
         this.occupiedTiles = new Set(); // String "x,y" for quick collision lookup
         this.targetUid = -1; // UID of the target object to follow
+
+        // Properties
         this.collisionMode = 0; // 0 = Solid, 1 = None
+        this.mode = 0; // 0 = Follow Target, 1 = Wander
+        this.wanderRadius = 5;
+        this.minWanderIdle = 1.0;
+        this.maxWanderIdle = 3.0;
+        this.speed = 2.0;
     };
 
     behaviorProto.Instance.prototype.onCreate = function() {
         this.collisionMode = this.properties[0];
+        this.mode = this.properties[1];
+        this.wanderRadius = this.properties[2];
+        this.minWanderIdle = this.properties[3];
+        this.maxWanderIdle = this.properties[4];
+        this.speed = this.properties[5];
     };
 
-    const MobData = function (uid, tx, ty, speed) {
+    const MobData = function (uid, tx, ty, speed, minIdle, maxIdle) {
         this.uid = uid;
         this.targetX = tx; // Current Grid X
         this.targetY = ty; // Current Grid Y
-        this.startX = tx;  // Start Grid X
-        this.startY = ty;  // Start Grid Y
+        this.startX = tx;  // Start Grid X (for wander radius)
+        this.startY = ty;  // Start Grid Y (for wander radius)
         this.isMoving = false;
         this.moveProgress = 0;
         this.speed = speed || 2; // Tiles per second
+        this.moveDistance = 1;
         this.active = true;
+
+        // Wander-specific state
+        this.wanderIdleTimer = cr.lerp(minIdle || 1.0, maxIdle || 3.0, Math.random());
     };
 
     behaviorProto.Instance.prototype.tick = function () {
         const dt = this.runtime.getDt();
         const tilemap = this.inst;
 
-        // Ensure tilemap is valid and initialized
         if (!tilemap.tilewidth || !tilemap.tileheight) return;
 
-        // 1. Resolve Target Position (AI)
+        // 1. Resolve Target Position (only for Follow mode)
         let targetGridX = null;
         let targetGridY = null;
-        if (this.targetUid !== -1) {
+        if (this.mode === 0 && this.targetUid !== -1) { // Mode 0 is "Follow Target"
             const target = this.runtime.getObjectByUID(this.targetUid);
             if (target) {
                 targetGridX = Math.floor((target.x - tilemap.x) / tilemap.tilewidth);
@@ -71,43 +86,67 @@ cr.behaviors.TileToMob = function(runtime)
             const sprite = this.runtime.getObjectByUID(uid);
             
             if (!sprite) {
-                // Auto-cleanup if sprite was destroyed externally
                 this.removeMob(uid);
                 continue;
             }
 
             if (!mob.active) continue;
 
-            // 2. AI Decision Making (if idle and target exists)
-            if (!mob.isMoving && targetGridX !== null) {
-                const dx = targetGridX - mob.targetX;
-                const dy = targetGridY - mob.targetY;
+            // 2. AI Decision Making
+            if (!mob.isMoving) {
+                // Mode 0: Follow Target
+                if (this.mode === 0) {
+                    if (targetGridX !== null) {
+                        const dx = targetGridX - mob.targetX;
+                        const dy = targetGridY - mob.targetY;
 
-                if (dx !== 0 || dy !== 0) {
-                    const stepX = (dx > 0) ? 1 : (dx < 0 ? -1 : 0);
-                    const stepY = (dy > 0) ? 1 : (dy < 0 ? -1 : 0);
-                    
-                    // Simple axis-aligned pathfinding
-                    // Prioritize the axis with the larger distance
-                    if (Math.abs(dx) >= Math.abs(dy)) {
-                        if (this.isTileFree(mob.targetX + stepX, mob.targetY)) {
-                            this.startMove(mob, mob.targetX + stepX, mob.targetY);
-                        } else if (stepY !== 0 && this.isTileFree(mob.targetX, mob.targetY + stepY)) {
-                            this.startMove(mob, mob.targetX, mob.targetY + stepY);
+                        if (dx !== 0 || dy !== 0) {
+                            const stepX = (dx > 0) ? 1 : (dx < 0 ? -1 : 0);
+                            const stepY = (dy > 0) ? 1 : (dy < 0 ? -1 : 0);
+                            
+                            if (Math.abs(dx) >= Math.abs(dy)) {
+                                if (this.isTileFree(mob.targetX + stepX, mob.targetY)) {
+                                    this.startMove(mob, mob.targetX + stepX, mob.targetY);
+                                } else if (stepY !== 0 && this.isTileFree(mob.targetX, mob.targetY + stepY)) {
+                                    this.startMove(mob, mob.targetX, mob.targetY + stepY);
+                                }
+                            } else {
+                                if (this.isTileFree(mob.targetX, mob.targetY + stepY)) {
+                                    this.startMove(mob, mob.targetX, mob.targetY + stepY);
+                                } else if (stepX !== 0 && this.isTileFree(mob.targetX + stepX, mob.targetY)) {
+                                    this.startMove(mob, mob.targetX + stepX, mob.targetY);
+                                }
+                            }
                         }
-                    } else {
-                        if (this.isTileFree(mob.targetX, mob.targetY + stepY)) {
-                            this.startMove(mob, mob.targetX, mob.targetY + stepY);
-                        } else if (stepX !== 0 && this.isTileFree(mob.targetX + stepX, mob.targetY)) {
-                            this.startMove(mob, mob.targetX + stepX, mob.targetY);
+                    }
+                }
+                // Mode 1: Wander
+                else if (this.mode === 1) {
+                    mob.wanderIdleTimer -= dt;
+                    if (mob.wanderIdleTimer <= 0) {
+                        let foundSpot = false;
+                        let attempts = 10;
+                        while (attempts > 0 && !foundSpot) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const radius = Math.random() * this.wanderRadius;
+                            const newTx = Math.round(mob.startX + Math.cos(angle) * radius);
+                            const newTy = Math.round(mob.startY + Math.sin(angle) * radius);
+
+                            if (this.isTileFree(newTx, newTy)) {
+                                this.startMove(mob, newTx, newTy);
+                                foundSpot = true;
+                            }
+                            attempts--;
                         }
+                        // Reset timer
+                        mob.wanderIdleTimer = cr.lerp(this.minWanderIdle, this.maxWanderIdle, Math.random());
                     }
                 }
             }
 
             // 3. Movement Execution
             if (mob.isMoving) {
-                mob.moveProgress += dt * mob.speed;
+                mob.moveProgress += (dt * mob.speed) / mob.moveDistance;
                 
                 if (mob.moveProgress >= 1) {
                     mob.moveProgress = 0;
@@ -160,13 +199,19 @@ cr.behaviors.TileToMob = function(runtime)
         mob.targetY = ty;
         mob.isMoving = true;
         mob.moveProgress = 0;
+
+        const dx = mob.targetX - mob.startX;
+        const dy = mob.targetY - mob.startY;
+        mob.moveDistance = Math.sqrt(dx * dx + dy * dy);
+        if (mob.moveDistance < 0.001) mob.moveDistance = 1; // Safeguard against zero distance
+
         this.occupiedTiles.add(`${tx},${ty}`);
     };
 
     behaviorProto.Instance.prototype.addMob = function (uid, tx, ty) {
         if (this.managedMobs.has(uid)) return;
 
-        const mob = new MobData(uid, tx, ty);
+        const mob = new MobData(uid, tx, ty, this.speed, this.minWanderIdle, this.maxWanderIdle);
         const sprite = this.runtime.getObjectByUID(uid);
         
         if (sprite) {
@@ -201,15 +246,6 @@ cr.behaviors.TileToMob = function(runtime)
         const inst = objType.getFirstPicked();
         if (inst) {
             this.removeMob(inst.uid);
-        }
-    };
-
-    Acts.prototype.MoveToTile = function (uid, tx, ty) {
-        const mob = this.managedMobs.get(uid);
-        if (!mob || mob.isMoving) return;
-        
-        if (this.isTileFree(tx, ty)) {
-            this.startMove(mob, tx, ty);
         }
     };
 
@@ -252,6 +288,10 @@ cr.behaviors.TileToMob = function(runtime)
                 mob.active = (state === 0);
             }
         }
+    };
+
+    Acts.prototype.SetMode = function (m) {
+        this.mode = m;
     };
 
     behaviorProto.acts = new Acts();

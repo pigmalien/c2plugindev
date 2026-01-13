@@ -21,11 +21,6 @@ AddAction(0, af_none, "Add Mob Instance", "Management", "Add {0} to manager at (
 AddObjectParam("Object", "Select the mob sprite to remove.");
 AddAction(1, af_none, "Remove Mob Instance", "Management", "Remove {0} from manager", "Unregister a sprite.", "RemoveInstance");
 
-AddNumberParam("UID", "UID of the managed sprite.");
-AddNumberParam("Target X", "New Grid X.");
-AddNumberParam("Target Y", "New Grid Y.");
-AddAction(2, af_none, "Command Move", "Movement", "Move Mob {0} to tile ({1}, {2})", "Command a specific managed mob to move to a new tile.", "MoveToTile");
-
 AddObjectParam("Target", "Select the target object to follow.");
 AddAction(3, af_none, "Set Target", "AI", "Set target to {0}", "Set the object that mobs will follow.", "SetTarget");
 
@@ -49,8 +44,18 @@ AddComboParamOption("Inactive");
 AddComboParam("State", "State to set.");
 AddAction(7, af_none, "Set Object Active", "Management", "Set {0} to <b>{1}</b>", "Set whether a specific sprite instance is processed.", "SetObjectActive");
 
+AddComboParamOption("Follow Target");
+AddComboParamOption("Wander");
+AddComboParam("Mode", "The movement mode to set.");
+AddAction(8, af_none, "Set Mode", "AI", "Set mode to <b>{0}</b>", "Set the movement behavior mode.", "SetMode");
+
 var property_list = [
-	new cr.Property(ept_combo, "Tile Collision", "Solid", "Choose whether tiles are treated as obstacles (Solid) or ignored (None).", "Solid|None")
+	new cr.Property(ept_combo, "Tile Collision", "Solid", "Choose whether tiles are treated as obstacles (Solid) or ignored (None).", "Solid|None"),
+	new cr.Property(ept_combo, "Mode", "Follow Target", "The movement behavior of the mobs.", "Follow Target|Wander"),
+	new cr.Property(ept_integer, "Wander Radius", 5, "When in Wander mode, the maximum distance in tiles a mob will move from its starting point."),
+	new cr.Property(ept_float, "Min Wander Idle", 1.0, "When in Wander mode, the minimum time in seconds a mob will wait before moving."),
+	new cr.Property(ept_float, "Max Wander Idle", 3.0, "When in Wander mode, the maximum time in seconds a mob will wait before moving."),
+	new cr.Property(ept_float, "Speed", 2.0, "The movement speed in tiles per second.")
 ];
 
 ACESDone();
