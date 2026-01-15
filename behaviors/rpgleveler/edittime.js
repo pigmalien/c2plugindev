@@ -1,4 +1,4 @@
-﻿function GetBehaviorSettings()
+﻿﻿function GetBehaviorSettings()
 {
 	return {
 		"name":			"RPG Leveler",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
@@ -86,6 +86,12 @@ AddExpression(2, ef_return_number, "XPRemaining", "Experience", "XPRemaining", "
 AddExpression(3, ef_return_number, "XPForNextLevel", "Experience", "XPForNextLevel", "The total experience points required for the next level up.");
 AddExpression(4, ef_return_number, "BonusPointsAvailable", "Stats", "BonusPointsAvailable", "The number of unspent bonus points from leveling up.");
 AddExpression(5, ef_return_number, "XPPercentageToNextLevel", "UI", "XPPercentageToNextLevel", "The progress to the next level as a value from 0 to 1.");
+
+AddNumberParam("Level", "The level to calculate for.");
+AddNumberParam("Base", "The base value of the stat.");
+AddNumberParam("Growth", "The growth rate per level.");
+AddNumberParam("Curve", "The power curve exponent (e.g. 1 for linear, 2 for quadratic).");
+AddExpression(6, ef_return_number, "CalculateStat", "Stats", "CalculateStat", "Calculate a stat value using the polynomial formula: Base + (Growth * ((Level - 1) ^ Curve))");
 
 ////////////////////////////////////////
 ACESDone();

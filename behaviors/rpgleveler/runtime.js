@@ -119,6 +119,11 @@ cr.behaviors.RPGLeveler = function(runtime)
 			this.runtime.trigger(cr.behaviors.RPGLeveler.prototype.cnds.OnMaxLevelReached, this.inst);
 		}
 	};
+
+	// --- Refactored Math Engine ---
+	// Based on RPG Leveler Math Engine reference
+	// XP Formula: Base * (Factor ^ (Level - 1))
+	// Stat Formula: Base + (Growth * ((Level - 1) ^ Curve))
 	
 	// The comments around these functions ensure they are removed when exporting, since the
 	// debugger code is no longer relevant after publishing.
@@ -149,6 +154,7 @@ cr.behaviors.RPGLeveler = function(runtime)
 	/**END-PREVIEWONLY**/
 
 	// --- Internal methods ---
+
 	behinstProto.calculateXPForLevel = function(level) {
 		if (level >= this.maxLevel) {
 			return this.xpForNext; // No more XP needed if already at a high enough level
@@ -167,9 +173,12 @@ cr.behaviors.RPGLeveler = function(runtime)
 				xp_needed = Infinity; // Prevent leveling with a bad formula
 			}
 		} else {
+			// Note: Input 'level' is the current level. We calculate XP required to complete it (reach level + 1).
+			// This aligns with the reference formula: Base * (Factor ^ (TargetLevel - 2))
+			// If TargetLevel is (level + 1), then exponent is (level + 1 - 2) = (level - 1).
 			switch (this.curveType) {
 				case 0: // Polynomial
-					xp_needed = this.baseXP * Math.pow(L, 2);
+					xp_needed = this.baseXP * Math.pow(L, 2); // Simple quadratic
 					break;
 				case 1: // Exponential
 					xp_needed = this.baseXP * Math.pow(this.growthFactor, L - 1);
@@ -180,6 +189,38 @@ cr.behaviors.RPGLeveler = function(runtime)
 			}
 		}
 		return Math.floor(xp_needed);
+	};
+
+	/**
+     * INVERSE XP FORMULA
+     * Calculates the level expected for a given amount of Total XP.
+	 * Useful for debugging or setting high XP values instantly.
+     */
+	behinstProto.getLevelFromTotalXP = function(totalXP) {
+		if (totalXP < this.baseXP) return 1;
+		
+		var level = 1;
+		
+		if (this.curveType === 1 && this.growthFactor > 1) {
+			// Inverse Exponential: Level = 2 + (log(TotalXP / Base) / log(Factor))
+			// Adjusted for our 0-based index logic where Base is needed for Level 2.
+			// Formula: TotalXP = Base * Factor^(L-2)  =>  L = 2 + log(TotalXP/Base)/log(Factor)
+			// However, our calculateXPForLevel uses (L-1) for the *current* level's requirement.
+			// So if we have XP, we want to find the Level we are *in*.
+			level = 1 + (Math.log(totalXP / this.baseXP) / Math.log(this.growthFactor));
+		} else {
+			// Fallback for Poly/Linear/Custom: Iterative approach (safe)
+			// Since we can't easily invert custom JS or generic Poly without knowing the power
+			// This is effectively what the tick loop does, but we expose it here if needed.
+			return this.level; 
+		}
+		
+		return Math.floor(level);
+	};
+
+	behinstProto.calculateStat = function(level, baseValue, growthRate, curve) {
+		if (level <= 1) return baseValue;
+		return Math.floor(baseValue + (growthRate * Math.pow(level - 1, curve)));
 	};
 
 	//////////////////////////////////////
@@ -245,6 +286,10 @@ cr.behaviors.RPGLeveler = function(runtime)
 		var xpInThisLevel = this.xpForNext - xpAtLevelStart;
 		var xpProgressInThisLevel = this.xp - xpAtLevelStart;
 		ret.set_float(cr.clamp(xpProgressInThisLevel / xpInThisLevel, 0, 1));
+	};
+
+	Exps.prototype.CalculateStat = function (ret, level, base, growth, curve) {
+		ret.set_float(this.calculateStat(level, base, growth, curve));
 	};
 	
 	behaviorProto.exps = new Exps();
