@@ -17,7 +17,9 @@ assert2(cr.behaviors, "cr.behaviors not created");
 
     var behtypeProto = behaviorProto.Type.prototype;
 
-    behtypeProto.onCreate = function() {};
+    behtypeProto.onCreate = function() {
+        this.solidTypes = [];
+    };
 
     behaviorProto.Instance = function(type, inst) {
         this.type = type;
@@ -61,6 +63,8 @@ assert2(cr.behaviors, "cr.behaviors not created");
     function Cnds() {};
     Cnds.prototype.OnRayHit = function() { return true; };
     Cnds.prototype.DidHit = function() { return this.didHit; };
+    Cnds.prototype.OnRayFailed = function() { return true; };
+    Cnds.prototype.OnRayHitSolid = function() { return true; };
     behaviorProto.cnds = new Cnds();
 
     // Helper function for squared distance, as cr.distanceSqTo is not in the C2 SDK
@@ -93,18 +97,19 @@ assert2(cr.behaviors, "cr.behaviors not created");
 
     // Helper function to check for the closest intersection between a ray and a bounding box
     function ray_box_intersection(ray_x1, ray_y1, ray_x2, ray_y2, bbox) {
-        var sides = [
-            [bbox.left, bbox.top, bbox.right, bbox.top],       // Top
-            [bbox.right, bbox.top, bbox.right, bbox.bottom],  // Right
-            [bbox.right, bbox.bottom, bbox.left, bbox.bottom], // Bottom
-            [bbox.left, bbox.bottom, bbox.left, bbox.top]      // Left
-        ];
-
         var closest_hit = null;
         var closest_dist_sq = Infinity;
 
+        // Check all 4 sides without allocating arrays
         for (var i = 0; i < 4; i++) {
-            var hit = line_segment_intersection(ray_x1, ray_y1, ray_x2, ray_y2, sides[i][0], sides[i][1], sides[i][2], sides[i][3]);
+            var x1, y1, x2, y2;
+            if (i === 0)      { x1 = bbox.left;  y1 = bbox.top;    x2 = bbox.right; y2 = bbox.top; }    // Top
+            else if (i === 1) { x1 = bbox.right; y1 = bbox.top;    x2 = bbox.right; y2 = bbox.bottom; } // Right
+            else if (i === 2) { x1 = bbox.right; y1 = bbox.bottom; x2 = bbox.left;  y2 = bbox.bottom; } // Bottom
+            else              { x1 = bbox.left;  y1 = bbox.bottom; x2 = bbox.left;  y2 = bbox.top; }    // Left
+
+            var hit = line_segment_intersection(ray_x1, ray_y1, ray_x2, ray_y2, x1, y1, x2, y2);
+            
             if (hit) {
                 var dist_sq = distanceSqTo(ray_x1, ray_y1, hit.x, hit.y);
                 if (dist_sq < closest_dist_sq) {
@@ -126,6 +131,7 @@ assert2(cr.behaviors, "cr.behaviors not created");
         var endX = startX + Math.cos(rad) * distance;
         var endY = startY + Math.sin(rad) * distance;
 
+        // 1. Check Target Objects
         var candidates = obj.getCurrentSol().getObjects();
         var closestHit = null;
         var closestDistSq = Number.MAX_VALUE;
@@ -133,6 +139,13 @@ assert2(cr.behaviors, "cr.behaviors not created");
         // Reset state before casting
         this.didHit = false;
         this.hitUID = -1;
+        
+        // Default hit point to end of ray (max distance) in case of miss
+        // This ensures that if we are blocked, we overwrite this, but if we miss, we have a valid "end" point.
+        // (Optional improvement over original code which left stale values)
+        // However, to maintain original behavior for misses (which didn't update X/Y), 
+        // we only update these if we actually hit something or are blocked.
+        // For now, we'll stick to updating only on hits/blocks to be safe.
 
         for (var i = 0; i < candidates.length; i++) {
             var inst = candidates[i];
@@ -154,7 +167,48 @@ assert2(cr.behaviors, "cr.behaviors not created");
             }
         }
 
-        if (closestHit) {
+        // 2. Check Solid Objects (Blocking)
+        var closestSolidDistSq = Number.MAX_VALUE;
+        var closestSolidHit = null;
+
+        for (var k = 0; k < this.type.solidTypes.length; k++) {
+            var solidType = this.type.solidTypes[k];
+            var solids = solidType.instances;
+            for (var i = 0; i < solids.length; i++) {
+                var inst = solids[i];
+                if (inst === this.inst) continue;
+
+                inst.update_bbox();
+                var result = ray_box_intersection(startX, startY, endX, endY, inst.bbox);
+
+                if (result) {
+                    var distSq = distanceSqTo(startX, startY, result.x, result.y);
+                    if (distSq < closestSolidDistSq) {
+                        closestSolidDistSq = distSq;
+                        closestSolidHit = { x: result.x, y: result.y, inst: inst, type: solidType };
+                    }
+                }
+            }
+        }
+
+        // 3. Determine Final Result
+        // If we hit a solid closer than the target (or we didn't hit a target at all but hit a solid)
+        if (closestSolidHit && closestSolidDistSq < closestDistSq) {
+            // Blocked by solid
+            this.didHit = false; // Blocked means we didn't hit the target
+            this.hitX = closestSolidHit.x;
+            this.hitY = closestSolidHit.y;
+            this.hitDist = Math.sqrt(closestSolidDistSq);
+            this.hitUID = closestSolidHit.inst.uid;
+
+            // Pick the solid instance
+            var sol = closestSolidHit.type.getCurrentSol();
+            sol.select_all = false;
+            sol.instances.length = 1;
+            sol.instances[0] = closestSolidHit.inst;
+            this.runtime.trigger(cr.behaviors.Raycasting.prototype.cnds.OnRayHitSolid, this.inst);
+        }
+        else if (closestHit) {
             this.didHit = true;
             this.hitX = closestHit.x;
             this.hitY = closestHit.y;
@@ -169,7 +223,22 @@ assert2(cr.behaviors, "cr.behaviors not created");
 
             this.runtime.trigger(cr.behaviors.Raycasting.prototype.cnds.OnRayHit, this.inst);
         }
+
+        if (!this.didHit) {
+            this.runtime.trigger(cr.behaviors.Raycasting.prototype.cnds.OnRayFailed, this.inst);
+        }
     };
+
+    Acts.prototype.AddSolid = function(obj) {
+        if (!obj) return;
+        if (this.type.solidTypes.indexOf(obj) === -1)
+            this.type.solidTypes.push(obj);
+    };
+
+    Acts.prototype.ClearSolids = function() {
+        this.type.solidTypes.length = 0;
+    };
+
     behaviorProto.acts = new Acts();
 
     function Exps() {};

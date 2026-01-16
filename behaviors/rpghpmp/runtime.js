@@ -243,6 +243,23 @@ cr.behaviors.RpgPoints = function(runtime)
 		behaviorProto.acts.ModifyResource.call(this, "MP", amount);
 	};
 
+	Acts.prototype.SetStats = function (maxHP, maxMP, regenHP, regenMP)
+	{
+		var resHP = this.resources["HP"];
+		if (resHP) {
+			resHP.max = (maxHP < 0) ? 0 : maxHP;
+			resHP.regen = regenHP;
+			resHP.current = cr.clamp(resHP.current, 0, resHP.max);
+		}
+
+		var resMP = this.resources["MP"];
+		if (resMP) {
+			resMP.max = (maxMP < 0) ? 0 : maxMP;
+			resMP.regen = regenMP;
+			resMP.current = cr.clamp(resMP.current, 0, resMP.max);
+		}
+	};
+
 	behaviorProto.acts = new Acts();
 
 	//////////////////////////////////////
@@ -301,6 +318,38 @@ cr.behaviors.RpgPoints = function(runtime)
 	Exps.prototype.MPPercent = function (ret)
 	{
 		behaviorProto.exps.ResourcePercent.call(this, ret, "MP");
+	};
+
+	Exps.prototype.BaseMaxHP = function (ret)
+	{
+		ret.set_float(this.properties[0]);
+	};
+
+	Exps.prototype.BaseMaxMP = function (ret)
+	{
+		ret.set_float(this.properties[1]);
+	};
+
+	Exps.prototype.BaseRegenHP = function (ret)
+	{
+		ret.set_float(this.properties[2]);
+	};
+
+	Exps.prototype.BaseRegenMP = function (ret)
+	{
+		ret.set_float(this.properties[3]);
+	};
+
+	Exps.prototype.RegenHP = function (ret)
+	{
+		var res = this.resources["HP"];
+		ret.set_float(res ? res.regen : 0);
+	};
+
+	Exps.prototype.RegenMP = function (ret)
+	{
+		var res = this.resources["MP"];
+		ret.set_float(res ? res.regen : 0);
 	};
 
 	behaviorProto.exps = new Exps();

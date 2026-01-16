@@ -19,10 +19,17 @@ AddNumberParam("Distance", "The maximum distance in pixels for the ray.", "1000"
 AddObjectParam("Objects", "The object type to check for collision.");
 AddAction(0, af_none, "Cast ray", "Raycasting", "Cast ray at angle {0} for distance {1} against {2}", "Fires a ray and checks for the first collision with a target object.", "CastRay");
 
+AddObjectParam("Solid", "The object type to treat as a solid blocking the ray.");
+AddAction(1, af_none, "Add solid", "Raycasting", "Add solid {0}", "Add an object type that blocks the ray.", "AddSolid");
+
+AddAction(2, af_none, "Clear solids", "Raycasting", "Clear solids", "Remove all added solid objects.", "ClearSolids");
+
 ////////////////////////////////////////
 // Conditions
 AddCondition(0, cf_trigger, "On ray hit", "Raycasting", "On ray hit", "Triggered when a ray cast hits an object.", "OnRayHit");
 AddCondition(1, cf_none, "Ray did hit", "Raycasting", "Ray did hit", "True if the last ray cast resulted in a hit.", "DidHit");
+AddCondition(2, cf_trigger, "On ray failed", "Raycasting", "On ray failed", "Triggered when a ray cast fails to hit a target object.", "OnRayFailed");
+AddCondition(3, cf_trigger, "On solid hit", "Raycasting", "On solid hit", "Triggered when the ray hits a solid object.", "OnRayHitSolid");
 
 ////////////////////////////////////////
 // Expressions

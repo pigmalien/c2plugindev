@@ -67,6 +67,12 @@ AddAction(5, af_none, "Spend mana", "MP", "Spend <b>{0}</b> mana", "Deduct an am
 AddNumberParam("Amount", "The amount of mana to restore (will be added to 'MP').");
 AddAction(6, af_none, "Restore mana", "MP", "Restore <b>{0}</b> MP", "Add an amount to the 'MP' resource, capped at its maximum.", "RestoreMana");
 
+AddNumberParam("Max HP", "The new maximum HP.");
+AddNumberParam("Max MP", "The new maximum MP.");
+AddNumberParam("HP Regen", "The new HP regeneration rate.");
+AddNumberParam("MP Regen", "The new MP regeneration rate.");
+AddAction(7, af_none, "Set stats (Level Up)", "HP & MP", "Set stats: Max HP to <b>{0}</b>, Max MP to <b>{1}</b>, HP Regen to <b>{2}</b>, MP Regen to <b>{3}</b>", "Update Max HP, Max MP, and regeneration rates.", "SetStats");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -92,6 +98,14 @@ AddExpression(5, ef_return_number, "HPPercent", "HP", "HPPercent", "Returns the 
 AddExpression(6, ef_return_number, "MP", "MP", "MP", "Returns the current value of the MP resource.");
 AddExpression(7, ef_return_number, "MaxMP", "MP", "MaxMP", "Returns the maximum capacity of the MP resource.");
 AddExpression(8, ef_return_number, "MPPercent", "MP", "MPPercent", "Returns the current MP as a percentage (0-100).");
+
+AddExpression(9, ef_return_number, "BaseMaxHP", "HP", "BaseMaxHP", "Returns the initial Max HP set in properties.");
+AddExpression(10, ef_return_number, "BaseMaxMP", "MP", "BaseMaxMP", "Returns the initial Max MP set in properties.");
+AddExpression(11, ef_return_number, "BaseRegenHP", "HP", "BaseRegenHP", "Returns the initial HP Regen set in properties.");
+AddExpression(12, ef_return_number, "BaseRegenMP", "MP", "BaseRegenMP", "Returns the initial MP Regen set in properties.");
+
+AddExpression(13, ef_return_number, "RegenHP", "HP", "RegenHP", "Returns the current HP regeneration rate.");
+AddExpression(14, ef_return_number, "RegenMP", "MP", "RegenMP", "Returns the current MP regeneration rate.");
 
 ////////////////////////////////////////
 ACESDone();
