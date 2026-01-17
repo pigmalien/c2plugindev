@@ -115,6 +115,9 @@ AddNumberParam("G", "Green (0-255).");
 AddNumberParam("B", "Blue (0-255).");
 AddAction(7, af_none, "Set Color", "Appearance", "Set color to ({0}, {1}, {2})", "Set the fixed color.", "SetColor");
 
+AddNumberParam("Value", "The value to snap to.");
+AddAction(8, af_none, "Snap Value", "General", "Snap value to {0}", "Set the value instantly without animation.", "SnapValue");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -152,7 +155,8 @@ var property_list = [
 	new cr.Property(ept_float, 	"Start Angle",		-180,	"The starting angle of the gauge in degrees."),
 	new cr.Property(ept_float, 	"Span Angle",		180,	"The total span of the gauge in degrees."),
 	new cr.Property(ept_float, 	"Thickness",		20,		"The thickness of the gauge bar."),
-	new cr.Property(ept_float, 	"Lerp Speed",		0.1,	"The speed of the value interpolation (0 to 1)."),
+	new cr.Property(ept_combo, 	"Animation Mode",	"Smooth", "Choose animation mode.", "Linear|Smooth"),
+	new cr.Property(ept_float, 	"Lerp Speed",		0.1,	"Linear: Units/sec. Smooth: Tightness (0-1)."),
 	new cr.Property(ept_combo, 	"Use Segments",		"No",	"Toggle whether to use segments.", "No|Yes"),
 	new cr.Property(ept_float, 	"Max Value",		100,	"The maximum value for the gauge (for color calculation).")
 	];

@@ -54,9 +54,10 @@ cr.plugins_.RadialGauge = function(runtime)
 		this.startAngle = cr.to_radians(this.properties[0]);
 		this.spanAngle = cr.to_radians(this.properties[1]);
 		this.thickness = this.properties[2];
-		this.lerpSpeed = this.properties[3];
-		this.useSegments = (this.properties[4] === 1); // 0=No, 1=Yes
-		this.maxValue = this.properties[5];
+		this.animationMode = this.properties[3]; // 0=Linear, 1=Smooth
+		this.lerpSpeed = this.properties[4];
+		this.useSegments = (this.properties[5] === 1); // 0=No, 1=Yes
+		this.maxValue = this.properties[6];
 
 		this.segmentCount = 10;
 		this.colorMode = 0; // 0 = Auto, 1 = Fixed
@@ -83,13 +84,33 @@ cr.plugins_.RadialGauge = function(runtime)
 		
 		if (isAnimating)
 		{
-			this.currentDisplayValue = cr.lerp(this.currentDisplayValue, this.targetValue, this.lerpSpeed);
+			var dt = this.runtime.getDt(this);
 			
-			if (Math.abs(this.currentDisplayValue - this.targetValue) < 0.01)
+			if (this.animationMode === 0) // Linear
 			{
-				this.currentDisplayValue = this.targetValue;
-				isAnimating = false;
+				var step = this.lerpSpeed * dt;
+				if (this.currentDisplayValue < this.targetValue) {
+					this.currentDisplayValue += step;
+					if (this.currentDisplayValue > this.targetValue)
+						this.currentDisplayValue = this.targetValue;
+				} else {
+					this.currentDisplayValue -= step;
+					if (this.currentDisplayValue < this.targetValue)
+						this.currentDisplayValue = this.targetValue;
+				}
 			}
+			else // Smooth
+			{
+				var factor = this.lerpSpeed * 60 * dt;
+				if (factor > 1) factor = 1;
+				this.currentDisplayValue = cr.lerp(this.currentDisplayValue, this.targetValue, factor);
+				
+				if (Math.abs(this.currentDisplayValue - this.targetValue) < 0.01)
+					this.currentDisplayValue = this.targetValue;
+			}
+			
+			if (this.currentDisplayValue === this.targetValue)
+				isAnimating = false;
 				
 			this.needsRedraw = true;
 			this.runtime.redraw = true;
@@ -332,6 +353,14 @@ cr.plugins_.RadialGauge = function(runtime)
 	Acts.prototype.SetLerpSpeed = function (val)
 	{
 		this.lerpSpeed = val;
+	};
+	
+	Acts.prototype.SnapValue = function (val)
+	{
+		this.targetValue = val;
+		this.currentDisplayValue = val;
+		this.needsRedraw = true;
+		this.runtime.redraw = true;
 	};
 	
 	Acts.prototype.SetRange = function (start, span)
