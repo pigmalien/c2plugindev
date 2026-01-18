@@ -1,4 +1,4 @@
-﻿// ECMAScript 5 strict mode
+﻿﻿// ECMAScript 5 strict mode
 "use strict";
 
 assert2(cr, "cr namespace not created");
@@ -53,8 +53,11 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.maxForce = this.properties[1];
 		this.gravity = this.properties[2];
 		this.cooldownTime = this.properties[3];
+		this.pathMode = this.properties[4]; // 0=Gravity, 1=Spline
+		this.enabled = (this.properties[5] !== 0);
+		this.dragScale = this.properties[6];
 		
-		// State Machine: 0=IDLE, 1=READY, 2=DRAGGING, 3=COOLDOWN
+		// State Machine: 0=IDLE, 1=READY, 2=DRAGGING, 3=COOLDOWN, 4=MOVING
 		this.state = 0;
 		this.projectileUid = -1;
 		this.cooldownTimer = 0;
@@ -65,6 +68,16 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.launchVx = 0;
 		this.launchVy = 0;
 
+		// Movement variables
+		this.flightTime = 0;
+		this.totalDuration = 0;
+		this.startX = 0;
+		this.startY = 0;
+		this.targetX = 0;
+		this.targetY = 0;
+		this.controlX = 0;
+		this.controlY = 0;
+
 		// Input handling
 		var self = this;
 		this.onMouseDownBound = function(info) { self.onMouseDown(info); };
@@ -74,6 +87,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 		jQuery(document).on("mousedown touchstart", this.onMouseDownBound);
 		jQuery(document).on("mousemove touchmove", this.onMouseMoveBound);
 		jQuery(document).on("mouseup touchend", this.onMouseUpBound);
+
+		this.runtime.tickMe(this);
 	};
 	
 	behinstProto.onDestroy = function ()
@@ -92,7 +107,19 @@ cr.behaviors.VectorLauncher = function(runtime)
 		return {
 			"state": this.state,
 			"puid": this.projectileUid,
-			"cd": this.cooldownTimer
+			"cd": this.cooldownTimer,
+			"ft": this.flightTime,
+			"td": this.totalDuration,
+			"sx": this.startX,
+			"sy": this.startY,
+			"tx": this.targetX,
+			"ty": this.targetY,
+			"cx": this.controlX,
+			"cy": this.controlY,
+			"lvx": this.launchVx,
+			"lvy": this.launchVy,
+			"en": this.enabled,
+			"dsc": this.dragScale
 		};
 	};
 	
@@ -104,10 +131,24 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.state = o["state"];
 		this.projectileUid = o["puid"];
 		this.cooldownTimer = o["cd"];
+		this.flightTime = o["ft"] || 0;
+		this.totalDuration = o["td"] || 0;
+		this.startX = o["sx"] || 0;
+		this.startY = o["sy"] || 0;
+		this.targetX = o["tx"] || 0;
+		this.targetY = o["ty"] || 0;
+		this.controlX = o["cx"] || 0;
+		this.controlY = o["cy"] || 0;
+		this.launchVx = o["lvx"] || 0;
+		this.launchVy = o["lvy"] || 0;
+		this.enabled = (typeof o["en"] !== "undefined" ? o["en"] : true);
+		this.dragScale = (typeof o["dsc"] !== "undefined" ? o["dsc"] : 1.0);
 	};
 
 	behinstProto.tick = function ()
 	{
+		if (!this.enabled) return;
+
 		var dt = this.runtime.getDt(this.inst);
 		
 		// Handle Cooldown
@@ -120,7 +161,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 				this.runtime.trigger(cr.behaviors.VectorLauncher.prototype.cnds.OnCooldownEnd, this.inst);
 			}
 		}
-
+		
 		// Sync Projectile Position
 		if (this.state === 1 || this.state === 2) // READY or DRAGGING
 		{
@@ -218,11 +259,12 @@ cr.behaviors.VectorLauncher = function(runtime)
 
 	behinstProto.onMouseDown = function (info)
 	{
+		if (!this.enabled) return;
 		if (this.state !== 1) return; // Must be READY
 
 		var m = this.getMousePos(info);
-		var dx = m.x - this.inst.x;
-		var dy = m.y - this.inst.y;
+		var dx = (m.x - this.inst.x) * this.dragScale;
+		var dy = (m.y - this.inst.y) * this.dragScale;
 		var dist = Math.sqrt(dx*dx + dy*dy);
 
 		if (dist <= this.maxPull)
@@ -234,13 +276,15 @@ cr.behaviors.VectorLauncher = function(runtime)
 
 	behinstProto.onMouseMove = function (info)
 	{
+		if (!this.enabled) return;
 		if (this.state !== 2) return;
 
 		var m = this.getMousePos(info);
 		var dx = m.x - this.inst.x;
 		var dy = m.y - this.inst.y;
 		var dist = Math.sqrt(dx*dx + dy*dy);
-
+		
+		// Clamp visual drag to maxPull
 		if (dist > this.maxPull)
 		{
 			var ratio = this.maxPull / dist;
@@ -252,7 +296,10 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.dragX = this.inst.x + dx;
 		this.dragY = this.inst.y + dy;
 
-		var powerRatio = dist / this.maxPull;
+		// Calculate force based on scale
+		var effectiveDist = dist * this.dragScale;
+
+		var powerRatio = effectiveDist / this.maxPull;
 		var totalForce = powerRatio * this.maxForce;
 
 		var launchDirX = 0;
@@ -268,6 +315,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 
 	behinstProto.onMouseUp = function (info)
 	{
+		if (!this.enabled) return;
 		if (this.state !== 2) return;
 
 		var proj = this.runtime.getObjectByUID(this.projectileUid);
@@ -286,16 +334,16 @@ cr.behaviors.VectorLauncher = function(runtime)
 
 			if (physics)
 			{
+				// Enable physics and apply impulse
 				if (physics.SetEnabled) physics.SetEnabled(true);
-
 				if (physics.ApplyImpulse) physics.ApplyImpulse(this.launchVx, this.launchVy);
 			}
 		}
 		
-		this.runtime.trigger(cr.behaviors.VectorLauncher.prototype.cnds.OnLaunch, this.inst);
-		
 		this.state = 3; // COOLDOWN
 		this.cooldownTimer = this.cooldownTime;
+		
+		this.runtime.trigger(cr.behaviors.VectorLauncher.prototype.cnds.OnLaunch, this.inst);
 	};
 
 	// The comments around these functions ensure they are removed when exporting, since the
@@ -318,6 +366,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 				// "readonly" (optional, default false): set to true to disable editing the property
 				{"name": "State", "value": this.state, "readonly": true},
 				{"name": "Max Pull", "value": this.maxPull},
+				{"name": "Enabled", "value": this.enabled},
+				{"name": "Drag Scale", "value": this.dragScale},
 				{"name": "Max Force", "value": this.maxForce},
 				{"name": "Cooldown", "value": this.cooldownTime}
 			]
@@ -330,6 +380,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 		// will need 'name' (the property name) and 'value', but you can also use 'header' (the
 		// header title for the section) to distinguish properties with the same name.
 		if (name === "Max Pull") this.maxPull = value;
+		if (name === "Enabled") this.enabled = value;
+		if (name === "Drag Scale") this.dragScale = value;
 		if (name === "Max Force") this.maxForce = value;
 		if (name === "Cooldown") this.cooldownTime = value;
 	};
@@ -376,6 +428,16 @@ cr.behaviors.VectorLauncher = function(runtime)
 		inst.set_bbox_changed();
 	};
 	
+	Acts.prototype.SetCooldown = function (t)
+	{
+		this.cooldownTime = t;
+	};
+	
+	Acts.prototype.SetEnabled = function (s)
+	{
+		this.enabled = (s === 1);
+	};
+	
 	behaviorProto.acts = new Acts();
 
 	//////////////////////////////////////
@@ -405,13 +467,19 @@ cr.behaviors.VectorLauncher = function(runtime)
 	
 	Exps.prototype.TargetX = function (ret)
 	{
-		ret.set_float(2 * this.inst.x - this.dragX);
+		var val = this.inst.x;
+		if (this.maxForce !== 0)
+			val += (this.launchVx / this.maxForce) * this.maxPull;
+		ret.set_float(val);
 	};
 	
 	Exps.prototype.TargetY = function (ret)
 	{
 		var t = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
-		ret.set_float(2 * this.inst.y - this.dragY + 0.5 * this.gravity * t * t);
+		var val = this.inst.y;
+		if (this.maxForce !== 0)
+			val += (this.launchVy / this.maxForce) * this.maxPull;
+		ret.set_float(val + 0.5 * this.gravity * t * t);
 	};
 	
 	Exps.prototype.CalculatedTime = function (ret)

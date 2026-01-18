@@ -1,4 +1,4 @@
-﻿﻿function GetBehaviorSettings()
+﻿﻿﻿﻿function GetBehaviorSettings()
 {
 	return {
 		"name":			"Vector Launcher",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
@@ -60,6 +60,11 @@ AddCondition(4, cf_trigger, "On cooldown end", "State", "{my} on cooldown end", 
 AddObjectParam("Projectile", "The object to load into the launcher.");
 AddAction(0, af_none, "Load projectile", "Launcher", "Load {0} into {my}", "Load a projectile sprite into the launcher.", "LoadProjectile");
 
+AddComboParamOption("Disabled");
+AddComboParamOption("Enabled");
+AddComboParam("State", "Set whether to enable or disable the behavior.");
+AddAction(1, af_none, "Set enabled", "Launcher", "Set {my} {0}", "Enable or disable the behavior.", "SetEnabled");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -99,7 +104,10 @@ var property_list = [
 	new cr.Property(ept_float, 	"Max Pull",		100,	"The maximum distance the projectile can be dragged from the anchor (pixels)."),
 	new cr.Property(ept_float, 	"Max Force",	20,		"The maximum impulse force applied when dragged to the full distance."),
 	new cr.Property(ept_float, 	"Gravity",		10,		"The gravity value used for trajectory prediction (visual only)."),
-	new cr.Property(ept_float, 	"Cooldown",		0.5,	"Time in seconds before the launcher can be used again.")
+	new cr.Property(ept_float, 	"Cooldown",		0.5,	"Time in seconds before the launcher can be used again."),
+	new cr.Property(ept_combo, 	"Path Mode",	"Gravity (Physics)", "Select the movement path type.", "Gravity (Physics)|Spline (Bezier)"),
+	new cr.Property(ept_combo, 	"Initial state",	"Enabled",	"Whether to initially enable the behavior.", "Disabled|Enabled"),
+	new cr.Property(ept_float, 	"Drag Scale",	1.0,	"Scale multiplier for the drag input distance.")
 	];
 	
 // Called by IDE when a new behavior type is to be created
