@@ -65,6 +65,10 @@ AddComboParamOption("Enabled");
 AddComboParam("State", "Set whether to enable or disable the behavior.");
 AddAction(1, af_none, "Set enabled", "Launcher", "Set {my} {0}", "Enable or disable the behavior.", "SetEnabled");
 
+AddNumberParam("X", "The X coordinate of the target destination.");
+AddNumberParam("Y", "The Y coordinate of the target destination.");
+AddAction(2, af_none, "Set target", "Launcher", "Set target to ({0}, {1})", "Set the fixed target (P2) for Spline mode.", "SetTarget");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -89,6 +93,9 @@ AddExpression(3, ef_return_number, "TrajectoryY", "Launcher", "TrajectoryY", "Th
 AddExpression(4, ef_return_number, "TargetX", "Launcher", "TargetX", "The X coordinate of the current drag position.");
 AddExpression(5, ef_return_number, "TargetY", "Launcher", "TargetY", "The Y coordinate of the current drag position.");
 AddExpression(6, ef_return_number, "CalculatedTime", "Launcher", "CalculatedTime", "The calculated time to reach the target distance.");
+
+AddExpression(7, ef_return_number, "ControlX", "Launcher", "ControlX", "The X coordinate of the control point (P1) in Spline mode.");
+AddExpression(8, ef_return_number, "ControlY", "Launcher", "ControlY", "The Y coordinate of the control point (P1) in Spline mode.");
 
 ////////////////////////////////////////
 ACESDone();

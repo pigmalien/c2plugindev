@@ -75,8 +75,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.startY = 0;
 		this.targetX = 0;
 		this.targetY = 0;
-		this.controlX = 0;
-		this.controlY = 0;
+		this.controlX = this.inst.x;
+		this.controlY = this.inst.y;
 
 		// Input handling
 		var self = this;
@@ -296,21 +296,36 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.dragX = this.inst.x + dx;
 		this.dragY = this.inst.y + dy;
 
-		// Calculate force based on scale
-		var effectiveDist = dist * this.dragScale;
-
-		var powerRatio = effectiveDist / this.maxPull;
-		var totalForce = powerRatio * this.maxForce;
-
-		var launchDirX = 0;
-		var launchDirY = 0;
-		if (dist > 0) {
-			launchDirX = -dx / dist;
-			launchDirY = -dy / dist;
+		if (this.pathMode === 1) // Spline Mode
+		{
+			// P1 (Control Point) is reflection of mouse pos across anchor (P0)
+			// Vector P0->Mouse is (dx, dy)
+			// Vector P0->P1 is (-dx, -dy) * scale
+			
+			this.controlX = this.inst.x + (-dx * this.dragScale);
+			this.controlY = this.inst.y + (-dy * this.dragScale);
+			
+			this.launchVx = 0;
+			this.launchVy = 0;
 		}
+		else
+		{
+			// Calculate force based on scale
+			var effectiveDist = dist * this.dragScale;
 
-		this.launchVx = launchDirX * totalForce;
-		this.launchVy = launchDirY * totalForce;
+			var powerRatio = effectiveDist / this.maxPull;
+			var totalForce = powerRatio * this.maxForce;
+
+			var launchDirX = 0;
+			var launchDirY = 0;
+			if (dist > 0) {
+				launchDirX = -dx / dist;
+				launchDirY = -dy / dist;
+			}
+
+			this.launchVx = launchDirX * totalForce;
+			this.launchVy = launchDirY * totalForce;
+		}
 	};
 
 	behinstProto.onMouseUp = function (info)
@@ -438,6 +453,12 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.enabled = (s === 1);
 	};
 	
+	Acts.prototype.SetTarget = function (x, y)
+	{
+		this.targetX = x;
+		this.targetY = y;
+	};
+	
 	behaviorProto.acts = new Acts();
 
 	//////////////////////////////////////
@@ -456,36 +477,77 @@ cr.behaviors.VectorLauncher = function(runtime)
 	
 	Exps.prototype.TrajectoryX = function (ret, t)
 	{
-		ret.set_float(this.inst.x + this.launchVx * t);
+		if (this.pathMode === 1)
+		{
+			// Quadratic Bezier: (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
+			var mt = 1 - t;
+			ret.set_float((mt * mt * this.inst.x) + (2 * mt * t * this.controlX) + (t * t * this.targetX));
+		}
+		else
+		{
+			ret.set_float(this.inst.x + this.launchVx * t);
+		}
 	};
 	
 	Exps.prototype.TrajectoryY = function (ret, t)
 	{
-		// y = y0 + vy*t + 0.5*g*t^2
-		ret.set_float(this.inst.y + this.launchVy * t + 0.5 * this.gravity * t * t);
+		if (this.pathMode === 1)
+		{
+			var mt = 1 - t;
+			ret.set_float((mt * mt * this.inst.y) + (2 * mt * t * this.controlY) + (t * t * this.targetY));
+		}
+		else
+		{
+			// y = y0 + vy*t + 0.5*g*t^2
+			ret.set_float(this.inst.y + this.launchVy * t + 0.5 * this.gravity * t * t);
+		}
 	};
 	
 	Exps.prototype.TargetX = function (ret)
 	{
-		var val = this.inst.x;
-		if (this.maxForce !== 0)
-			val += (this.launchVx / this.maxForce) * this.maxPull;
-		ret.set_float(val);
+		if (this.pathMode === 1)
+		{
+			ret.set_float(this.targetX);
+		}
+		else
+		{
+			var val = this.inst.x;
+			if (this.maxForce !== 0)
+				val += (this.launchVx / this.maxForce) * this.maxPull;
+			ret.set_float(val);
+		}
 	};
 	
 	Exps.prototype.TargetY = function (ret)
 	{
-		var t = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
-		var val = this.inst.y;
-		if (this.maxForce !== 0)
-			val += (this.launchVy / this.maxForce) * this.maxPull;
-		ret.set_float(val + 0.5 * this.gravity * t * t);
+		if (this.pathMode === 1)
+		{
+			ret.set_float(this.targetY);
+		}
+		else
+		{
+			var t = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
+			var val = this.inst.y;
+			if (this.maxForce !== 0)
+				val += (this.launchVy / this.maxForce) * this.maxPull;
+			ret.set_float(val + 0.5 * this.gravity * t * t);
+		}
 	};
 	
 	Exps.prototype.CalculatedTime = function (ret)
 	{
 		var t = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
 		ret.set_float(t);
+	};
+	
+	Exps.prototype.ControlX = function (ret)
+	{
+		ret.set_float(this.controlX);
+	};
+	
+	Exps.prototype.ControlY = function (ret)
+	{
+		ret.set_float(this.controlY);
 	};
 	
 	behaviorProto.exps = new Exps();
