@@ -1,4 +1,4 @@
-﻿﻿﻿﻿function GetBehaviorSettings()
+﻿﻿﻿﻿﻿﻿function GetBehaviorSettings()
 {
 	return {
 		"name":			"Vector Launcher",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
@@ -68,6 +68,20 @@ AddAction(1, af_none, "Set enabled", "Launcher", "Set {my} {0}", "Enable or disa
 AddNumberParam("X", "The X coordinate of the target destination.");
 AddNumberParam("Y", "The Y coordinate of the target destination.");
 AddAction(2, af_none, "Set target", "Launcher", "Set target to ({0}, {1})", "Set the fixed target (P2) for Spline mode.", "SetTarget");
+
+AddComboParamOption("Gravity (Physics)");
+AddComboParamOption("Spline (Bezier)");
+AddComboParam("Mode", "Select the movement path type.");
+AddAction(3, af_none, "Set path mode", "Launcher", "Set path mode to {0}", "Set the movement path type.", "SetPathMode");
+
+AddNumberParam("Max Pull", "The maximum distance the projectile can be dragged.");
+AddAction(4, af_none, "Set max pull", "Launcher", "Set max pull to {0}", "Set the maximum drag distance.", "SetMaxPull");
+
+AddNumberParam("Max Force", "The maximum impulse force.");
+AddAction(5, af_none, "Set max force", "Launcher", "Set max force to {0}", "Set the maximum impulse force.", "SetMaxForce");
+
+AddNumberParam("Gravity", "The gravity value for prediction.");
+AddAction(6, af_none, "Set gravity", "Launcher", "Set gravity to {0}", "Set the gravity used for trajectory prediction.", "SetGravity");
 
 ////////////////////////////////////////
 // Expressions

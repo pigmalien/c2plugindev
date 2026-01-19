@@ -459,6 +459,26 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.targetY = y;
 	};
 	
+	Acts.prototype.SetPathMode = function (m)
+	{
+		this.pathMode = m;
+	};
+	
+	Acts.prototype.SetMaxPull = function (v)
+	{
+		this.maxPull = v;
+	};
+
+	Acts.prototype.SetMaxForce = function (v)
+	{
+		this.maxForce = v;
+	};
+
+	Acts.prototype.SetGravity = function (v)
+	{
+		this.gravity = v;
+	};
+	
 	behaviorProto.acts = new Acts();
 
 	//////////////////////////////////////
@@ -485,7 +505,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 		}
 		else
 		{
-			ret.set_float(this.inst.x + this.launchVx * t);
+			var duration = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
+			ret.set_float(this.inst.x + this.launchVx * (t * duration));
 		}
 	};
 	
@@ -498,8 +519,10 @@ cr.behaviors.VectorLauncher = function(runtime)
 		}
 		else
 		{
+			var duration = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
+			var real_t = t * duration;
 			// y = y0 + vy*t + 0.5*g*t^2
-			ret.set_float(this.inst.y + this.launchVy * t + 0.5 * this.gravity * t * t);
+			ret.set_float(this.inst.y + this.launchVy * real_t + 0.5 * this.gravity * real_t * real_t);
 		}
 	};
 	
@@ -536,8 +559,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 	
 	Exps.prototype.CalculatedTime = function (ret)
 	{
-		var t = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
-		ret.set_float(t);
+		ret.set_float(1.0);
 	};
 	
 	Exps.prototype.ControlX = function (ret)
