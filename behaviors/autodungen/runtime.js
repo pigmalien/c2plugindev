@@ -47,15 +47,47 @@ cr.behaviors.Autodungen = function(runtime)
 
 	behinstProto.onCreate = function()
 	{
-		// Properties
-		this.minRoomSize = this.properties[0];
-		this.maxRoomSize = this.properties[1];
-		this.padding = this.properties[2];
-		this.seed = this.properties[3];
-		this.wallTile = this.properties[4];
-		this.floorTile = this.properties[5];
+		var p = this.properties;
+		var isNewVersion = p.length > 19; // Previous version had 19 properties
 
-		// Internal state
+		// Properties
+		this.minRoomSize = p[0];
+		this.maxRoomSize = p[1];
+		this.padding = p[2];
+
+		var offset = 0;
+		if (isNewVersion) {
+			this.corridorSize = p[3];
+			offset = 1;
+		} else {
+			this.corridorSize = 1; // Default for old projects
+		}
+
+		this.seed = p[3 + offset];
+		this.floorTile = p[4 + offset];
+        this.autotiling = p[5 + offset];
+		this.wallTile = p[6 + offset];
+		this.tileCornerInTR = p[7 + offset];
+        this.tileSideTop = p[8 + offset];
+        this.tileCornerOutTR = p[9 + offset];
+        this.tileSideRight = p[10 + offset];
+        this.tileCornerInBR = p[11 + offset];
+        this.tileSideBottom = p[12 + offset];
+        this.tileCornerOutBR = p[13 + offset];
+        this.tileCornerOutBL = p[14 + offset];
+        this.tileCornerInBL = p[15 + offset];
+        this.tileSideLeft = p[16 + offset];
+        this.tileCornerOutTL = p[17 + offset];
+        this.tileCornerInTL = p[18 + offset];
+        this.thickWalls = (p.length > 20) ? p[20] : 0; // 0=No, 1=Yes
+
+		// Backwards compatibility for old property order
+		if (typeof this.autotiling === "undefined") {
+			this.wallTile = p[4];
+			this.floorTile = p[5];
+			this.autotiling = 0; // Disabled by default for old projects
+		}
+
 		this.prng = null;
 		this.grid = [];
 		this.rooms = [];
@@ -93,11 +125,27 @@ cr.behaviors.Autodungen = function(runtime)
 			"minrs": this.minRoomSize,
 			"maxrs": this.maxRoomSize,
 			"pad": this.padding,
+			"cs": this.corridorSize,
 			"w": this.mapWidth,
 			"h": this.mapHeight,
 			"grid": this.grid,
 			"rooms": this.rooms,
-			// Properties are saved/loaded automatically
+			"autotile": this.autotiling,
+            "wall_t": this.wallTile,
+            "floor_t": this.floorTile,
+            "t_citr": this.tileCornerInTR,
+            "t_st": this.tileSideTop,
+            "t_cotr": this.tileCornerOutTR,
+            "t_sr": this.tileSideRight,
+            "t_cibr": this.tileCornerInBR,
+            "t_sb": this.tileSideBottom,
+            "t_cobr": this.tileCornerOutBR,
+            "t_cobl": this.tileCornerOutBL,
+            "t_cibl": this.tileCornerInBL,
+            "t_sl": this.tileSideLeft,
+            "t_cotl": this.tileCornerOutTL,
+            "t_citl": this.tileCornerInTL,
+            "thick": this.thickWalls
 		};
 	};
 	
@@ -108,10 +156,28 @@ cr.behaviors.Autodungen = function(runtime)
 		this.minRoomSize = o["minrs"];
 		this.maxRoomSize = o["maxrs"];
 		this.padding = o["pad"];
+		this.corridorSize = o["cs"] || 1;
 		this.mapWidth = o["w"];
 		this.mapHeight = o["h"];
 		this.grid = o["grid"];
 		this.rooms = o["rooms"];
+
+		this.autotiling = o["autotile"] || 0;
+        this.wallTile = typeof o["wall_t"] !== 'undefined' ? o["wall_t"] : 1;
+        this.floorTile = typeof o["floor_t"] !== 'undefined' ? o["floor_t"] : 0;
+        this.tileCornerInTR = o["t_citr"] || -1;
+        this.tileSideTop = o["t_st"] || -1;
+        this.tileCornerOutTR = o["t_cotr"] || -1;
+        this.tileSideRight = o["t_sr"] || -1;
+        this.tileCornerInBR = o["t_cibr"] || -1;
+        this.tileSideBottom = o["t_sb"] || -1;
+        this.tileCornerOutBR = o["t_cobr"] || -1;
+        this.tileCornerOutBL = o["t_cobl"] || -1;
+        this.tileCornerInBL = o["t_cibl"] || -1;
+        this.tileSideLeft = o["t_sl"] || -1;
+        this.tileCornerOutTL = o["t_cotl"] || -1;
+        this.tileCornerInTL = o["t_citl"] || -1;
+        this.thickWalls = o["thick"] || 0;
 		
 		this._setSeed(this.seed); // Re-init PRNG
 		this.leafNodes = []; // Not saved, can be left empty
@@ -282,32 +348,148 @@ cr.behaviors.Autodungen = function(runtime)
 	};
 
 	behinstProto._carveHCorridor = function(x1, x2, y) {
+		var size = Math.max(1, Math.floor(this.corridorSize));
+		var offset = Math.floor(size / 2);
 		for(var x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
-			if (this.grid[x] && this.grid[x][y] === this.WALL)
-				this.grid[x][y] = this.FLOOR;
+			for (var i = 0; i < size; i++) {
+				var currentY = y - offset + i;
+				if (this.grid[x] && typeof this.grid[x][currentY] !== "undefined" && this.grid[x][currentY] === this.WALL)
+					this.grid[x][currentY] = this.FLOOR;
+			}
 		}
 	};
 
 	behinstProto._carveVCorridor = function(y1, y2, x) {
+		var size = Math.max(1, Math.floor(this.corridorSize));
+		var offset = Math.floor(size / 2);
 		for(var y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
-			if (this.grid[x] && this.grid[x][y] === this.WALL)
-				this.grid[x][y] = this.FLOOR;
+			for (var i = 0; i < size; i++) {
+				var currentX = x - offset + i;
+				if (this.grid[currentX] && typeof this.grid[currentX][y] !== "undefined" && this.grid[currentX][y] === this.WALL)
+					this.grid[currentX][y] = this.FLOOR;
+			}
 		}
+	};
+
+	behinstProto._enforceThickWalls = function() {
+		if (this.thickWalls === 0) return;
+
+		// Iterate grid to find single walls and thicken them into adjacent rooms
+		for (var x = 1; x < this.mapWidth - 1; x++) {
+			for (var y = 1; y < this.mapHeight - 1; y++) {
+				if (this.grid[x][y] === this.WALL) {
+					// Vertical thickness (Horizontal walls)
+					if (this.grid[x][y-1] !== this.WALL && this.grid[x][y+1] !== this.WALL) {
+						if (this.grid[x][y-1] === this.ROOM) this.grid[x][y-1] = this.WALL;
+						else if (this.grid[x][y+1] === this.ROOM) this.grid[x][y+1] = this.WALL;
+					}
+					
+					// Horizontal thickness (Vertical walls)
+					if (this.grid[x-1][y] !== this.WALL && this.grid[x+1][y] !== this.WALL) {
+						if (this.grid[x-1][y] === this.ROOM) this.grid[x-1][y] = this.WALL;
+						else if (this.grid[x+1][y] === this.ROOM) this.grid[x+1][y] = this.WALL;
+					}
+				}
+			}
+		}
+	};
+
+	behinstProto._getWallTile = function(x, y) {
+		var useDefault = -1;
+	
+		var isWall = (tx, ty) => {
+			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return true;
+			var tile = this.grid[tx][ty];
+			return tile !== this.ROOM && tile !== this.FLOOR;
+		};
+	
+		var n = isWall(x, y - 1);
+		var e = isWall(x + 1, y);
+		var s = isWall(x, y + 1);
+		var w = isWall(x - 1, y);
+		
+		var ne = isWall(x + 1, y - 1);
+		var se = isWall(x + 1, y + 1);
+		var sw = isWall(x - 1, y + 1);
+		var nw = isWall(x - 1, y - 1);
+	
+		// Outer Corners (Exterior/Convex) - Wall sticking out
+		if (!n && !w && e && s && this.tileCornerOutTL !== useDefault) return this.tileCornerOutTL;
+		if (!n && !e && w && s && this.tileCornerOutTR !== useDefault) return this.tileCornerOutTR;
+		if (!s && !w && e && n && this.tileCornerOutBL !== useDefault) return this.tileCornerOutBL;
+		if (!s && !e && w && n && this.tileCornerOutBR !== useDefault) return this.tileCornerOutBR;
+	
+		// Inner Corners (Interior/Concave) - Wall surrounding floor
+		if (n && e && s && w) {
+			if (!se && this.tileCornerInTL !== useDefault) return this.tileCornerInTL;
+			if (!sw && this.tileCornerInTR !== useDefault) return this.tileCornerInTR;
+			if (!ne && this.tileCornerInBL !== useDefault) return this.tileCornerInBL;
+			if (!nw && this.tileCornerInBR !== useDefault) return this.tileCornerInBR;
+		}
+	
+		// Sides
+		if (!s && n && e && w && this.tileSideTop !== useDefault) return this.tileSideTop;
+		if (!n && s && e && w && this.tileSideBottom !== useDefault) return this.tileSideBottom;
+		if (!e && n && s && w && this.tileSideLeft !== useDefault) return this.tileSideLeft;
+		if (!w && n && s && e && this.tileSideRight !== useDefault) return this.tileSideRight;
+	
+		return this.wallTile; // Default wall tile
+	};
+
+	behinstProto._getWallShapeAt = function(x, y) {
+		if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return "OutOfBounds";
+		
+		var t = this.grid[x][y];
+		if (t === this.ROOM || t === this.FLOOR) return "Floor";
+
+		var isWall = (tx, ty) => {
+			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return true;
+			var tile = this.grid[tx][ty];
+			return tile !== this.ROOM && tile !== this.FLOOR;
+		};
+	
+		var n = isWall(x, y - 1);
+		var e = isWall(x + 1, y);
+		var s = isWall(x, y + 1);
+		var w = isWall(x - 1, y);
+		
+		var ne = isWall(x + 1, y - 1);
+		var se = isWall(x + 1, y + 1);
+		var sw = isWall(x - 1, y + 1);
+		var nw = isWall(x - 1, y - 1);
+	
+		// Outer Corners (Exterior/Convex)
+		if (!n && !w && e && s) return "CornerOutTL";
+		if (!n && !e && w && s) return "CornerOutTR";
+		if (!s && !w && e && n) return "CornerOutBL";
+		if (!s && !e && w && n) return "CornerOutBR";
+
+		// Inner Corners (Interior/Concave)
+		if (n && e && s && w) {
+			if (!se) return "CornerInTL";
+			if (!sw) return "CornerInTR";
+			if (!ne) return "CornerInBL";
+			if (!nw) return "CornerInBR";
+		}
+	
+		// Sides
+		if (!s && n && e && w) return "SideTop";
+		if (!n && s && e && w) return "SideBottom";
+		if (!e && n && s && w) return "SideLeft";
+		if (!w && n && s && e) return "SideRight";
+	
+		return "Wall";
 	};
 
 	behinstProto._paintTilemap = function() {
 		var tilemapInst = this.inst;
 		if (!tilemapInst) return;
 		
-		// Access the Tilemap plugin's actions directly via the type definition
-		// This ensures we call the correct logic for the specific plugin instance
 		var tilemapActs = tilemapInst.type.plugin.acts;
 
 		if (tilemapActs && tilemapActs.SetSize)
 			tilemapActs.SetSize.call(tilemapInst, this.mapWidth, this.mapHeight);
 		
-		// Force update the object's pixel dimensions to match the new map size.
-		// This ensures the renderer doesn't clip the map to the old size.
 		var tw = tilemapInst.tilewidth || 32;
 		var th = tilemapInst.tileheight || 32;
 		tilemapInst.width = this.mapWidth * tw;
@@ -318,16 +500,22 @@ cr.behaviors.Autodungen = function(runtime)
 			for(var x = 0; x < this.mapWidth; x++) {
 				for(var y = 0; y < this.mapHeight; y++) {
 					var tileType = this.grid[x][y];
-					var outputTile = this.wallTile;
+					var outputTile;
 					if (tileType === this.ROOM || tileType === this.FLOOR) {
 						outputTile = this.floorTile;
+					}
+					else { // It's a wall
+                        if (this.autotiling === 1) {
+                            outputTile = this._getWallTile(x, y);
+                        } else {
+						    outputTile = this.wallTile;
+                        }
 					}
 					tilemapActs.SetTile.call(tilemapInst, x, y, outputTile);
 				}
 			}
 		}
 		
-		// Ensure the Tilemap updates its bounding box and redraws after bulk changes
 		if (tilemapInst.set_bbox_changed)
 			tilemapInst.set_bbox_changed();
 		
@@ -404,6 +592,31 @@ cr.behaviors.Autodungen = function(runtime)
 		this.floorTile = id;
 	};
 
+	Acts.prototype.SetAutotileID = function (shape_index, id) {
+        switch(shape_index) {
+            case 0: this.tileCornerInTR = id; break;
+            case 1: this.tileSideTop = id; break;
+            case 2: this.tileCornerOutTR = id; break;
+            case 3: this.tileSideRight = id; break;
+            case 4: this.tileCornerInBR = id; break;
+            case 5: this.tileSideBottom = id; break;
+            case 6: this.tileCornerOutBR = id; break;
+            case 7: this.tileCornerOutBL = id; break;
+            case 8: this.tileCornerInBL = id; break;
+            case 9: this.tileSideLeft = id; break;
+            case 10: this.tileCornerOutTL = id; break;
+            case 11: this.tileCornerInTL = id; break;
+        }
+    };
+
+    Acts.prototype.SetAutotilingEnabled = function (state) {
+        this.autotiling = state;
+    };
+
+	Acts.prototype.SetCorridorSize = function (size) {
+		this.corridorSize = Math.max(1, Math.floor(size));
+	};
+
 	Acts.prototype.GenerateDungeon = function (width, height)
 	{
 		this.mapWidth = Math.floor(Math.max(1, width));
@@ -425,6 +638,7 @@ cr.behaviors.Autodungen = function(runtime)
 		
 		this._createRooms();
 		this._createCorridors();
+		this._enforceThickWalls();
 		this._paintTilemap();
 		this.runtime.trigger(cr.behaviors.Autodungen.prototype.cnds.OnGenerationComplete, this.inst);
 	};
@@ -482,6 +696,58 @@ cr.behaviors.Autodungen = function(runtime)
 	// For 'For Each Room' loop
 	Exps.prototype.LoopRoomIndex = function (ret) {
 		ret.set_int(this.loop_room_index);
+	};
+
+	Exps.prototype.TileCornerInTR = function (ret) {
+		ret.set_int(this.tileCornerInTR);
+	};
+
+	Exps.prototype.TileSideTop = function (ret) {
+		ret.set_int(this.tileSideTop);
+	};
+
+	Exps.prototype.TileCornerOutTR = function (ret) {
+		ret.set_int(this.tileCornerOutTR);
+	};
+
+	Exps.prototype.TileSideRight = function (ret) {
+		ret.set_int(this.tileSideRight);
+	};
+
+	Exps.prototype.TileCornerInBR = function (ret) {
+		ret.set_int(this.tileCornerInBR);
+	};
+
+	Exps.prototype.TileSideBottom = function (ret) {
+		ret.set_int(this.tileSideBottom);
+	};
+
+	Exps.prototype.TileCornerOutBR = function (ret) {
+		ret.set_int(this.tileCornerOutBR);
+	};
+
+	Exps.prototype.TileCornerOutBL = function (ret) {
+		ret.set_int(this.tileCornerOutBL);
+	};
+
+	Exps.prototype.TileCornerInBL = function (ret) {
+		ret.set_int(this.tileCornerInBL);
+	};
+
+	Exps.prototype.TileSideLeft = function (ret) {
+		ret.set_int(this.tileSideLeft);
+	};
+
+	Exps.prototype.TileCornerOutTL = function (ret) {
+		ret.set_int(this.tileCornerOutTL);
+	};
+
+	Exps.prototype.TileCornerInTL = function (ret) {
+		ret.set_int(this.tileCornerInTL);
+	};
+
+	Exps.prototype.AutotileShapeAt = function (ret, x, y) {
+		ret.set_string(this._getWallShapeAt(Math.floor(x), Math.floor(y)));
 	};
 	
 	behaviorProto.exps = new Exps();
