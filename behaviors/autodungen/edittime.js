@@ -83,6 +83,13 @@ AddComboParamOption("Corner In Bottom-Left");
 AddComboParamOption("Side Left");
 AddComboParamOption("Corner Out Top-Left");
 AddComboParamOption("Corner In Top-Left");
+AddComboParamOption("Below Corner Out Bottom-Left");
+AddComboParamOption("Below Side Top");
+AddComboParamOption("Below Corner Out Bottom-Right");
+AddComboParamOption("Shadow Side Right");
+AddComboParamOption("Shadow Corner In Top-Left");
+AddComboParamOption("Shadow Below Corner Out Bottom-Right End");
+AddComboParamOption("Shadow Side Left");
 AddComboParam("Shape", "The wall shape to set the tile for.");
 AddNumberParam("Tile ID", "The tile ID to use (-1 for default).");
 AddAction(5, af_none, "Set autotile ID", "Autotiling", "Set autotile for <b>{0}</b> to <b>{1}</b>", "Sets a specific tile ID for autotiling.", "SetAutotileID");
@@ -133,6 +140,14 @@ AddNumberParam("X", "The X coordinate (in tiles).");
 AddNumberParam("Y", "The Y coordinate (in tiles).");
 AddExpression(19, ef_return_string, "AutotileShapeAt", "Autotiling", "AutotileShapeAt", "Returns the name of the autotile shape at the given coordinates.");
 
+AddExpression(20, ef_return_number, "TileBelowCornerOutBL", "Autotiling", "TileBelowCornerOutBL", "Returns the tile ID for Below Corner Out Bottom-Left.");
+AddExpression(21, ef_return_number, "TileBelowSideTop", "Autotiling", "TileBelowSideTop", "Returns the tile ID for Below Side Top.");
+AddExpression(22, ef_return_number, "TileBelowCornerOutBR", "Autotiling", "TileBelowCornerOutBR", "Returns the tile ID for Below Corner Out Bottom-Right.");
+AddExpression(23, ef_return_number, "TileShadowSideRight", "Autotiling", "TileShadowSideRight", "Returns the tile ID for Shadow Side Right.");
+AddExpression(24, ef_return_number, "TileShadowCornerInTL", "Autotiling", "TileShadowCornerInTL", "Returns the tile ID for Shadow Corner In Top-Left.");
+AddExpression(26, ef_return_number, "TileShadowBelowCornerOutBREnd", "Autotiling", "TileShadowBelowCornerOutBREnd", "Returns the tile ID for Shadow Below Corner Out Bottom-Right End.");
+AddExpression(27, ef_return_number, "TileShadowSideLeft", "Autotiling", "TileShadowSideLeft", "Returns the tile ID for Shadow Side Left.");
+
 ////////////////////////////////////////
 ACESDone();
 
@@ -164,7 +179,14 @@ var property_list = [
     new cr.Property(ept_integer, 	"Side Left",		        -1,		"Tile ID for this shape. -1 to use default."),
     new cr.Property(ept_integer, 	"Corner Out Top-Left",		-1,		"Tile ID for this shape. -1 to use default."),
     new cr.Property(ept_integer, 	"Corner In Top-Left",		-1,		"Tile ID for this shape. -1 to use default."),
-    new cr.Property(ept_combo, 		"Thick Walls",				"No",	"Ensure walls are at least 2 tiles thick.", "No|Yes")
+    new cr.Property(ept_combo, 		"Thick Walls",				"No",	"Ensure walls are at least 2 tiles thick.", "No|Yes"),
+    new cr.Property(ept_integer, 	"Below Corner Out BL",		-1,		"Tile ID below Corner Out Bottom-Left. -1 to use default."),
+    new cr.Property(ept_integer, 	"Below Side Top",		    -1,		"Tile ID below Side Top. -1 to use default."),
+    new cr.Property(ept_integer, 	"Below Corner Out BR",		-1,		"Tile ID below Corner Out Bottom-Right. -1 to use default."),
+    new cr.Property(ept_integer, 	"Shadow Side Right",		-1,		"Tile ID for Shadow Side Right. -1 to use default."),
+    new cr.Property(ept_integer, 	"Shadow Corner In TL",		-1,		"Tile ID for Shadow Corner In Top-Left. -1 to use default."),
+    new cr.Property(ept_integer, 	"Shadow Below Corner Out BR End", -1, "Tile ID for Shadow Below Corner Out Bottom-Right End. -1 to use default."),
+    new cr.Property(ept_integer, 	"Shadow Side Left",			-1,		"Tile ID for Shadow Side Left. -1 to use default.")
 ];
 	
 // Called by IDE when a new behavior type is to be created

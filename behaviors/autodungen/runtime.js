@@ -80,6 +80,13 @@ cr.behaviors.Autodungen = function(runtime)
         this.tileCornerOutTL = p[17 + offset];
         this.tileCornerInTL = p[18 + offset];
         this.thickWalls = (p.length > 20) ? p[20] : 0; // 0=No, 1=Yes
+        this.tileBelowCornerOutBL = (p.length > 21) ? p[21] : -1;
+        this.tileBelowSideTop = (p.length > 22) ? p[22] : -1;
+        this.tileBelowCornerOutBR = (p.length > 23) ? p[23] : -1;
+        this.tileShadowSideRight = (p.length > 24) ? p[24] : -1;
+        this.tileShadowCornerInTL = (p.length > 25) ? p[25] : -1;
+        this.tileShadowBelowCornerOutBREnd = (p.length > 26) ? p[26] : -1;
+        this.tileShadowSideLeft = (p.length > 27) ? p[27] : -1;
 
 		// Backwards compatibility for old property order
 		if (typeof this.autotiling === "undefined") {
@@ -145,7 +152,14 @@ cr.behaviors.Autodungen = function(runtime)
             "t_sl": this.tileSideLeft,
             "t_cotl": this.tileCornerOutTL,
             "t_citl": this.tileCornerInTL,
-            "thick": this.thickWalls
+            "thick": this.thickWalls,
+            "t_b_cobl": this.tileBelowCornerOutBL,
+            "t_b_st": this.tileBelowSideTop,
+            "t_b_cobr": this.tileBelowCornerOutBR,
+            "t_s_sr": this.tileShadowSideRight,
+            "t_s_citl": this.tileShadowCornerInTL,
+            "t_s_bcobre": this.tileShadowBelowCornerOutBREnd,
+            "t_s_sl": this.tileShadowSideLeft
 		};
 	};
 	
@@ -178,6 +192,13 @@ cr.behaviors.Autodungen = function(runtime)
         this.tileCornerOutTL = o["t_cotl"] || -1;
         this.tileCornerInTL = o["t_citl"] || -1;
         this.thickWalls = o["thick"] || 0;
+        this.tileBelowCornerOutBL = o["t_b_cobl"] || -1;
+        this.tileBelowSideTop = o["t_b_st"] || -1;
+        this.tileBelowCornerOutBR = o["t_b_cobr"] || -1;
+        this.tileShadowSideRight = o["t_s_sr"] || -1;
+        this.tileShadowCornerInTL = o["t_s_citl"] || -1;
+        this.tileShadowBelowCornerOutBREnd = o["t_s_bcobre"] || -1;
+        this.tileShadowSideLeft = o["t_s_sl"] || -1;
 		
 		this._setSeed(this.seed); // Re-init PRNG
 		this.leafNodes = []; // Not saved, can be left empty
@@ -436,17 +457,166 @@ cr.behaviors.Autodungen = function(runtime)
 		return this.wallTile; // Default wall tile
 	};
 
-	behinstProto._getWallShapeAt = function(x, y) {
-		if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return "OutOfBounds";
-		
-		var t = this.grid[x][y];
-		if (t === this.ROOM || t === this.FLOOR) return "Floor";
+	behinstProto._getDepthTile = function(x, y) {
+		// This function now handles all floor shadow logic (Depth, Side, Corner)
+		// (x, y) is the floor tile coordinate
 
 		var isWall = (tx, ty) => {
 			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return true;
 			var tile = this.grid[tx][ty];
 			return tile !== this.ROOM && tile !== this.FLOOR;
 		};
+
+		var wallNorth = isWall(x, y - 1);
+		var wallWest = isWall(x - 1, y);
+		var wallEast = isWall(x + 1, y);
+
+		// 1. North Wall Shadows (Depth) - Priority over Corner
+		if (wallNorth) {
+			// Check shape of the wall above
+			var wx = x;
+			var wy = y - 1;
+			var n = isWall(wx, wy - 1);
+			var e = isWall(wx + 1, wy);
+			var w = isWall(wx - 1, wy);
+			
+			if (n && e && w && this.tileBelowSideTop !== -1) {
+				return this.tileBelowSideTop;
+			}
+			if (n && e && !w && this.tileBelowCornerOutBL !== -1) return this.tileBelowCornerOutBL;
+			if (n && !e && w) {
+				// CornerOutBR case
+				// Check for "End" transition (Wall to the East of the floor tile)
+				if (wallEast && this.tileShadowBelowCornerOutBREnd !== -1) {
+					return this.tileShadowBelowCornerOutBREnd;
+				}
+				if (this.tileBelowCornerOutBR !== -1) return this.tileBelowCornerOutBR;
+			}
+		}
+
+		// 2. Shadow below the face (3/4 view corner shadow)
+		if (!wallNorth && isWall(x, y - 2)) {
+			var wx = x;
+			var wy = y - 2;
+			var n = isWall(wx, wy - 1);
+			var e = isWall(wx + 1, wy);
+			var w = isWall(wx - 1, wy);
+			
+			if (n && e && w && wallWest && this.tileShadowCornerInTL !== -1) {
+				return this.tileShadowCornerInTL;
+			}
+		}
+
+		// 2. Inner Corner Shadow (North + West)
+		if (wallNorth && wallWest && this.tileShadowCornerInTL !== -1) {
+			return this.tileShadowCornerInTL;
+		}
+
+		// 3. West Wall Shadow (Side Right - Renamed from EastSideBorder)
+		if (wallWest) {
+			// Check for CornerOutBR to the West (n && w && !s)
+			var wx = x - 1;
+			var wy = y;
+			var n = isWall(wx, wy - 1);
+			var w = isWall(wx - 1, wy);
+			var s = isWall(wx, wy + 1);
+			
+			if (n && w && !s && this.tileShadowSideLeft !== -1) return this.tileShadowSideLeft;
+			
+			if (this.tileShadowSideRight !== -1) return this.tileShadowSideRight;
+		}
+
+		// 4. Shadow Side Right (Diagonal from CornerOutBR)
+		if (!wallNorth && !wallWest && this.tileShadowSideRight !== -1) {
+			if (isWall(x - 1, y - 1)) {
+				var n = isWall(x - 1, y - 2);
+				var w = isWall(x - 2, y - 1);
+				if (n && w) return this.tileShadowSideRight;
+			}
+		}
+
+		return -1;
+	};
+
+	behinstProto._getWallShapeAt = function(x, y) {
+		if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return "OutOfBounds";
+		
+		var t = this.grid[x][y];
+		var isWall = (tx, ty) => {
+			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return true;
+			var tile = this.grid[tx][ty];
+			return tile !== this.ROOM && tile !== this.FLOOR;
+		};
+
+		if (t === this.ROOM || t === this.FLOOR) {
+			var wallNorth = isWall(x, y - 1);
+			var wallWest = isWall(x - 1, y);
+			var wallEast = isWall(x + 1, y);
+
+			if (wallNorth) {
+				var n = isWall(x, y - 2);
+				var e = isWall(x + 1, y - 1);
+				var w = isWall(x - 1, y - 1);
+
+				if (n && e && w) {
+					if (wallWest) return "ShadowCornerInTL";
+
+					var ne_n = isWall(x + 1, y - 2);
+					var ne_e = isWall(x + 2, y - 1);
+					var ne_s = isWall(x + 1, y);
+					if (ne_n && !ne_e && !ne_s) return "ShadowSideRight";
+
+					return "BelowSideTop";
+				}
+				if (n && e && w) {
+					if (wallWest) return "ShadowCornerInTL";
+
+					var ne_n = isWall(x + 1, y - 2);
+					var ne_e = isWall(x + 2, y - 1);
+					var ne_s = isWall(x + 1, y);
+					if (ne_n && !ne_e && !ne_s) return "ShadowSideRight";
+
+					return "BelowSideTop";
+				}
+				if (n && e && !w) return "BelowCornerOutBL";
+				if (n && !e && w) {
+					if (wallEast) return "ShadowBelowCornerOutBREnd";
+					return "BelowCornerOutBR";
+				}
+			}
+
+			if (!wallNorth && isWall(x, y - 2)) {
+				var n = isWall(x, y - 3);
+				var e = isWall(x + 1, y - 2);
+				var w = isWall(x - 1, y - 2);
+				
+				if (n && e && w && wallWest) {
+					return "ShadowCornerInTL";
+				}
+			}
+
+			if (wallNorth && wallWest) return "ShadowCornerInTL";
+
+			if (wallWest) {
+				var wx = x - 1;
+				var wy = y;
+				var n = isWall(wx, wy - 1);
+				var w = isWall(wx - 1, wy);
+				var s = isWall(wx, wy + 1);
+				if (n && w && !s) return "ShadowSideLeft";
+				return "ShadowSideRight";
+			}
+
+			if (!wallNorth && !wallWest) {
+				if (isWall(x - 1, y - 1)) {
+					var n = isWall(x - 1, y - 2);
+					var w = isWall(x - 2, y - 1);
+					if (n && w) return "ShadowSideRight";
+				}
+			}
+
+			return "Floor";
+		}
 	
 		var n = isWall(x, y - 1);
 		var e = isWall(x + 1, y);
@@ -502,7 +672,13 @@ cr.behaviors.Autodungen = function(runtime)
 					var tileType = this.grid[x][y];
 					var outputTile;
 					if (tileType === this.ROOM || tileType === this.FLOOR) {
-						outputTile = this.floorTile;
+						var depthTile = -1;
+						if (this.autotiling === 1) {
+							depthTile = this._getDepthTile(x, y);
+						}
+						
+						if (depthTile !== -1) outputTile = depthTile;
+						else outputTile = this.floorTile;
 					}
 					else { // It's a wall
                         if (this.autotiling === 1) {
@@ -606,6 +782,13 @@ cr.behaviors.Autodungen = function(runtime)
             case 9: this.tileSideLeft = id; break;
             case 10: this.tileCornerOutTL = id; break;
             case 11: this.tileCornerInTL = id; break;
+            case 12: this.tileBelowCornerOutBL = id; break;
+            case 13: this.tileBelowSideTop = id; break;
+            case 14: this.tileBelowCornerOutBR = id; break;
+            case 15: this.tileShadowSideRight = id; break;
+            case 16: this.tileShadowCornerInTL = id; break;
+            case 17: this.tileShadowBelowCornerOutBREnd = id; break;
+            case 18: this.tileShadowSideLeft = id; break;
         }
     };
 
@@ -744,6 +927,34 @@ cr.behaviors.Autodungen = function(runtime)
 
 	Exps.prototype.TileCornerInTL = function (ret) {
 		ret.set_int(this.tileCornerInTL);
+	};
+
+	Exps.prototype.TileBelowCornerOutBL = function (ret) {
+		ret.set_int(this.tileBelowCornerOutBL);
+	};
+
+	Exps.prototype.TileBelowSideTop = function (ret) {
+		ret.set_int(this.tileBelowSideTop);
+	};
+
+	Exps.prototype.TileBelowCornerOutBR = function (ret) {
+		ret.set_int(this.tileBelowCornerOutBR);
+	};
+
+	Exps.prototype.TileShadowSideRight = function (ret) {
+		ret.set_int(this.tileShadowSideRight);
+	};
+
+	Exps.prototype.TileShadowCornerInTL = function (ret) {
+		ret.set_int(this.tileShadowCornerInTL);
+	};
+
+	Exps.prototype.TileShadowBelowCornerOutBREnd = function (ret) {
+		ret.set_int(this.tileShadowBelowCornerOutBREnd);
+	};
+
+	Exps.prototype.TileShadowSideLeft = function (ret) {
+		ret.set_int(this.tileShadowSideLeft);
 	};
 
 	Exps.prototype.AutotileShapeAt = function (ret, x, y) {
