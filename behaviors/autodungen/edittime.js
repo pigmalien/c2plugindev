@@ -1,4 +1,4 @@
-﻿function GetBehaviorSettings()
+﻿﻿function GetBehaviorSettings()
 {
 	return {
 		"name":			"Autodungen",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
@@ -89,7 +89,7 @@ AddComboParamOption("Below Corner Out Bottom-Right");
 AddComboParamOption("Shadow Side Right");
 AddComboParamOption("Shadow Corner In Top-Left");
 AddComboParamOption("Shadow Below Corner Out Bottom-Right End");
-AddComboParamOption("Shadow Side Left");
+AddComboParamOption("Shadow Below Side Top");
 AddComboParam("Shape", "The wall shape to set the tile for.");
 AddNumberParam("Tile ID", "The tile ID to use (-1 for default).");
 AddAction(5, af_none, "Set autotile ID", "Autotiling", "Set autotile for <b>{0}</b> to <b>{1}</b>", "Sets a specific tile ID for autotiling.", "SetAutotileID");
@@ -146,7 +146,7 @@ AddExpression(22, ef_return_number, "TileBelowCornerOutBR", "Autotiling", "TileB
 AddExpression(23, ef_return_number, "TileShadowSideRight", "Autotiling", "TileShadowSideRight", "Returns the tile ID for Shadow Side Right.");
 AddExpression(24, ef_return_number, "TileShadowCornerInTL", "Autotiling", "TileShadowCornerInTL", "Returns the tile ID for Shadow Corner In Top-Left.");
 AddExpression(26, ef_return_number, "TileShadowBelowCornerOutBREnd", "Autotiling", "TileShadowBelowCornerOutBREnd", "Returns the tile ID for Shadow Below Corner Out Bottom-Right End.");
-AddExpression(27, ef_return_number, "TileShadowSideLeft", "Autotiling", "TileShadowSideLeft", "Returns the tile ID for Shadow Side Left.");
+AddExpression(27, ef_return_number, "TileShadowBelowSideTop", "Autotiling", "TileShadowBelowSideTop", "Returns the tile ID for Shadow Below Side Top.");
 
 ////////////////////////////////////////
 ACESDone();
@@ -186,7 +186,7 @@ var property_list = [
     new cr.Property(ept_integer, 	"Shadow Side Right",		-1,		"Tile ID for Shadow Side Right. -1 to use default."),
     new cr.Property(ept_integer, 	"Shadow Corner In TL",		-1,		"Tile ID for Shadow Corner In Top-Left. -1 to use default."),
     new cr.Property(ept_integer, 	"Shadow Below Corner Out BR End", -1, "Tile ID for Shadow Below Corner Out Bottom-Right End. -1 to use default."),
-    new cr.Property(ept_integer, 	"Shadow Side Left",			-1,		"Tile ID for Shadow Side Left. -1 to use default.")
+    new cr.Property(ept_integer, 	"Shadow Below Side Top",	-1,		"Tile ID for Shadow Below Side Top. -1 to use default.")
 ];
 	
 // Called by IDE when a new behavior type is to be created
