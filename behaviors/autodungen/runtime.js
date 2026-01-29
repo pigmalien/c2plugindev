@@ -274,6 +274,7 @@ cr.behaviors.Autodungen = function(runtime)
 
 		var len = splitHorizontally ? p.h : p.w;
 		var min = Math.max(4, this.minRoomSize);
+		if (min % 2 !== 0) min++;
 
 		// Stop splitting if the partition is too small to contain two rooms
 		if (len < min * 2) {
@@ -284,6 +285,9 @@ cr.behaviors.Autodungen = function(runtime)
 		// Split if partition is too big, or by random chance
 		if (len > this.maxRoomSize || this._random() > 0.25) {
 			var split_at = this._randInt(min, len - min);
+			
+			if (split_at % 2 !== 0) split_at--;
+			if (split_at < min) split_at = min;
 			
 			var p1, p2;
 			if (splitHorizontally) {
@@ -306,17 +310,34 @@ cr.behaviors.Autodungen = function(runtime)
 			var leaf = this.leafNodes[i];
 			
 			var minSize = Math.max(4, this.minRoomSize - this.padding * 2);
+			if (minSize % 2 !== 0) minSize++;
 
 			var roomW = this._randInt(minSize, leaf.w - this.padding * 2);
+			if (roomW % 2 !== 0) roomW--;
 			var roomH = this._randInt(minSize, leaf.h - this.padding * 2);
+			if (roomH % 2 !== 0) roomH--;
 			
 			var roomX = leaf.x + this._randInt(this.padding, leaf.w - roomW - this.padding);
 			var roomY = leaf.y + this._randInt(this.padding, leaf.h - roomH - this.padding);
 			
+			if (roomX % 2 !== 0) roomX--;
+			if (roomY % 2 !== 0) roomY--;
+			
+			if (roomX < leaf.x + this.padding) roomX += 2;
+			if (roomY < leaf.y + this.padding) roomY += 2;
+			
+			if (roomX + roomW > leaf.x + leaf.w - this.padding) roomW -= 2;
+			if (roomY + roomH > leaf.y + leaf.h - this.padding) roomH -= 2;
+			
+			var cX = roomX + Math.floor(roomW / 2);
+			if (cX % 2 !== 0) cX--;
+			var cY = roomY + Math.floor(roomH / 2);
+			if (cY % 2 !== 0) cY--;
+
 			var room = {
 				x: roomX, y: roomY, w: roomW, h: roomH,
-				centerX: roomX + Math.floor(roomW / 2),
-				centerY: roomY + Math.floor(roomH / 2)
+				centerX: cX,
+				centerY: cY
 			};
 			this.rooms.push(room);
 			leaf.room = room; // Link room to leaf for corridors
@@ -369,11 +390,12 @@ cr.behaviors.Autodungen = function(runtime)
 	};
 
 	behinstProto._carveHCorridor = function(x1, x2, y) {
-		var size = Math.max(1, Math.floor(this.corridorSize));
-		var offset = Math.floor(size / 2);
+		var size = Math.max(2, Math.floor(this.corridorSize));
+		if (size % 2 !== 0) size++;
+		
 		for(var x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
 			for (var i = 0; i < size; i++) {
-				var currentY = y - offset + i;
+				var currentY = y + i;
 				if (this.grid[x] && typeof this.grid[x][currentY] !== "undefined" && this.grid[x][currentY] === this.WALL)
 					this.grid[x][currentY] = this.FLOOR;
 			}
@@ -381,11 +403,12 @@ cr.behaviors.Autodungen = function(runtime)
 	};
 
 	behinstProto._carveVCorridor = function(y1, y2, x) {
-		var size = Math.max(1, Math.floor(this.corridorSize));
-		var offset = Math.floor(size / 2);
+		var size = Math.max(2, Math.floor(this.corridorSize));
+		if (size % 2 !== 0) size++;
+		
 		for(var y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
 			for (var i = 0; i < size; i++) {
-				var currentX = x - offset + i;
+				var currentX = x + i;
 				if (this.grid[currentX] && typeof this.grid[currentX][y] !== "undefined" && this.grid[currentX][y] === this.WALL)
 					this.grid[currentX][y] = this.FLOOR;
 			}
@@ -797,6 +820,8 @@ cr.behaviors.Autodungen = function(runtime)
 
 	Acts.prototype.GenerateDungeon = function (width, height)
 	{
+		this._setSeed(this.seed);
+
 		this.mapWidth = Math.floor(Math.max(1, width));
 		this.mapHeight = Math.floor(Math.max(1, height));
 		
