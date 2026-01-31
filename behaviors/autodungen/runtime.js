@@ -705,7 +705,10 @@ cr.behaviors.Autodungen = function(runtime)
 						    outputTile = this.wallTile;
                         }
 					}
-					tilemapActs.SetTile.call(tilemapInst, x, y, outputTile);
+					if (outputTile === -1 && tilemapActs.EraseTile)
+						tilemapActs.EraseTile.call(tilemapInst, x, y);
+					else
+						tilemapActs.SetTile.call(tilemapInst, x, y, outputTile);
 				}
 			}
 		}

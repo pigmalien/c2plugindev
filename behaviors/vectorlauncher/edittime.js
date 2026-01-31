@@ -111,6 +111,12 @@ AddExpression(6, ef_return_number, "CalculatedTime", "Launcher", "CalculatedTime
 AddExpression(7, ef_return_number, "ControlX", "Launcher", "ControlX", "The X coordinate of the control point (P1) in Spline mode.");
 AddExpression(8, ef_return_number, "ControlY", "Launcher", "ControlY", "The Y coordinate of the control point (P1) in Spline mode.");
 
+AddExpression(9, ef_return_number, "BounceCount", "Launcher", "BounceCount", "The number of bounce points calculated in Raycast mode.");
+AddNumberParam("Index", "The index of the bounce point (0-based).");
+AddExpression(10, ef_return_number, "BounceX", "Launcher", "BounceX", "The X coordinate of a bounce point.");
+AddNumberParam("Index", "The index of the bounce point (0-based).");
+AddExpression(11, ef_return_number, "BounceY", "Launcher", "BounceY", "The Y coordinate of a bounce point.");
+
 ////////////////////////////////////////
 ACESDone();
 
@@ -126,9 +132,10 @@ var property_list = [
 	new cr.Property(ept_float, 	"Max Force",	20,		"The maximum impulse force applied when dragged to the full distance."),
 	new cr.Property(ept_float, 	"Gravity",		10,		"The gravity value used for trajectory prediction (visual only)."),
 	new cr.Property(ept_float, 	"Cooldown",		0.5,	"Time in seconds before the launcher can be used again."),
-	new cr.Property(ept_combo, 	"Path Mode",	"Gravity (Physics)", "Select the movement path type.", "Gravity (Physics)|Spline (Bezier)"),
+	new cr.Property(ept_combo, 	"Path Mode",	"Gravity (Physics)", "Select the movement path type.", "Gravity (Physics)|Spline (Bezier)|Raycast (Ricochet)"),
 	new cr.Property(ept_combo, 	"Initial state",	"Enabled",	"Whether to initially enable the behavior.", "Disabled|Enabled"),
-	new cr.Property(ept_float, 	"Drag Scale",	1.0,	"Scale multiplier for the drag input distance.")
+	new cr.Property(ept_float, 	"Drag Scale",	1.0,	"Scale multiplier for the drag input distance."),
+	new cr.Property(ept_integer, "Max Bounces", 3,		"Maximum number of bounces for Raycast mode.")
 	];
 	
 // Called by IDE when a new behavior type is to be created

@@ -56,6 +56,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.pathMode = this.properties[4]; // 0=Gravity, 1=Spline
 		this.enabled = (this.properties[5] !== 0);
 		this.dragScale = this.properties[6];
+		this.maxBounces = this.properties[7];
 		
 		// State Machine: 0=IDLE, 1=READY, 2=DRAGGING, 3=COOLDOWN, 4=MOVING
 		this.state = 0;
@@ -77,6 +78,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.targetY = 0;
 		this.controlX = this.inst.x;
 		this.controlY = this.inst.y;
+		
+		this.rayPoints = [];
 
 		// Input handling
 		var self = this;
@@ -119,7 +122,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 			"lvx": this.launchVx,
 			"lvy": this.launchVy,
 			"en": this.enabled,
-			"dsc": this.dragScale
+			"dsc": this.dragScale,
+			"mb": this.maxBounces
 		};
 	};
 	
@@ -143,6 +147,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.launchVy = o["lvy"] || 0;
 		this.enabled = (typeof o["en"] !== "undefined" ? o["en"] : true);
 		this.dragScale = (typeof o["dsc"] !== "undefined" ? o["dsc"] : 1.0);
+		this.maxBounces = (typeof o["mb"] !== "undefined" ? o["mb"] : 3);
 	};
 
 	behinstProto.tick = function ()
@@ -308,13 +313,21 @@ cr.behaviors.VectorLauncher = function(runtime)
 			this.launchVx = 0;
 			this.launchVy = 0;
 		}
-		else
+		else if (this.pathMode === 2) // Raycast Mode
+		{
+			// For Raycast, we just need the direction. Force and Scale are irrelevant.
+			this.launchVx = -dx;
+			this.launchVy = -dy;
+			this.calculateRaycast();
+		}
+		else // Gravity (Physics)
 		{
 			// Calculate force based on scale
 			var effectiveDist = dist * this.dragScale;
 
 			var powerRatio = effectiveDist / this.maxPull;
 			var totalForce = powerRatio * this.maxForce;
+			if (totalForce > this.maxForce) totalForce = this.maxForce;
 
 			var launchDirX = 0;
 			var launchDirY = 0;
@@ -327,11 +340,97 @@ cr.behaviors.VectorLauncher = function(runtime)
 			this.launchVy = launchDirY * totalForce;
 		}
 	};
+	
+	behinstProto.calculateRaycast = function()
+	{
+		this.rayPoints = [];
+		var startX = this.inst.x;
+		var startY = this.inst.y;
+		
+		// Save state
+		var originalX = this.inst.x;
+		var originalY = this.inst.y;
+		
+		this.rayPoints.push({x: startX, y: startY});
+		
+		var vx = this.launchVx;
+		var vy = this.launchVy;
+		
+		var mag = Math.sqrt(vx*vx + vy*vy);
+		if (mag === 0) return;
+		
+		var dirX = vx / mag;
+		var dirY = vy / mag;
+		
+		var currentX = startX;
+		var currentY = startY;
+		
+		var stepSize = 5;
+		var maxDist = 2000;
+		var distTraveled = 0;
+		var bounces = 0;
+		
+		while (bounces < this.maxBounces && distTraveled < maxDist) {
+			var hit = false;
+			
+			while (distTraveled < maxDist) {
+				currentX += dirX * stepSize;
+				currentY += dirY * stepSize;
+				distTraveled += stepSize;
+				
+				this.inst.x = currentX;
+				this.inst.y = currentY;
+				this.inst.set_bbox_changed();
+				
+				if (this.runtime.testOverlapSolid(this.inst)) {
+					hit = true;
+					break;
+				}
+			}
+			
+			if (hit) {
+				// Backtrack
+				var safeX = currentX - dirX * stepSize;
+				var safeY = currentY - dirY * stepSize;
+				
+				// Determine Normal
+				this.inst.x = currentX; this.inst.y = safeY; this.inst.set_bbox_changed();
+				var hitX = this.runtime.testOverlapSolid(this.inst);
+				
+				this.inst.x = safeX; this.inst.y = currentY; this.inst.set_bbox_changed();
+				var hitY = this.runtime.testOverlapSolid(this.inst);
+				
+				if (hitX) dirX *= -1;
+				if (hitY) dirY *= -1;
+				if (!hitX && !hitY) { dirX *= -1; dirY *= -1; }
+				
+				this.rayPoints.push({x: safeX, y: safeY});
+				currentX = safeX + dirX * stepSize;
+				currentY = safeY + dirY * stepSize;
+				bounces++;
+			} else {
+				this.rayPoints.push({x: currentX, y: currentY});
+				break;
+			}
+		}
+		
+		this.inst.x = originalX;
+		this.inst.y = originalY;
+		this.inst.set_bbox_changed();
+	};
 
 	behinstProto.onMouseUp = function (info)
 	{
 		if (!this.enabled) return;
 		if (this.state !== 2) return;
+		
+		if (this.pathMode === 2) // Raycast: Targeting only
+		{
+			this.state = 3; // COOLDOWN
+			this.cooldownTimer = this.cooldownTime;
+			this.runtime.trigger(cr.behaviors.VectorLauncher.prototype.cnds.OnLaunch, this.inst);
+			return;
+		}
 
 		var proj = this.runtime.getObjectByUID(this.projectileUid);
 		if (proj)
@@ -385,6 +484,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 				{"name": "Drag Scale", "value": this.dragScale},
 				{"name": "Max Force", "value": this.maxForce},
 				{"name": "Cooldown", "value": this.cooldownTime}
+				,{"name": "Max Bounces", "value": this.maxBounces}
 			]
 		});
 	};
@@ -399,6 +499,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 		if (name === "Drag Scale") this.dragScale = value;
 		if (name === "Max Force") this.maxForce = value;
 		if (name === "Cooldown") this.cooldownTime = value;
+		if (name === "Max Bounces") this.maxBounces = value;
 	};
 	/**END-PREVIEWONLY**/
 
@@ -570,6 +671,25 @@ cr.behaviors.VectorLauncher = function(runtime)
 	Exps.prototype.ControlY = function (ret)
 	{
 		ret.set_float(this.controlY);
+	};
+	
+	Exps.prototype.BounceCount = function (ret)
+	{
+		ret.set_int(this.rayPoints.length);
+	};
+	
+	Exps.prototype.BounceX = function (ret, i)
+	{
+		i = Math.floor(i);
+		if (i >= 0 && i < this.rayPoints.length) ret.set_float(this.rayPoints[i].x);
+		else ret.set_float(0);
+	};
+	
+	Exps.prototype.BounceY = function (ret, i)
+	{
+		i = Math.floor(i);
+		if (i >= 0 && i < this.rayPoints.length) ret.set_float(this.rayPoints[i].y);
+		else ret.set_float(0);
 	};
 	
 	behaviorProto.exps = new Exps();
