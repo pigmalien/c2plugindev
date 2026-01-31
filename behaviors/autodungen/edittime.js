@@ -102,6 +102,31 @@ AddAction(6, af_none, "Set autotiling enabled", "Autotiling", "Set autotiling to
 AddNumberParam("Size", "The width of corridors in tiles (odd numbers are best).", "1");
 AddAction(7, af_none, "Set corridor size", "Setup", "Set corridor size to <b>{0}</b>", "Sets the width of generated corridors.", "SetCorridorSize");
 
+AddComboParamOption("Corner In Top-Right");
+AddComboParamOption("Side Top");
+AddComboParamOption("Corner Out Top-Right");
+AddComboParamOption("Side Right");
+AddComboParamOption("Corner In Bottom-Right");
+AddComboParamOption("Side Bottom");
+AddComboParamOption("Corner Out Bottom-Right");
+AddComboParamOption("Corner Out Bottom-Left");
+AddComboParamOption("Corner In Bottom-Left");
+AddComboParamOption("Side Left");
+AddComboParamOption("Corner Out Top-Left");
+AddComboParamOption("Corner In Top-Left");
+AddComboParamOption("Below Corner Out Bottom-Left");
+AddComboParamOption("Below Side Top");
+AddComboParamOption("Below Corner Out Bottom-Right");
+AddComboParamOption("Shadow Side Right");
+AddComboParamOption("Shadow Corner In Top-Left");
+AddComboParamOption("Shadow Below Corner Out Bottom-Right End");
+AddComboParamOption("Shadow Below Side Top");
+AddComboParamOption("Floor");
+AddComboParamOption("Wall");
+AddComboParam("Shape", "The wall shape to add a variant for.");
+AddNumberParam("Tile ID", "The tile ID to use as a variant.");
+AddNumberParam("Probability", "The percentage chance (0-100) to use this variant.", "50");
+AddAction(8, af_none, "Add autotile variant", "Autotiling", "Add variant tile <b>{1}</b> for <b>{0}</b> with <b>{2}%</b> chance", "Adds a variant tile for a specific shape with a given probability.", "AddAutotileVariant");
 
 
 ////////////////////////////////////////

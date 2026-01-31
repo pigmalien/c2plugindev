@@ -105,6 +105,9 @@ cr.behaviors.Autodungen = function(runtime)
 		
 		// Looping state
 		this.loop_room_index = 0;
+
+		this.variants = [];
+		for(var i=0; i<21; i++) this.variants[i] = [];
 		
 		// Internal tile types
 		this.VOID = 0;
@@ -159,7 +162,8 @@ cr.behaviors.Autodungen = function(runtime)
             "t_s_sr": this.tileShadowSideRight,
             "t_s_citl": this.tileShadowCornerInTL,
             "t_s_bcobre": this.tileShadowBelowCornerOutBREnd,
-            "t_s_bst": this.tileShadowBelowSideTop
+            "t_s_bst": this.tileShadowBelowSideTop,
+			"variants": this.variants
 		};
 	};
 	
@@ -199,6 +203,11 @@ cr.behaviors.Autodungen = function(runtime)
         this.tileShadowCornerInTL = o["t_s_citl"] || -1;
         this.tileShadowBelowCornerOutBREnd = o["t_s_bcobre"] || -1;
         this.tileShadowBelowSideTop = o["t_s_bst"] || -1;
+
+		this.variants = o["variants"] || [];
+		for(var i=0; i<21; i++) {
+			if (!this.variants[i]) this.variants[i] = [];
+		}
 		
 		this._setSeed(this.seed); // Re-init PRNG
 		this.leafNodes = []; // Not saved, can be left empty
@@ -438,6 +447,18 @@ cr.behaviors.Autodungen = function(runtime)
 		}
 	};
 
+	behinstProto._resolveVariant = function(shapeIndex, defaultId) {
+		if (!this.variants[shapeIndex] || this.variants[shapeIndex].length === 0) return defaultId;
+        
+        for (var i = 0; i < this.variants[shapeIndex].length; i++) {
+            var v = this.variants[shapeIndex][i];
+            if (this._random() * 100 < v.prob) {
+                return v.id;
+            }
+        }
+        return defaultId;
+	};
+
 	behinstProto._getWallTile = function(x, y) {
 		var useDefault = -1;
 	
@@ -458,26 +479,26 @@ cr.behaviors.Autodungen = function(runtime)
 		var nw = isWall(x - 1, y - 1);
 	
 		// Outer Corners (Exterior/Convex) - Wall sticking out
-		if (!n && !w && e && s && this.tileCornerOutTL !== useDefault) return this.tileCornerOutTL;
-		if (!n && !e && w && s && this.tileCornerOutTR !== useDefault) return this.tileCornerOutTR;
-		if (!s && !w && e && n && this.tileCornerOutBL !== useDefault) return this.tileCornerOutBL;
-		if (!s && !e && w && n && this.tileCornerOutBR !== useDefault) return this.tileCornerOutBR;
+		if (!n && !w && e && s && this.tileCornerOutTL !== useDefault) return this._resolveVariant(10, this.tileCornerOutTL);
+		if (!n && !e && w && s && this.tileCornerOutTR !== useDefault) return this._resolveVariant(2, this.tileCornerOutTR);
+		if (!s && !w && e && n && this.tileCornerOutBL !== useDefault) return this._resolveVariant(7, this.tileCornerOutBL);
+		if (!s && !e && w && n && this.tileCornerOutBR !== useDefault) return this._resolveVariant(6, this.tileCornerOutBR);
 	
 		// Inner Corners (Interior/Concave) - Wall surrounding floor
 		if (n && e && s && w) {
-			if (!se && this.tileCornerInTL !== useDefault) return this.tileCornerInTL;
-			if (!sw && this.tileCornerInTR !== useDefault) return this.tileCornerInTR;
-			if (!ne && this.tileCornerInBL !== useDefault) return this.tileCornerInBL;
-			if (!nw && this.tileCornerInBR !== useDefault) return this.tileCornerInBR;
+			if (!se && this.tileCornerInTL !== useDefault) return this._resolveVariant(11, this.tileCornerInTL);
+			if (!sw && this.tileCornerInTR !== useDefault) return this._resolveVariant(0, this.tileCornerInTR);
+			if (!ne && this.tileCornerInBL !== useDefault) return this._resolveVariant(8, this.tileCornerInBL);
+			if (!nw && this.tileCornerInBR !== useDefault) return this._resolveVariant(4, this.tileCornerInBR);
 		}
 	
 		// Sides
-		if (!s && n && e && w && this.tileSideTop !== useDefault) return this.tileSideTop;
-		if (!n && s && e && w && this.tileSideBottom !== useDefault) return this.tileSideBottom;
-		if (!e && n && s && w && this.tileSideLeft !== useDefault) return this.tileSideLeft;
-		if (!w && n && s && e && this.tileSideRight !== useDefault) return this.tileSideRight;
+		if (!s && n && e && w && this.tileSideTop !== useDefault) return this._resolveVariant(1, this.tileSideTop);
+		if (!n && s && e && w && this.tileSideBottom !== useDefault) return this._resolveVariant(5, this.tileSideBottom);
+		if (!e && n && s && w && this.tileSideLeft !== useDefault) return this._resolveVariant(9, this.tileSideLeft);
+		if (!w && n && s && e && this.tileSideRight !== useDefault) return this._resolveVariant(3, this.tileSideRight);
 	
-		return this.wallTile; // Default wall tile
+		return this._resolveVariant(20, this.wallTile); // Default wall tile
 	};
 
 	behinstProto._getDepthTile = function(x, y) {
@@ -504,11 +525,11 @@ cr.behaviors.Autodungen = function(runtime)
 			var w = isWall(wx - 1, wy);
 			
 			if (n && e && w && this.tileBelowSideTop !== -1) {
-				return this.tileBelowSideTop;
+				return this._resolveVariant(13, this.tileBelowSideTop);
 			}
-			if (n && e && !w && this.tileBelowCornerOutBL !== -1) return this.tileBelowCornerOutBL;
+			if (n && e && !w && this.tileBelowCornerOutBL !== -1) return this._resolveVariant(12, this.tileBelowCornerOutBL);
 			if (n && !e && w) {
-				if (this.tileBelowCornerOutBR !== -1) return this.tileBelowCornerOutBR;
+				if (this.tileBelowCornerOutBR !== -1) return this._resolveVariant(14, this.tileBelowCornerOutBR);
 			}
 		}
 
@@ -522,20 +543,20 @@ cr.behaviors.Autodungen = function(runtime)
 			
 			if (n && (e || w)) {
 				if (wallWest && this.tileShadowCornerInTL !== -1) {
-					return this.tileShadowCornerInTL;
+					return this._resolveVariant(16, this.tileShadowCornerInTL);
 				}
-				if (this.tileShadowBelowSideTop !== -1) return this.tileShadowBelowSideTop;
+				if (this.tileShadowBelowSideTop !== -1) return this._resolveVariant(18, this.tileShadowBelowSideTop);
 			}
 		}
 
 		// 2. Inner Corner Shadow (North + West)
 		if (wallNorth && wallWest && this.tileShadowCornerInTL !== -1) {
-			return this.tileShadowCornerInTL;
+			return this._resolveVariant(16, this.tileShadowCornerInTL);
 		}
 
 		// 3. West Wall Shadow (Side Right - Renamed from EastSideBorder)
 		if (wallWest) {
-			if (this.tileShadowSideRight !== -1) return this.tileShadowSideRight;
+			if (this.tileShadowSideRight !== -1) return this._resolveVariant(15, this.tileShadowSideRight);
 		}
 
 		// 4. Shadow Side Right (Diagonal from CornerOutBR)
@@ -544,13 +565,13 @@ cr.behaviors.Autodungen = function(runtime)
 				var n = isWall(x - 1, y - 2);
 				var w = isWall(x - 2, y - 1);
 				if (n && w) {
-					if (this.tileShadowSideRight !== -1) return this.tileShadowSideRight;
+					if (this.tileShadowSideRight !== -1) return this._resolveVariant(15, this.tileShadowSideRight);
 				}
 			}
 			if (!isWall(x - 1, y - 1) && isWall(x - 1, y - 2)) {
 				var n = isWall(x - 1, y - 3);
 				var w = isWall(x - 2, y - 2);
-				if (n && w && this.tileShadowBelowCornerOutBREnd !== -1) return this.tileShadowBelowCornerOutBREnd;
+				if (n && w && this.tileShadowBelowCornerOutBREnd !== -1) return this._resolveVariant(17, this.tileShadowBelowCornerOutBREnd);
 			}
 		}
 
@@ -696,13 +717,13 @@ cr.behaviors.Autodungen = function(runtime)
 						}
 						
 						if (depthTile !== -1) outputTile = depthTile;
-						else outputTile = this.floorTile;
+						else outputTile = this._resolveVariant(19, this.floorTile);
 					}
 					else { // It's a wall
                         if (this.autotiling === 1) {
                             outputTile = this._getWallTile(x, y);
                         } else {
-						    outputTile = this.wallTile;
+						    outputTile = this._resolveVariant(20, this.wallTile);
                         }
 					}
 					if (outputTile === -1 && tilemapActs.EraseTile)
@@ -815,6 +836,11 @@ cr.behaviors.Autodungen = function(runtime)
 
     Acts.prototype.SetAutotilingEnabled = function (state) {
         this.autotiling = state;
+    };
+
+	Acts.prototype.AddAutotileVariant = function (shape_index, id, prob) {
+        if (!this.variants[shape_index]) this.variants[shape_index] = [];
+        this.variants[shape_index].push({id: id, prob: prob});
     };
 
 	Acts.prototype.SetCorridorSize = function (size) {
