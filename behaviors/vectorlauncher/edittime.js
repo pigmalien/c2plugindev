@@ -45,6 +45,12 @@ AddCondition(2, cf_none, "Is ready", "State", "{my} is ready", "True if a projec
 AddCondition(3, cf_none, "Is cooldown", "State", "{my} is in cooldown", "True if the launcher is in cooldown state.", "IsCooldown");
 AddCondition(4, cf_trigger, "On cooldown end", "State", "{my} on cooldown end", "Triggered when the cooldown period finishes.", "OnCooldownEnd");
 
+AddComboParamOption("Gravity (Physics)");
+AddComboParamOption("Spline (Bezier)");
+AddComboParamOption("Raycast (Ricochet)");
+AddComboParam("Mode", "The path mode to check for.");
+AddCondition(5, cf_none, "Is path mode", "State", "{my} path mode is {0}", "Check the current movement path mode.", "IsPathMode");
+
 ////////////////////////////////////////
 // Actions
 
@@ -71,6 +77,7 @@ AddAction(2, af_none, "Set target", "Launcher", "Set target to ({0}, {1})", "Set
 
 AddComboParamOption("Gravity (Physics)");
 AddComboParamOption("Spline (Bezier)");
+AddComboParamOption("Raycast (Ricochet)");
 AddComboParam("Mode", "Select the movement path type.");
 AddAction(3, af_none, "Set path mode", "Launcher", "Set path mode to {0}", "Set the movement path type.", "SetPathMode");
 
@@ -82,6 +89,9 @@ AddAction(5, af_none, "Set max force", "Launcher", "Set max force to {0}", "Set 
 
 AddNumberParam("Gravity", "The gravity value for prediction.");
 AddAction(6, af_none, "Set gravity", "Launcher", "Set gravity to {0}", "Set the gravity used for trajectory prediction.", "SetGravity");
+
+AddNumberParam("Max Bounces", "The maximum number of bounces for Raycast mode.");
+AddAction(7, af_none, "Set max bounces", "Raycast (Ricochet)", "Set max bounces to {0}", "Set the maximum number of bounces for Raycast mode.", "SetMaxBounces");
 
 ////////////////////////////////////////
 // Expressions
@@ -95,27 +105,27 @@ AddAction(6, af_none, "Set gravity", "Launcher", "Set gravity to {0}", "Set the 
 //				 description);	// description in expressions panel
 
 // example
-AddExpression(0, ef_return_number, "LaunchAngle", "Launcher", "LaunchAngle", "The calculated launch angle in degrees.");
-AddExpression(1, ef_return_number, "LaunchPower", "Launcher", "LaunchPower", "The calculated launch power (impulse magnitude).");
+AddExpression(0, ef_return_number, "LaunchAngle", "Gravity (Physics)", "LaunchAngle", "The calculated launch angle in degrees.");
+AddExpression(1, ef_return_number, "LaunchPower", "Gravity (Physics)", "LaunchPower", "The calculated launch power (impulse magnitude).");
 
 AddNumberParam("Time", "The time in seconds to predict ahead.");
-AddExpression(2, ef_return_number, "TrajectoryX", "Launcher", "TrajectoryX", "The predicted X position of the projectile at a given time.");
+AddExpression(2, ef_return_number, "TrajectoryX", "General", "TrajectoryX", "The predicted X position of the projectile at a given time.");
 
 AddNumberParam("Time", "The time in seconds to predict ahead.");
-AddExpression(3, ef_return_number, "TrajectoryY", "Launcher", "TrajectoryY", "The predicted Y position of the projectile at a given time.");
+AddExpression(3, ef_return_number, "TrajectoryY", "General", "TrajectoryY", "The predicted Y position of the projectile at a given time.");
 
-AddExpression(4, ef_return_number, "TargetX", "Launcher", "TargetX", "The X coordinate of the current drag position.");
-AddExpression(5, ef_return_number, "TargetY", "Launcher", "TargetY", "The Y coordinate of the current drag position.");
-AddExpression(6, ef_return_number, "CalculatedTime", "Launcher", "CalculatedTime", "The calculated time to reach the target distance.");
+AddExpression(4, ef_return_number, "TargetX", "General", "TargetX", "The X coordinate of the current drag position.");
+AddExpression(5, ef_return_number, "TargetY", "General", "TargetY", "The Y coordinate of the current drag position.");
+AddExpression(6, ef_return_number, "CalculatedTime", "Gravity (Physics)", "CalculatedTime", "The calculated time to reach the target distance.");
 
-AddExpression(7, ef_return_number, "ControlX", "Launcher", "ControlX", "The X coordinate of the control point (P1) in Spline mode.");
-AddExpression(8, ef_return_number, "ControlY", "Launcher", "ControlY", "The Y coordinate of the control point (P1) in Spline mode.");
+AddExpression(7, ef_return_number, "ControlX", "Spline (Bezier)", "ControlX", "The X coordinate of the control point (P1) in Spline mode.");
+AddExpression(8, ef_return_number, "ControlY", "Spline (Bezier)", "ControlY", "The Y coordinate of the control point (P1) in Spline mode.");
 
-AddExpression(9, ef_return_number, "BounceCount", "Launcher", "BounceCount", "The number of bounce points calculated in Raycast mode.");
+AddExpression(9, ef_return_number, "BounceCount", "Raycast (Ricochet)", "BounceCount", "The number of bounce points calculated in Raycast mode.");
 AddNumberParam("Index", "The index of the bounce point (0-based).");
-AddExpression(10, ef_return_number, "BounceX", "Launcher", "BounceX", "The X coordinate of a bounce point.");
+AddExpression(10, ef_return_number, "BounceX", "Raycast (Ricochet)", "BounceX", "The X coordinate of a bounce point.");
 AddNumberParam("Index", "The index of the bounce point (0-based).");
-AddExpression(11, ef_return_number, "BounceY", "Launcher", "BounceY", "The Y coordinate of a bounce point.");
+AddExpression(11, ef_return_number, "BounceY", "Raycast (Ricochet)", "BounceY", "The Y coordinate of a bounce point.");
 
 ////////////////////////////////////////
 ACESDone();

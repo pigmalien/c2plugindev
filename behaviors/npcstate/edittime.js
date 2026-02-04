@@ -1,14 +1,14 @@
-﻿﻿﻿﻿function GetBehaviorSettings()
+﻿function GetBehaviorSettings()
 {
 	return {
-		"name":			"Smooth Move",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
-		"id":			"SmoothMove",			// this is used to identify this behavior and is saved to the project; never change it
+		"name":			"MyBehavior",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
+		"id":			"MyBehavior",			// this is used to identify this behavior and is saved to the project; never change it
 		"version":		"1.0",					// (float in x.y format) Behavior version - C2 shows compatibility warnings based on this
-		"description":	"Makes an object smoothly move towards a target object.",
-		"author":		"Gemini Code Assist",
-		"help url":		"",
-		"category":		"Movements",				// Prefer to re-use existing categories, but you can set anything here
-		"flags":		bf_onlyone						// uncomment lines to enable flags...
+		"description":	"<appears at the bottom of the add behavior dialog>",
+		"author":		"<your name/organisation>",
+		"help url":		"<your website or a manual entry on Scirra.com>",
+		"category":		"General",				// Prefer to re-use existing categories, but you can set anything here
+		"flags":		0						// uncomment lines to enable flags...
 					//	| bf_onlyone			// can only be added once to an object, e.g. solid
 	};
 };
@@ -39,10 +39,8 @@
 //				description,		// appears in event wizard dialog when selected
 //				script_name);		// corresponding runtime function name
 				
-AddCondition(0, cf_none, "Is enabled", "State", "{my} is enabled", "True if the behavior is currently enabled and processing.", "IsEnabled");
-
-AddCondition(1, cf_none, "Is moving", "State", "{my} is moving", "True if the object has a speed greater than zero.", "IsMoving");
-
+// example				
+AddCondition(0, cf_none, "Is moving", "My category", "{my} is moving", "Description for my condition!", "IsMoving");
 
 ////////////////////////////////////////
 // Actions
@@ -55,35 +53,8 @@ AddCondition(1, cf_none, "Is moving", "State", "{my} is moving", "True if the ob
 //			 description,		// appears in event wizard dialog when selected
 //			 script_name);		// corresponding runtime function name
 
-AddComboParamOption("Disabled");
-AddComboParamOption("Enabled");
-AddComboParam("State", "Set whether to enable or disable the behavior.");
-AddAction(0, af_none, "Set enabled", "State", "Set {my} enabled to <b>{0}</b>", "Enable or disable the smooth movement behavior.", "SetEnabled");
-
-AddAction(9, af_none, "Stop", "Movement", "Stop movement", "Immediately stop all movement and clear the target.", "Stop");
-
-AddObjectParam("Target", "The object to follow.");
-AddAction(1, af_none, "Set target", "Target", "Set target to {0}", "Set the object to follow.", "SetTarget");
-
-AddNumberParam("X", "The X coordinate of the target position.");
-AddNumberParam("Y", "The Y coordinate of the target position.");
-AddAction(8, af_none, "Set target position", "Target", "Set target position to ({0}, {1})", "Set the target to a specific position.", "SetTargetPosition");
-
-AddNumberParam("Speed", "The new maximum speed in pixels per second.");
-AddAction(3, af_none, "Set max speed", "Parameters", "Set max speed to {0}", "Set the maximum speed for the object.", "SetMaxSpeed");
-AddNumberParam("Speed", "The new minimum speed in pixels per second.");
-AddAction(4, af_none, "Set min speed", "Parameters", "Set min speed to {0}", "Set the minimum speed for the object.", "SetMinSpeed");
-AddNumberParam("Deceleration", "The new deceleration rate in pixels per second squared.");
-AddAction(5, af_none, "Set deceleration", "Parameters", "Set deceleration to {0}", "Set the deceleration rate for the object.", "SetDeceleration");
-AddNumberParam("Speed", "The new rotation speed (e.g., 2 for normal).");
-AddAction(6, af_none, "Set rotation speed", "Parameters", "Set rotation speed to {0}", "Set the rotation speed for the object.", "SetRotationSpeed");
-AddNumberParam("Radius", "The new effective radius in pixels.");
-AddAction(7, af_none, "Set effective radius", "Parameters", "Set effective radius to {0}", "Set the distance at which speed scaling is maxed out.", "SetEffectiveRadius");
-
-AddComboParamOption("No");
-AddComboParamOption("Yes");
-AddComboParam("Stop on solids", "Enable or disable stopping on solids.");
-AddAction(2, af_none, "Set stop on solids", "Parameters", "Set stop on solids to <b>{0}</b>", "Enable or disable collision with solids.", "SetStopOnSolids");
+// example
+AddAction(0, af_none, "Stop", "My category", "Stop {my}", "Description for my action!", "Stop");
 
 ////////////////////////////////////////
 // Expressions
@@ -96,7 +67,8 @@ AddAction(2, af_none, "Set stop on solids", "Parameters", "Set stop on solids to
 //				 exp_name,		// the expression name after the dot, e.g. "foo" for "myobject.foo" - also the runtime function name
 //				 description);	// description in expressions panel
 
-AddExpression(0, ef_return_number, "CurrentSpeed", "Movement", "CurrentSpeed", "Return the current speed of the object in pixels per second.");
+// example
+AddExpression(0, ef_return_number, "Leet expression", "My category", "MyExpression", "Return the number 1337.");
 
 ////////////////////////////////////////
 ACESDone();
@@ -109,15 +81,7 @@ ACESDone();
 // new cr.Property(ept_combo,		name,	"Item 1",		description, "Item 1|Item 2|Item 3")	// a dropdown list (initial_value is string of initially selected item)
 
 var property_list = [
-	new cr.Property(ept_combo,	"Initial state",	"Enabled",		"Set whether the behavior is initially enabled or disabled.", "Enabled|Disabled"),
-	new cr.Property(ept_combo,	"Movement mode",	"Steering (Use object angle)", "Choose how the object moves: 'Steering' uses the object's angle, creating a turning motion. 'Direct' moves straight towards the target.", "Steering (Use object angle)|Direct (Use target angle)"),
-	new cr.Property(ept_float, 	"Max speed",		100,	"Maximum speed in pixels per second."),
-	new cr.Property(ept_float, 	"Min speed",		20,		"Minimum speed when the object is close to the target."),
-	new cr.Property(ept_float, 	"Deceleration",		75,		"Rate of deceleration (friction) in pixels/sec^2."),
-	new cr.Property(ept_float, 	"Rotation speed",	2,		"How quickly the object rotates to face the target in 'Steering' mode (higher is faster)."),
-	new cr.Property(ept_combo,	"Flip",				"None",	"Automatically flip the object horizontally. Best used when 'Rotation speed' is 0.", "None|Horizontal"),
-	new cr.Property(ept_float, 	"Effective radius",	300,	"The distance from the target at which speed scaling is maxed out."),
-	new cr.Property(ept_combo,	"Stop on solids",	"No",	"Enable to stop when colliding with Solid objects.", "No|Yes")
+	new cr.Property(ept_integer, 	"My property",		77,		"An example property.")
 	];
 	
 // Called by IDE when a new behavior type is to be created

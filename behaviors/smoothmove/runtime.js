@@ -57,14 +57,16 @@ cr.behaviors.SmoothMove = function(runtime)
 		this.minSpeed = this.properties[3];
 		this.deceleration = this.properties[4];
 		this.rotationSpeed = this.properties[5];
-		this.effectiveRadius = this.properties[6];
-		this.stopOnSolids = (this.properties[7] === 1); // 0=No, 1=Yes
+		this.flipMode = this.properties[6]; // 0=None, 1=Horizontal
+		this.effectiveRadius = this.properties[7];
+		this.stopOnSolids = (this.properties[8] === 1); // 0=No, 1=Yes
 		
 		// object is sealed after this call, so make sure any properties you'll ever need are created, e.g.
 		this.velocity = { x: 0, y: 0 };
 		this.hasPositionTarget = false;
 		this.targetX = 0;
 		this.targetY = 0;
+		this.lastKnownWidth = this.inst.width;
 
 	};
 	
@@ -186,6 +188,22 @@ cr.behaviors.SmoothMove = function(runtime)
         }
 		else // Is enabled but has no target
 		{ /* No target, do nothing, allow deceleration from !enabled case if needed */ }
+
+		// --- Handle flipping ---
+		if (this.flipMode === 1 && this.rotationSpeed === 0) // 1=Horizontal, and only if not rotating
+		{
+			// Store the object's actual width if it's not currently flipped
+			if (inst.width > 0)
+			{
+				this.lastKnownWidth = inst.width;
+			}
+
+			// Flip based on horizontal velocity (with a small threshold to prevent rapid flipping)
+			if (vel.x < -0.01)
+				inst.width = -this.lastKnownWidth;
+			else if (vel.x > 0.01)
+				inst.width = this.lastKnownWidth;
+		}
 
 		// --- Limit Velocity (Safety check) ---
         const speedSq = vel.x * vel.x + vel.y * vel.y;
@@ -309,6 +327,14 @@ cr.behaviors.SmoothMove = function(runtime)
 		this.targetY = y;
 		this.hasPositionTarget = true;
 		this.type.targetUid = -1; // A position target overrides an object target
+	};
+
+	Acts.prototype.Stop = function ()
+	{
+		this.velocity.x = 0;
+		this.velocity.y = 0;
+		this.hasPositionTarget = false;
+		this.type.targetUid = -1;
 	};
 
 	Acts.prototype.SetMaxSpeed = function (s) { this.maxSpeed = s; };

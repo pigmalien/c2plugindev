@@ -512,6 +512,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 	Cnds.prototype.IsReady = function () { return this.state === 1; };
 	Cnds.prototype.IsCooldown = function () { return this.state === 3; };
 	Cnds.prototype.OnCooldownEnd = function () { return true; };
+	Cnds.prototype.IsPathMode = function (m) { return this.pathMode === m; };
 	
 	behaviorProto.cnds = new Cnds();
 
@@ -578,6 +579,11 @@ cr.behaviors.VectorLauncher = function(runtime)
 	Acts.prototype.SetGravity = function (v)
 	{
 		this.gravity = v;
+	};
+
+	Acts.prototype.SetMaxBounces = function (b)
+	{
+		this.maxBounces = b;
 	};
 	
 	behaviorProto.acts = new Acts();
