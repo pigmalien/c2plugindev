@@ -1,15 +1,29 @@
-﻿function GetBehaviorSettings()
+﻿function GetPluginSettings()
 {
 	return {
-		"name":			"MyBehavior",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
-		"id":			"MyBehavior",			// this is used to identify this behavior and is saved to the project; never change it
-		"version":		"1.0",					// (float in x.y format) Behavior version - C2 shows compatibility warnings based on this
-		"description":	"<appears at the bottom of the add behavior dialog>",
+		"name":			"MyPlugin",				// as appears in 'insert object' dialog, can be changed as long as "id" stays the same
+		"id":			"MyPlugin",				// this is used to identify this plugin and is saved to the project; never change it
+		"version":		"1.0",					// (float in x.y format) Plugin version - C2 shows compatibility warnings based on this
+		"description":	"<appears at the bottom of the insert object dialog>",
 		"author":		"<your name/organisation>",
 		"help url":		"<your website or a manual entry on Scirra.com>",
 		"category":		"General",				// Prefer to re-use existing categories, but you can set anything here
+		"type":			"world",				// either "world" (appears in layout and is drawn), else "object"
+		"rotatable":	true,					// only used when "type" is "world".  Enables an angle property on the object.
 		"flags":		0						// uncomment lines to enable flags...
-					//	| bf_onlyone			// can only be added once to an object, e.g. solid
+					//	| pf_singleglobal		// exists project-wide, e.g. mouse, keyboard.  "type" must be "object".
+					//	| pf_texture			// object has a single texture (e.g. tiled background)
+					//	| pf_position_aces		// compare/set/get x, y...
+					//	| pf_size_aces			// compare/set/get width, height...
+					//	| pf_angle_aces			// compare/set/get angle (recommended that "rotatable" be set to true)
+					//	| pf_appearance_aces	// compare/set/get visible, opacity...
+					//	| pf_tiling				// adjusts image editor features to better suit tiled images (e.g. tiled background)
+					//	| pf_animations			// enables the animations system.  See 'Sprite' for usage
+					//	| pf_zorder_aces		// move to top, bottom, layer...
+					//  | pf_nosize				// prevent resizing in the editor
+					//	| pf_effects			// allow WebGL shader effects to be added
+					//  | pf_predraw			// set for any plugin which draws and is not a sprite (i.e. does not simply draw
+												// a single non-tiling image the size of the object) - required for effects to work properly
 	};
 };
 
@@ -25,6 +39,7 @@
 // AddLayerParam(label, description)									// accepts either a layer number or name (string)
 // AddLayoutParam(label, description)									// a dropdown list with all project layouts
 // AddKeybParam(label, description)										// a button to click and press a key (returns a VK)
+// AddAnimationParam(label, description)								// a string intended to specify an animation name
 // AddAudioFileParam(label, description)								// a dropdown list with all imported project audio files
 
 ////////////////////////////////////////
@@ -35,12 +50,13 @@
 //									// cf_deprecated, cf_incompatible_with_triggers, cf_looping
 //				list_name,			// appears in event wizard list
 //				category,			// category in event wizard list
-//				display_str,		// as appears in event sheet - use {0}, {1} for parameters and also <b></b>, <i></i>, and {my} for the current behavior icon & name
+//				display_str,		// as appears in event sheet - use {0}, {1} for parameters and also <b></b>, <i></i>
 //				description,		// appears in event wizard dialog when selected
 //				script_name);		// corresponding runtime function name
 				
 // example				
-AddCondition(0, cf_none, "Is moving", "My category", "{my} is moving", "Description for my condition!", "IsMoving");
+AddNumberParam("Number", "Enter a number to test if positive.");
+AddCondition(0, cf_none, "Is number positive", "My category", "{0} is positive", "Description for my condition!", "MyCondition");
 
 ////////////////////////////////////////
 // Actions
@@ -54,7 +70,8 @@ AddCondition(0, cf_none, "Is moving", "My category", "{my} is moving", "Descript
 //			 script_name);		// corresponding runtime function name
 
 // example
-AddAction(0, af_none, "Stop", "My category", "Stop {my}", "Description for my action!", "Stop");
+AddStringParam("Message", "Enter a string to alert.");
+AddAction(0, af_none, "Alert", "My category", "Alert {0}", "Description for my action!", "MyAction");
 
 ////////////////////////////////////////
 // Expressions
@@ -78,31 +95,34 @@ ACESDone();
 // new cr.Property(ept_integer,		name,	initial_value,	description)		// an integer value
 // new cr.Property(ept_float,		name,	initial_value,	description)		// a float value
 // new cr.Property(ept_text,		name,	initial_value,	description)		// a string
+// new cr.Property(ept_color,		name,	initial_value,	description)		// a color dropdown
+// new cr.Property(ept_font,		name,	"Arial,-16", 	description)		// a font with the given face name and size
 // new cr.Property(ept_combo,		name,	"Item 1",		description, "Item 1|Item 2|Item 3")	// a dropdown list (initial_value is string of initially selected item)
+// new cr.Property(ept_link,		name,	link_text,		description, "firstonly")		// has no associated value; simply calls "OnPropertyChanged" on click
 
 var property_list = [
 	new cr.Property(ept_integer, 	"My property",		77,		"An example property.")
 	];
 	
-// Called by IDE when a new behavior type is to be created
-function CreateIDEBehaviorType()
+// Called by IDE when a new object type is to be created
+function CreateIDEObjectType()
 {
-	return new IDEBehaviorType();
+	return new IDEObjectType();
 }
 
-// Class representing a behavior type in the IDE
-function IDEBehaviorType()
+// Class representing an object type in the IDE
+function IDEObjectType()
 {
 	assert2(this instanceof arguments.callee, "Constructor called as a function");
 }
 
-// Called by IDE when a new behavior instance of this type is to be created
-IDEBehaviorType.prototype.CreateInstance = function(instance)
+// Called by IDE when a new object instance of this type is to be created
+IDEObjectType.prototype.CreateInstance = function(instance)
 {
-	return new IDEInstance(instance, this);
+	return new IDEInstance(instance);
 }
 
-// Class representing an individual instance of the behavior in the IDE
+// Class representing an individual instance of an object in the IDE
 function IDEInstance(instance, type)
 {
 	assert2(this instanceof arguments.callee, "Constructor called as a function");
@@ -117,16 +137,36 @@ function IDEInstance(instance, type)
 	for (var i = 0; i < property_list.length; i++)
 		this.properties[property_list[i].name] = property_list[i].initial_value;
 		
-	// any other properties here, e.g...
-	// this.myValue = 0;
+	// Plugin-specific variables
+	// this.myValue = 0...
 }
 
-// Called by the IDE after all initialization on this instance has been completed
-IDEInstance.prototype.OnCreate = function()
+// Called when inserted via Insert Object Dialog for the first time
+IDEInstance.prototype.OnInserted = function()
 {
 }
 
-// Called by the IDE after a property has been changed
+// Called when double clicked in layout
+IDEInstance.prototype.OnDoubleClicked = function()
+{
+}
+
+// Called after a property has been changed in the properties bar
 IDEInstance.prototype.OnPropertyChanged = function(property_name)
+{
+}
+
+// For rendered objects to load fonts or textures
+IDEInstance.prototype.OnRendererInit = function(renderer)
+{
+}
+
+// Called to draw self in the editor if a layout object
+IDEInstance.prototype.Draw = function(renderer)
+{
+}
+
+// For rendered objects to release fonts or textures
+IDEInstance.prototype.OnRendererReleased = function(renderer)
 {
 }

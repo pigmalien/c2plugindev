@@ -93,6 +93,9 @@ AddAction(6, af_none, "Set gravity", "Launcher", "Set gravity to {0}", "Set the 
 AddNumberParam("Max Bounces", "The maximum number of bounces for Raycast mode.");
 AddAction(7, af_none, "Set max bounces", "Raycast (Ricochet)", "Set max bounces to {0}", "Set the maximum number of bounces for Raycast mode.", "SetMaxBounces");
 
+AddNumberParam("Scale", "The new drag scale multiplier.");
+AddAction(8, af_none, "Set drag scale", "Launcher", "Set drag scale to {0}", "Set the drag scale multiplier.", "SetDragScale");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -108,11 +111,11 @@ AddAction(7, af_none, "Set max bounces", "Raycast (Ricochet)", "Set max bounces 
 AddExpression(0, ef_return_number, "LaunchAngle", "Gravity (Physics)", "LaunchAngle", "The calculated launch angle in degrees.");
 AddExpression(1, ef_return_number, "LaunchPower", "Gravity (Physics)", "LaunchPower", "The calculated launch power (impulse magnitude).");
 
-AddNumberParam("Time", "The time in seconds to predict ahead.");
-AddExpression(2, ef_return_number, "TrajectoryX", "General", "TrajectoryX", "The predicted X position of the projectile at a given time.");
+AddNumberParam("Index", "The normalized index (0.0 to 1.0) along the trajectory.");
+AddExpression(2, ef_return_number, "TrajectoryX", "General", "TrajectoryX", "The predicted X position of the projectile at a given index.");
 
-AddNumberParam("Time", "The time in seconds to predict ahead.");
-AddExpression(3, ef_return_number, "TrajectoryY", "General", "TrajectoryY", "The predicted Y position of the projectile at a given time.");
+AddNumberParam("Index", "The normalized index (0.0 to 1.0) along the trajectory.");
+AddExpression(3, ef_return_number, "TrajectoryY", "General", "TrajectoryY", "The predicted Y position of the projectile at a given index.");
 
 AddExpression(4, ef_return_number, "TargetX", "General", "TargetX", "The X coordinate of the current drag position.");
 AddExpression(5, ef_return_number, "TargetY", "General", "TargetY", "The Y coordinate of the current drag position.");

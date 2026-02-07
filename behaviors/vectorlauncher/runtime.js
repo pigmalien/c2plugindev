@@ -268,8 +268,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 		if (this.state !== 1) return; // Must be READY
 
 		var m = this.getMousePos(info);
-		var dx = (m.x - this.inst.x) * this.dragScale;
-		var dy = (m.y - this.inst.y) * this.dragScale;
+		var dx = (m.x - this.inst.x);
+		var dy = (m.y - this.inst.y);
 		var dist = Math.sqrt(dx*dx + dy*dy);
 
 		if (dist <= this.maxPull)
@@ -285,8 +285,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 		if (this.state !== 2) return;
 
 		var m = this.getMousePos(info);
-		var dx = m.x - this.inst.x;
-		var dy = m.y - this.inst.y;
+		var dx = (m.x - this.inst.x);
+		var dy = (m.y - this.inst.y);
 		var dist = Math.sqrt(dx*dx + dy*dy);
 		
 		// Clamp visual drag to maxPull
@@ -305,7 +305,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 		{
 			// P1 (Control Point) is reflection of mouse pos across anchor (P0)
 			// Vector P0->Mouse is (dx, dy)
-			// Vector P0->P1 is (-dx, -dy) * scale
+			// Vector P0->P1 is (-dx, -dy)
 			
 			this.controlX = this.inst.x + (-dx * this.dragScale);
 			this.controlY = this.inst.y + (-dy * this.dragScale);
@@ -323,11 +323,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 		else // Gravity (Physics)
 		{
 			// Calculate force based on scale
-			var effectiveDist = dist * this.dragScale;
-
-			var powerRatio = effectiveDist / this.maxPull;
+			var powerRatio = (dist * this.dragScale) / this.maxPull;
 			var totalForce = powerRatio * this.maxForce;
-			if (totalForce > this.maxForce) totalForce = this.maxForce;
 
 			var launchDirX = 0;
 			var launchDirY = 0;
@@ -584,6 +581,11 @@ cr.behaviors.VectorLauncher = function(runtime)
 	Acts.prototype.SetMaxBounces = function (b)
 	{
 		this.maxBounces = b;
+	};
+	
+	Acts.prototype.SetDragScale = function (s)
+	{
+		this.dragScale = s;
 	};
 	
 	behaviorProto.acts = new Acts();
