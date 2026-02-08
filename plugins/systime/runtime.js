@@ -131,9 +131,11 @@ cr.plugins_.SysTime = function(runtime)
 						
 						if (timer.loopCount > 1) {
 							timer.loopCount--;
-							timer.elapsed = 0;
+							timer.elapsed -= timer.duration;
 						} else {
-							timer.active = false;
+							// Only delete if the timer hasn't been replaced/restarted during the trigger
+							if (this.timers[name] === timer)
+								delete this.timers[name];
 						}
 					}
 				}
@@ -154,7 +156,7 @@ cr.plugins_.SysTime = function(runtime)
 					if (chain.elapsed >= currentDuration)
 					{
 						// Link Finished
-						chain.elapsed = 0;
+						chain.elapsed -= currentDuration;
 						chain.currentIndex++;
 						
 						if (chain.currentIndex >= chain.links.length)
@@ -227,8 +229,8 @@ cr.plugins_.SysTime = function(runtime)
 	
 	Cnds.prototype.IsTimerRunning = function (name)
 	{
-		if (this.timers.hasOwnProperty(name))
-			return this.timers[name].active;
+		if (this.timers.hasOwnProperty(name.toLowerCase()))
+			return this.timers[name.toLowerCase()].active;
 		return false;
 	};
 	
@@ -244,15 +246,15 @@ cr.plugins_.SysTime = function(runtime)
 
 	Cnds.prototype.IsChainRunning = function (name)
 	{
-		if (this.chains.hasOwnProperty(name))
-			return this.chains[name].active;
+		if (this.chains.hasOwnProperty(name.toLowerCase()))
+			return this.chains[name.toLowerCase()].active;
 		return false;
 	};
 
 	Cnds.prototype.CompareChainIndex = function (name, cmp, value)
 	{
-		if (this.chains.hasOwnProperty(name))
-			return cr.do_cmp(this.chains[name].currentIndex, cmp, value);
+		if (this.chains.hasOwnProperty(name.toLowerCase()))
+			return cr.do_cmp(this.chains[name.toLowerCase()].currentIndex, cmp, value);
 		return false;
 	};
 	
@@ -264,6 +266,7 @@ cr.plugins_.SysTime = function(runtime)
 
 	Acts.prototype.StartTimer = function (name, duration, loopCount)
 	{
+		name = name.toLowerCase();
 		duration = parseFloat(duration);
 		loopCount = parseInt(loopCount, 10);
 
@@ -286,6 +289,7 @@ cr.plugins_.SysTime = function(runtime)
 	
 	Acts.prototype.SyncToValue = function (name, val)
 	{
+		name = name.toLowerCase();
 		val = parseFloat(val);
 		if (isNaN(val)) val = 0;
 
@@ -297,8 +301,23 @@ cr.plugins_.SysTime = function(runtime)
 		}
 	};
 	
+	Acts.prototype.StopTimer = function (name)
+	{
+		name = name.toLowerCase();
+		if (this.timers.hasOwnProperty(name))
+		{
+			delete this.timers[name];
+		}
+	};
+	
+	Acts.prototype.StopAllTimers = function ()
+	{
+		this.timers = {};
+	};
+	
 	Acts.prototype.CreateChain = function (name)
 	{
+		name = name.toLowerCase();
 		this.chains[name] = {
 			links: [],
 			currentIndex: 0,
@@ -310,6 +329,7 @@ cr.plugins_.SysTime = function(runtime)
 
 	Acts.prototype.AddChainLink = function (name, duration)
 	{
+		name = name.toLowerCase();
 		if (this.chains.hasOwnProperty(name)) {
 			duration = parseFloat(duration);
 			if (isNaN(duration)) duration = 0;
@@ -319,6 +339,7 @@ cr.plugins_.SysTime = function(runtime)
 
 	Acts.prototype.StartChain = function (name)
 	{
+		name = name.toLowerCase();
 		if (this.chains.hasOwnProperty(name) && this.chains[name].links.length > 0) {
 			var chain = this.chains[name];
 			chain.currentIndex = 0;
@@ -332,6 +353,7 @@ cr.plugins_.SysTime = function(runtime)
 
 	Acts.prototype.StopChain = function (name)
 	{
+		name = name.toLowerCase();
 		if (this.chains.hasOwnProperty(name)) {
 			this.chains[name].active = false;
 			this.chains[name].currentIndex = 0;
@@ -341,6 +363,7 @@ cr.plugins_.SysTime = function(runtime)
 
 	Acts.prototype.SetChainLoop = function (name, mode)
 	{
+		name = name.toLowerCase();
 		if (this.chains.hasOwnProperty(name)) {
 			this.chains[name].loop = (mode === 1);
 		}
@@ -348,6 +371,7 @@ cr.plugins_.SysTime = function(runtime)
 
 	Acts.prototype.SetChainIndex = function (name, index)
 	{
+		name = name.toLowerCase();
 		if (this.chains.hasOwnProperty(name)) {
 			var chain = this.chains[name];
 			index = Math.floor(index);
@@ -368,6 +392,7 @@ cr.plugins_.SysTime = function(runtime)
 	
 	Exps.prototype.TimeRemaining = function (ret, name)
 	{
+		name = name.toLowerCase();
 		var val = 0;
 		if (this.timers.hasOwnProperty(name)) {
 			var t = this.timers[name];
@@ -380,6 +405,7 @@ cr.plugins_.SysTime = function(runtime)
 	
 	Exps.prototype.TimeElapsed = function (ret, name)
 	{
+		name = name.toLowerCase();
 		var val = 0;
 		if (this.timers.hasOwnProperty(name)) {
 			val = this.timers[name].elapsed;
@@ -390,6 +416,7 @@ cr.plugins_.SysTime = function(runtime)
 	
 	Exps.prototype.TimeElapsedNormalised = function (ret, name)
 	{
+		name = name.toLowerCase();
 		var val = 0;
 		if (this.timers.hasOwnProperty(name)) {
 			var t = this.timers[name];
@@ -407,6 +434,7 @@ cr.plugins_.SysTime = function(runtime)
 	
 	Exps.prototype.ChainProgress = function (ret, name)
 	{
+		name = name.toLowerCase();
 		var val = 0;
 		if (this.chains.hasOwnProperty(name)) {
 			var c = this.chains[name];
@@ -422,6 +450,7 @@ cr.plugins_.SysTime = function(runtime)
 
 	Exps.prototype.TotalChainProgress = function (ret, name)
 	{
+		name = name.toLowerCase();
 		var val = 0;
 		if (this.chains.hasOwnProperty(name)) {
 			var c = this.chains[name];
@@ -443,6 +472,7 @@ cr.plugins_.SysTime = function(runtime)
 
 	Exps.prototype.ChainIndex = function (ret, name)
 	{
+		name = name.toLowerCase();
 		var val = 0;
 		if (this.chains.hasOwnProperty(name)) {
 			val = this.chains[name].currentIndex;

@@ -98,6 +98,11 @@ AddStringParam("Name", "The name of the timer.");
 AddNumberParam("Current Value", "The new current value for the timer.");
 AddAction(1, af_none, "Sync To Value", "Timer", "Sync timer {0} to {1}", "Manually set the elapsed time of a named timer.", "SyncToValue");
 
+AddStringParam("Name", "The name of the timer to stop.");
+AddAction(8, af_none, "Stop Timer", "Timer", "Stop timer {0}", "Stop and remove a named timer.", "StopTimer");
+
+AddAction(9, af_none, "Stop All Timers", "Timer", "Stop all timers", "Stop and remove all active timers.", "StopAllTimers");
+
 AddStringParam("Name", "The name of the chain.");
 AddAction(2, af_none, "Create Chain", "Chain Timer", "Create chain {0}", "Initialize a new chain.", "CreateChain");
 

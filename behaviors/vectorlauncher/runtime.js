@@ -57,6 +57,11 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.enabled = (this.properties[5] !== 0);
 		this.dragScale = this.properties[6];
 		this.maxBounces = this.properties[7];
+		this.viewMode = this.properties[8]; // 0=Side, 1=Top-Down
+		this.elevation = this.properties[9];
+		this.zScale = this.properties[10];
+		this.trajectoryScaling = this.properties[11];
+		this.visualType = null;
 		
 		// State Machine: 0=IDLE, 1=READY, 2=DRAGGING, 3=COOLDOWN, 4=MOVING
 		this.state = 0;
@@ -68,6 +73,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.dragY = this.inst.y;
 		this.launchVx = 0;
 		this.launchVy = 0;
+		this.launchVz = 0;
 
 		// Movement variables
 		this.flightTime = 0;
@@ -121,9 +127,12 @@ cr.behaviors.VectorLauncher = function(runtime)
 			"cy": this.controlY,
 			"lvx": this.launchVx,
 			"lvy": this.launchVy,
+			"lvz": this.launchVz,
 			"en": this.enabled,
 			"dsc": this.dragScale,
-			"mb": this.maxBounces
+			"mb": this.maxBounces,
+			"zsc": this.zScale,
+			"tsc": this.trajectoryScaling
 		};
 	};
 	
@@ -145,14 +154,19 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.controlY = o["cy"] || 0;
 		this.launchVx = o["lvx"] || 0;
 		this.launchVy = o["lvy"] || 0;
+		this.launchVz = o["lvz"] || 0;
 		this.enabled = (typeof o["en"] !== "undefined" ? o["en"] : true);
 		this.dragScale = (typeof o["dsc"] !== "undefined" ? o["dsc"] : 1.0);
 		this.maxBounces = (typeof o["mb"] !== "undefined" ? o["mb"] : 3);
+		this.zScale = (typeof o["zsc"] !== "undefined" ? o["zsc"] : 1.0);
+		this.trajectoryScaling = (typeof o["tsc"] !== "undefined" ? o["tsc"] : 0.0);
 	};
 
 	behinstProto.tick = function ()
 	{
 		if (!this.enabled) return;
+
+		this.updateVisuals();
 
 		var dt = this.runtime.getDt(this.inst);
 		
@@ -190,6 +204,153 @@ cr.behaviors.VectorLauncher = function(runtime)
 			{
 				// Projectile lost/destroyed
 				this.state = 0;
+			}
+		}
+	};
+	
+	behinstProto.getTrajectoryPoint = function(t)
+	{
+		var x = 0, y = 0, z = 0;
+		
+		if (this.pathMode === 1) // Spline
+		{
+			// Quadratic Bezier: (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
+			var mt = 1 - t;
+			x = (mt * mt * this.inst.x) + (2 * mt * t * this.controlX) + (t * t * this.targetX);
+			y = (mt * mt * this.inst.y) + (2 * mt * t * this.controlY) + (t * t * this.targetY);
+			z = 0;
+		}
+		else if (this.pathMode === 2) // Raycast
+		{
+			if (this.rayPoints.length > 0)
+			{
+				// Calculate total length
+				var totalLen = 0;
+				var lens = [];
+				for (var i = 0; i < this.rayPoints.length - 1; i++)
+				{
+					var dx = this.rayPoints[i+1].x - this.rayPoints[i].x;
+					var dy = this.rayPoints[i+1].y - this.rayPoints[i].y;
+					var d = Math.sqrt(dx*dx + dy*dy);
+					lens.push(d);
+					totalLen += d;
+				}
+				
+				if (totalLen > 0)
+				{
+					var targetDist = t * totalLen;
+					var currentDist = 0;
+					
+					// Default to last point
+					x = this.rayPoints[this.rayPoints.length-1].x;
+					y = this.rayPoints[this.rayPoints.length-1].y;
+					
+					for (var i = 0; i < lens.length; i++)
+					{
+						if (currentDist + lens[i] >= targetDist)
+						{
+							var segT = (targetDist - currentDist) / lens[i];
+							var p0 = this.rayPoints[i];
+							var p1 = this.rayPoints[i+1];
+							x = p0.x + (p1.x - p0.x) * segT;
+							y = p0.y + (p1.y - p0.y) * segT;
+							break;
+						}
+						currentDist += lens[i];
+					}
+				}
+				else
+				{
+					x = this.rayPoints[0].x;
+					y = this.rayPoints[0].y;
+				}
+			}
+			else
+			{
+				x = this.inst.x;
+				y = this.inst.y;
+			}
+		}
+		else // Gravity (Physics)
+		{
+			var real_t = t * this.totalDuration;
+			
+			x = this.inst.x + this.launchVx * real_t;
+			
+			if (this.viewMode === 1) // Top-Down
+			{
+				// Visual Y = GroundY - Height (Z)
+				// Height = Vz*t - 0.5*g*t^2
+				var groundY = this.inst.y + this.launchVy * real_t;
+				var height = (this.launchVz * real_t) - (0.5 * this.gravity * real_t * real_t);
+				y = groundY - (height * this.zScale);
+				z = height;
+			}
+			else // Side View
+			{
+				y = this.inst.y + this.launchVy * real_t + 0.5 * this.gravity * real_t * real_t;
+				z = 0;
+			}
+		}
+		return {x: x, y: y, z: z};
+	};
+
+	behinstProto.updateVisuals = function()
+	{
+		if (!this.visualType) return;
+		var instances = this.visualType.instances;
+		var count = instances.length;
+		if (count === 0) return;
+		
+		var show = (this.state === 2); // DRAGGING
+		
+		for (var i = 0; i < count; i++) {
+			var inst = instances[i];
+			
+			if (!show) {
+				if (inst.visible) inst.visible = false;
+				continue;
+			}
+			
+			if (!inst.visible) inst.visible = true;
+			
+			var t = (count > 1) ? i / (count - 1) : 0;
+			var pos = this.getTrajectoryPoint(t);
+			
+			if (inst.x !== pos.x || inst.y !== pos.y) {
+				inst.x = pos.x;
+				inst.y = pos.y;
+				inst.set_bbox_changed();
+			}
+
+			// Scaling logic based on Z height
+			if (this.trajectoryScaling !== 0)
+			{
+				if (typeof inst._vl_origW === "undefined") {
+					inst._vl_origW = inst.width;
+					inst._vl_origH = inst.height;
+				}
+				
+				var s = 1.0 + (pos.z * this.trajectoryScaling);
+				if (s < 0) s = 0;
+				
+				var newW = inst._vl_origW * s;
+				var newH = inst._vl_origH * s;
+				
+				if (inst.width !== newW || inst.height !== newH) {
+					inst.width = newW;
+					inst.height = newH;
+					inst.set_bbox_changed();
+				}
+			}
+			else if (typeof inst._vl_origW !== "undefined")
+			{
+				// Restore original size if scaling is disabled
+				if (inst.width !== inst._vl_origW || inst.height !== inst._vl_origH) {
+					inst.width = inst._vl_origW;
+					inst.height = inst._vl_origH;
+					inst.set_bbox_changed();
+				}
 			}
 		}
 	};
@@ -301,6 +462,15 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.dragX = this.inst.x + dx;
 		this.dragY = this.inst.y + dy;
 
+		this.recalcLaunch();
+	};
+
+	behinstProto.recalcLaunch = function ()
+	{
+		var dx = this.dragX - this.inst.x;
+		var dy = this.dragY - this.inst.y;
+		var dist = Math.sqrt(dx*dx + dy*dy);
+
 		if (this.pathMode === 1) // Spline Mode
 		{
 			// P1 (Control Point) is reflection of mouse pos across anchor (P0)
@@ -333,8 +503,33 @@ cr.behaviors.VectorLauncher = function(runtime)
 				launchDirY = -dy / dist;
 			}
 
-			this.launchVx = launchDirX * totalForce;
-			this.launchVy = launchDirY * totalForce;
+			if (this.viewMode === 1) // Top-Down
+			{
+				var rad = cr.to_radians(this.elevation);
+				var vGround = totalForce * Math.cos(rad);
+				this.launchVz = totalForce * Math.sin(rad);
+				this.launchVx = launchDirX * vGround;
+				this.launchVy = launchDirY * vGround;
+				
+				if (this.gravity !== 0)
+					this.totalDuration = (2 * this.launchVz) / this.gravity;
+				else
+					this.totalDuration = 0;
+			}
+			else // Side View
+			{
+				this.launchVx = launchDirX * totalForce;
+				this.launchVy = launchDirY * totalForce;
+				this.launchVz = 0;
+				
+				if (this.gravity !== 0)
+					this.totalDuration = (-2 * this.launchVy) / this.gravity;
+				else
+					this.totalDuration = 0;
+			}
+			
+			if (this.totalDuration <= 0)
+				this.totalDuration = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
 		}
 	};
 	
@@ -566,26 +761,52 @@ cr.behaviors.VectorLauncher = function(runtime)
 	Acts.prototype.SetMaxPull = function (v)
 	{
 		this.maxPull = v;
+		if (this.state === 2) this.recalcLaunch();
 	};
 
 	Acts.prototype.SetMaxForce = function (v)
 	{
 		this.maxForce = v;
+		if (this.state === 2) this.recalcLaunch();
 	};
 
 	Acts.prototype.SetGravity = function (v)
 	{
 		this.gravity = v;
+		if (this.state === 2) this.recalcLaunch();
 	};
 
 	Acts.prototype.SetMaxBounces = function (b)
 	{
 		this.maxBounces = b;
+		if (this.state === 2) this.recalcLaunch();
 	};
 	
 	Acts.prototype.SetDragScale = function (s)
 	{
 		this.dragScale = s;
+		if (this.state === 2) this.recalcLaunch();
+	};
+	
+	Acts.prototype.SetZScale = function (s)
+	{
+		this.zScale = s;
+	};
+	
+	Acts.prototype.SetElevation = function (e)
+	{
+		this.elevation = e;
+		if (this.state === 2) this.recalcLaunch();
+	};
+	
+	Acts.prototype.SetVisualTrajectory = function (obj)
+	{
+		this.visualType = obj;
+	};
+	
+	Acts.prototype.SetTrajectoryScaling = function (s)
+	{
+		this.trajectoryScaling = s;
 	};
 	
 	behaviorProto.acts = new Acts();
@@ -604,35 +825,45 @@ cr.behaviors.VectorLauncher = function(runtime)
 		ret.set_float(Math.sqrt(this.launchVx*this.launchVx + this.launchVy*this.launchVy));
 	};
 	
+	Exps.prototype.LaunchVelocityZ = function (ret)
+	{
+		ret.set_float(this.launchVz);
+	};
+	
+	Exps.prototype.TrajectoryZ = function (ret, t)
+	{
+		var p = this.getTrajectoryPoint(t);
+		ret.set_float(p.z);
+	};
+	
+	Exps.prototype.SolveElevation = function (ret, dist, speed)
+	{
+		// Range R = (v^2 * sin(2*theta)) / g
+		// sin(2*theta) = (R * g) / v^2
+		// theta = 0.5 * asin( (R * g) / v^2 )
+		
+		if (speed <= 0 || this.gravity <= 0) {
+			ret.set_float(0);
+			return;
+		}
+		
+		var val = (dist * this.gravity) / (speed * speed);
+		if (val > 1) val = 1; // Clamp to max range
+		
+		var angleRad = 0.5 * Math.asin(val);
+		ret.set_float(cr.to_degrees(angleRad));
+	};
+	
 	Exps.prototype.TrajectoryX = function (ret, t)
 	{
-		if (this.pathMode === 1)
-		{
-			// Quadratic Bezier: (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
-			var mt = 1 - t;
-			ret.set_float((mt * mt * this.inst.x) + (2 * mt * t * this.controlX) + (t * t * this.targetX));
-		}
-		else
-		{
-			var duration = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
-			ret.set_float(this.inst.x + this.launchVx * (t * duration));
-		}
+		var p = this.getTrajectoryPoint(t);
+		ret.set_float(p.x);
 	};
 	
 	Exps.prototype.TrajectoryY = function (ret, t)
 	{
-		if (this.pathMode === 1)
-		{
-			var mt = 1 - t;
-			ret.set_float((mt * mt * this.inst.y) + (2 * mt * t * this.controlY) + (t * t * this.targetY));
-		}
-		else
-		{
-			var duration = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
-			var real_t = t * duration;
-			// y = y0 + vy*t + 0.5*g*t^2
-			ret.set_float(this.inst.y + this.launchVy * real_t + 0.5 * this.gravity * real_t * real_t);
-		}
+		var p = this.getTrajectoryPoint(t);
+		ret.set_float(p.y);
 	};
 	
 	Exps.prototype.TargetX = function (ret)
@@ -641,12 +872,17 @@ cr.behaviors.VectorLauncher = function(runtime)
 		{
 			ret.set_float(this.targetX);
 		}
+		else if (this.pathMode === 2)
+		{
+			if (this.rayPoints.length > 0)
+				ret.set_float(this.rayPoints[this.rayPoints.length-1].x);
+			else
+				ret.set_float(this.inst.x);
+		}
 		else
 		{
-			var val = this.inst.x;
-			if (this.maxForce !== 0)
-				val += (this.launchVx / this.maxForce) * this.maxPull;
-			ret.set_float(val);
+			var p = this.getTrajectoryPoint(1.0);
+			ret.set_float(p.x);
 		}
 	};
 	
@@ -656,13 +892,17 @@ cr.behaviors.VectorLauncher = function(runtime)
 		{
 			ret.set_float(this.targetY);
 		}
+		else if (this.pathMode === 2)
+		{
+			if (this.rayPoints.length > 0)
+				ret.set_float(this.rayPoints[this.rayPoints.length-1].y);
+			else
+				ret.set_float(this.inst.y);
+		}
 		else
 		{
-			var t = (this.maxForce !== 0) ? (this.maxPull / this.maxForce) : 0;
-			var val = this.inst.y;
-			if (this.maxForce !== 0)
-				val += (this.launchVy / this.maxForce) * this.maxPull;
-			ret.set_float(val + 0.5 * this.gravity * t * t);
+			var p = this.getTrajectoryPoint(1.0);
+			ret.set_float(p.y);
 		}
 	};
 	

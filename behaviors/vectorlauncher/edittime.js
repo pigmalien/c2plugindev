@@ -96,6 +96,18 @@ AddAction(7, af_none, "Set max bounces", "Raycast (Ricochet)", "Set max bounces 
 AddNumberParam("Scale", "The new drag scale multiplier.");
 AddAction(8, af_none, "Set drag scale", "Launcher", "Set drag scale to {0}", "Set the drag scale multiplier.", "SetDragScale");
 
+AddNumberParam("Scale", "The Z-axis projection scale.");
+AddAction(9, af_none, "Set Z scale", "Launcher", "Set Z scale to {0}", "Set the visual scaling factor for the Z-axis.", "SetZScale");
+
+AddNumberParam("Angle", "The elevation angle in degrees.");
+AddAction(10, af_none, "Set elevation", "Launcher", "Set elevation to {0}", "Set the launch elevation angle (Top-Down only).", "SetElevation");
+
+AddObjectParam("Object", "The sprite to use for the visual trajectory.");
+AddAction(11, af_none, "Set visual trajectory", "Launcher", "Set visual trajectory to {0}", "Set the object used to display the trajectory.", "SetVisualTrajectory");
+
+AddNumberParam("Scale", "The scaling factor (e.g. 0.005).");
+AddAction(12, af_none, "Set trajectory scaling", "Launcher", "Set trajectory scaling to {0}", "Set the visual scaling factor based on Z height.", "SetTrajectoryScaling");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -130,6 +142,15 @@ AddExpression(10, ef_return_number, "BounceX", "Raycast (Ricochet)", "BounceX", 
 AddNumberParam("Index", "The index of the bounce point (0-based).");
 AddExpression(11, ef_return_number, "BounceY", "Raycast (Ricochet)", "BounceY", "The Y coordinate of a bounce point.");
 
+AddExpression(12, ef_return_number, "LaunchVelocityZ", "Gravity (Physics)", "LaunchVelocityZ", "The calculated vertical (Z) velocity for Top-Down view.");
+
+AddNumberParam("Index", "The normalized index (0.0 to 1.0) along the trajectory.");
+AddExpression(13, ef_return_number, "TrajectoryZ", "General", "TrajectoryZ", "The predicted Z height of the projectile at a given index.");
+
+AddNumberParam("Distance", "The target distance in pixels.");
+AddNumberParam("Speed", "The projectile speed (force).");
+AddExpression(14, ef_return_number, "SolveElevation", "Gravity (Physics)", "SolveElevation", "Calculate the elevation angle required to reach a distance with a given speed.");
+
 ////////////////////////////////////////
 ACESDone();
 
@@ -148,7 +169,11 @@ var property_list = [
 	new cr.Property(ept_combo, 	"Path Mode",	"Gravity (Physics)", "Select the movement path type.", "Gravity (Physics)|Spline (Bezier)|Raycast (Ricochet)"),
 	new cr.Property(ept_combo, 	"Initial state",	"Enabled",	"Whether to initially enable the behavior.", "Disabled|Enabled"),
 	new cr.Property(ept_float, 	"Drag Scale",	1.0,	"Scale multiplier for the drag input distance."),
-	new cr.Property(ept_integer, "Max Bounces", 3,		"Maximum number of bounces for Raycast mode.")
+	new cr.Property(ept_integer, "Max Bounces", 3,		"Maximum number of bounces for Raycast mode."),
+	new cr.Property(ept_combo, 	"View",			"Side",	"Select the perspective for gravity calculations.", "Side|Top-Down"),
+	new cr.Property(ept_float, 	"Elevation",	45,		"The launch elevation angle in degrees (Top-Down only)."),
+	new cr.Property(ept_float, 	"Z Scale",		1.0,	"Visual scaling factor for the Z-axis (Top-Down only)."),
+	new cr.Property(ept_float, 	"Trajectory Scaling", 0.0, "Scale multiplier for the visual trajectory sprites based on Z height (0 = no scaling).")
 	];
 	
 // Called by IDE when a new behavior type is to be created
