@@ -103,6 +103,12 @@ AddAction(8, af_none, "Stop Timer", "Timer", "Stop timer {0}", "Stop and remove 
 
 AddAction(9, af_none, "Stop All Timers", "Timer", "Stop all timers", "Stop and remove all active timers.", "StopAllTimers");
 
+AddStringParam("Name", "The name of the timer to pause.");
+AddAction(10, af_none, "Pause Timer", "Timer", "Pause timer {0}", "Pause a running timer.", "PauseTimer");
+
+AddStringParam("Name", "The name of the timer to resume.");
+AddAction(11, af_none, "Resume Timer", "Timer", "Resume timer {0}", "Resume a paused timer.", "ResumeTimer");
+
 AddStringParam("Name", "The name of the chain.");
 AddAction(2, af_none, "Create Chain", "Chain Timer", "Create chain {0}", "Initialize a new chain.", "CreateChain");
 

@@ -315,6 +315,24 @@ cr.plugins_.SysTime = function(runtime)
 		this.timers = {};
 	};
 	
+	Acts.prototype.PauseTimer = function (name)
+	{
+		name = name.toLowerCase();
+		if (this.timers.hasOwnProperty(name))
+		{
+			this.timers[name].active = false;
+		}
+	};
+
+	Acts.prototype.ResumeTimer = function (name)
+	{
+		name = name.toLowerCase();
+		if (this.timers.hasOwnProperty(name))
+		{
+			this.timers[name].active = true;
+		}
+	};
+	
 	Acts.prototype.CreateChain = function (name)
 	{
 		name = name.toLowerCase();
