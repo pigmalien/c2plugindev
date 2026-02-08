@@ -1,4 +1,4 @@
-﻿﻿// ECMAScript 5 strict mode
+﻿﻿﻿﻿// ECMAScript 5 strict mode
 "use strict";
 
 assert2(cr, "cr namespace not created");
@@ -61,6 +61,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.elevation = this.properties[9];
 		this.zScale = this.properties[10];
 		this.trajectoryScaling = this.properties[11];
+		this.visualSpeed = this.properties[12];
+		this.setAngle = (this.properties[13] !== 0);
 		this.visualType = null;
 		
 		// State Machine: 0=IDLE, 1=READY, 2=DRAGGING, 3=COOLDOWN, 4=MOVING
@@ -74,6 +76,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.launchVx = 0;
 		this.launchVy = 0;
 		this.launchVz = 0;
+		this.timeScale = 1.0;
 
 		// Movement variables
 		this.flightTime = 0;
@@ -84,6 +87,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.targetY = 0;
 		this.controlX = this.inst.x;
 		this.controlY = this.inst.y;
+		this.launchStartX = 0;
+		this.launchStartY = 0;
 		
 		this.rayPoints = [];
 
@@ -132,7 +137,11 @@ cr.behaviors.VectorLauncher = function(runtime)
 			"dsc": this.dragScale,
 			"mb": this.maxBounces,
 			"zsc": this.zScale,
-			"tsc": this.trajectoryScaling
+			"tsc": this.trajectoryScaling,
+			"lsx": this.launchStartX,
+			"lsy": this.launchStartY,
+			"vs": this.visualSpeed,
+			"sa": this.setAngle
 		};
 	};
 	
@@ -160,6 +169,10 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.maxBounces = (typeof o["mb"] !== "undefined" ? o["mb"] : 3);
 		this.zScale = (typeof o["zsc"] !== "undefined" ? o["zsc"] : 1.0);
 		this.trajectoryScaling = (typeof o["tsc"] !== "undefined" ? o["tsc"] : 0.0);
+		this.launchStartX = o["lsx"] || 0;
+		this.launchStartY = o["lsy"] || 0;
+		this.visualSpeed = o["vs"] || 0;
+		this.setAngle = (typeof o["sa"] !== "undefined" ? o["sa"] : true);
 	};
 
 	behinstProto.tick = function ()
@@ -204,6 +217,160 @@ cr.behaviors.VectorLauncher = function(runtime)
 			{
 				// Projectile lost/destroyed
 				this.state = 0;
+			}
+		}
+		
+		// Handle Movement (State 4)
+		if (this.state === 4)
+		{
+			var proj = this.runtime.getObjectByUID(this.projectileUid);
+			if (!proj)
+			{
+				this.state = 3; // COOLDOWN
+				this.cooldownTimer = this.cooldownTime;
+			}
+			else
+			{
+				this.flightTime += dt * this.timeScale;
+				var t = this.flightTime;
+				var done = false;
+				var newX = 0, newY = 0, newZ = 0;
+				var moveAngle = 0;
+				var hasAngle = false;
+				
+				if (this.pathMode === 0) // Gravity
+				{
+					if (this.totalDuration > 0 && t >= this.totalDuration) {
+						t = this.totalDuration;
+						done = true;
+					}
+					
+					newX = this.launchStartX + this.launchVx * t;
+					
+					if (this.viewMode === 1) // Top-Down
+					{
+						var groundY = this.launchStartY + this.launchVy * t;
+						var height = (this.launchVz * t) - (0.5 * this.gravity * t * t);
+						newY = groundY - (height * this.zScale);
+						newZ = height;
+						
+						if (this.setAngle) {
+							moveAngle = Math.atan2(this.launchVy, this.launchVx);
+							hasAngle = true;
+						}
+					}
+					else // Side
+					{
+						newY = this.launchStartY + this.launchVy * t + 0.5 * this.gravity * t * t;
+						newZ = 0;
+						
+						if (this.setAngle) {
+							moveAngle = Math.atan2(this.launchVy + this.gravity * t, this.launchVx);
+							hasAngle = true;
+						}
+					}
+				}
+				else if (this.pathMode === 1) // Spline
+				{
+					var dur = (this.totalDuration > 0) ? this.totalDuration : 1.0;
+					var normT = t / dur;
+					if (normT >= 1.0) { normT = 1.0; done = true; }
+					
+					var mt = 1 - normT;
+					newX = (mt * mt * this.launchStartX) + (2 * mt * normT * this.controlX) + (normT * normT * this.targetX);
+					newY = (mt * mt * this.launchStartY) + (2 * mt * normT * this.controlY) + (normT * normT * this.targetY);
+					
+					if (this.setAngle) {
+						var d1x = this.controlX - this.launchStartX;
+						var d1y = this.controlY - this.launchStartY;
+						var d2x = this.targetX - this.controlX;
+						var d2y = this.targetY - this.controlY;
+						var dx = 2 * mt * d1x + 2 * normT * d2x;
+						var dy = 2 * mt * d1y + 2 * normT * d2y;
+						moveAngle = Math.atan2(dy, dx);
+						hasAngle = true;
+					}
+				}
+				else if (this.pathMode === 2) // Raycast
+				{
+					var dist = t * this.maxForce; // Speed = maxForce
+					var currentDist = 0;
+					var found = false;
+					
+					if (this.rayPoints.length > 0)
+					{
+						for (var i = 0; i < this.rayPoints.length - 1; i++)
+						{
+							var p0 = this.rayPoints[i];
+							var p1 = this.rayPoints[i+1];
+							var dx = p1.x - p0.x;
+							var dy = p1.y - p0.y;
+							var segLen = Math.sqrt(dx*dx + dy*dy);
+							
+							if (dist >= currentDist && dist <= currentDist + segLen)
+							{
+								var segT = (dist - currentDist) / segLen;
+								newX = p0.x + dx * segT;
+								newY = p0.y + dy * segT;
+								if (this.setAngle) {
+									moveAngle = Math.atan2(dy, dx);
+									hasAngle = true;
+								}
+								found = true;
+								break;
+							}
+							currentDist += segLen;
+						}
+						
+						if (!found)
+						{
+							var last = this.rayPoints[this.rayPoints.length-1];
+							newX = last.x;
+							newY = last.y;
+							done = true;
+						}
+					}
+					else
+					{
+						newX = this.launchStartX;
+						newY = this.launchStartY;
+						done = true;
+					}
+				}
+				
+				if (this.setAngle && hasAngle)
+					proj.angle = moveAngle;
+				
+				proj.x = newX;
+				proj.y = newY;
+				proj.set_bbox_changed();
+				
+				// Apply Z-Scale
+				if (this.trajectoryScaling !== 0)
+				{
+					if (typeof proj._vl_origW === "undefined") {
+						proj._vl_origW = proj.width;
+						proj._vl_origH = proj.height;
+					}
+					
+					var s = 1.0 + (newZ * this.trajectoryScaling);
+					if (s < 0) s = 0;
+					
+					var newW = proj._vl_origW * s;
+					var newH = proj._vl_origH * s;
+					
+					if (proj.width !== newW || proj.height !== newH) {
+						proj.width = newW;
+						proj.height = newH;
+						proj.set_bbox_changed();
+					}
+				}
+				
+				if (done)
+				{
+					this.state = 3; // COOLDOWN
+					this.cooldownTimer = this.cooldownTime;
+				}
 			}
 		}
 	};
@@ -482,6 +649,14 @@ cr.behaviors.VectorLauncher = function(runtime)
 			
 			this.launchVx = 0;
 			this.launchVy = 0;
+			
+			// Calculate duration based on speed (maxForce)
+			var d1x = this.controlX - this.inst.x;
+			var d1y = this.controlY - this.inst.y;
+			var d2x = this.targetX - this.controlX;
+			var d2y = this.targetY - this.controlY;
+			var len = Math.sqrt(d1x*d1x + d1y*d1y) + Math.sqrt(d2x*d2x + d2y*d2y);
+			this.totalDuration = (this.maxForce > 0) ? (len / this.maxForce) : 1.0;
 		}
 		else if (this.pathMode === 2) // Raycast Mode
 		{
@@ -616,14 +791,6 @@ cr.behaviors.VectorLauncher = function(runtime)
 		if (!this.enabled) return;
 		if (this.state !== 2) return;
 		
-		if (this.pathMode === 2) // Raycast: Targeting only
-		{
-			this.state = 3; // COOLDOWN
-			this.cooldownTimer = this.cooldownTime;
-			this.runtime.trigger(cr.behaviors.VectorLauncher.prototype.cnds.OnLaunch, this.inst);
-			return;
-		}
-
 		var proj = this.runtime.getObjectByUID(this.projectileUid);
 		if (proj)
 		{
@@ -646,8 +813,32 @@ cr.behaviors.VectorLauncher = function(runtime)
 			}
 		}
 		
-		this.state = 3; // COOLDOWN
-		this.cooldownTimer = this.cooldownTime;
+		// Start Movement
+		this.state = 4; // MOVING
+		this.flightTime = 0;
+		this.launchStartX = this.inst.x;
+		this.launchStartY = this.inst.y;
+		this.timeScale = 1.0;
+		
+		// Calculate Time Scale for Gravity Mode if Visual Speed is set
+		if (this.pathMode === 0 && this.visualSpeed > 0 && this.totalDuration > 0)
+		{
+			// Estimate path length
+			var steps = 10;
+			var totalLen = 0;
+			var lastP = this.getTrajectoryPoint(0);
+			
+			for (var i = 1; i <= steps; i++)
+			{
+				var t = i / steps;
+				var p = this.getTrajectoryPoint(t);
+				totalLen += Math.sqrt(Math.pow(p.x - lastP.x, 2) + Math.pow(p.y - lastP.y, 2)); // 2D length on screen
+				lastP = p;
+			}
+			
+			var visualDuration = totalLen / this.visualSpeed;
+			if (visualDuration > 0) this.timeScale = this.totalDuration / visualDuration;
+		}
 		
 		this.runtime.trigger(cr.behaviors.VectorLauncher.prototype.cnds.OnLaunch, this.inst);
 	};
@@ -807,6 +998,11 @@ cr.behaviors.VectorLauncher = function(runtime)
 	Acts.prototype.SetTrajectoryScaling = function (s)
 	{
 		this.trajectoryScaling = s;
+	};
+	
+	Acts.prototype.SetVisualSpeed = function (s)
+	{
+		this.visualSpeed = s;
 	};
 	
 	behaviorProto.acts = new Acts();

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿function GetBehaviorSettings()
+﻿﻿﻿﻿﻿﻿﻿﻿function GetBehaviorSettings()
 {
 	return {
 		"name":			"Vector Launcher",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
@@ -108,6 +108,9 @@ AddAction(11, af_none, "Set visual trajectory", "Launcher", "Set visual trajecto
 AddNumberParam("Scale", "The scaling factor (e.g. 0.005).");
 AddAction(12, af_none, "Set trajectory scaling", "Launcher", "Set trajectory scaling to {0}", "Set the visual scaling factor based on Z height.", "SetTrajectoryScaling");
 
+AddNumberParam("Speed", "The visual speed in pixels per second (0 = use physics).");
+AddAction(13, af_none, "Set visual speed", "Launcher", "Set visual speed to {0}", "Set the visual speed for Gravity mode.", "SetVisualSpeed");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -173,7 +176,9 @@ var property_list = [
 	new cr.Property(ept_combo, 	"View",			"Side",	"Select the perspective for gravity calculations.", "Side|Top-Down"),
 	new cr.Property(ept_float, 	"Elevation",	45,		"The launch elevation angle in degrees (Top-Down only)."),
 	new cr.Property(ept_float, 	"Z Scale",		1.0,	"Visual scaling factor for the Z-axis (Top-Down only)."),
-	new cr.Property(ept_float, 	"Trajectory Scaling", 0.0, "Scale multiplier for the visual trajectory sprites based on Z height (0 = no scaling).")
+	new cr.Property(ept_float, 	"Trajectory Scaling", 0.0, "Scale multiplier for the visual trajectory sprites based on Z height (0 = no scaling)."),
+	new cr.Property(ept_float, 	"Visual Speed",	0,		"The visual speed in pixels per second for Gravity mode (0 = use physics speed)."),
+	new cr.Property(ept_combo, 	"Set Angle",	"Yes",	"Rotate the object to face its direction of travel.", "No|Yes")
 	];
 	
 // Called by IDE when a new behavior type is to be created
