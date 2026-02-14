@@ -1,4 +1,4 @@
-﻿// ECMAScript 5 strict mode
+﻿﻿// ECMAScript 5 strict mode
 "use strict";
 
 assert2(cr, "cr namespace not created");
@@ -87,6 +87,7 @@ cr.behaviors.Autodungen = function(runtime)
         this.tileShadowCornerInTL = (p.length > 25) ? p[25] : -1;
         this.tileShadowBelowCornerOutBREnd = (p.length > 26) ? p[26] : -1;
         this.tileShadowBelowSideTop = (p.length > 27) ? p[27] : -1;
+        this.maxRooms = (p.length > 28) ? p[28] : 0; // 0 = No limit
 
 		// Backwards compatibility for old property order
 		if (typeof this.autotiling === "undefined") {
@@ -163,6 +164,7 @@ cr.behaviors.Autodungen = function(runtime)
             "t_s_citl": this.tileShadowCornerInTL,
             "t_s_bcobre": this.tileShadowBelowCornerOutBREnd,
             "t_s_bst": this.tileShadowBelowSideTop,
+            "max_rooms": this.maxRooms,
 			"variants": this.variants
 		};
 	};
@@ -203,6 +205,7 @@ cr.behaviors.Autodungen = function(runtime)
         this.tileShadowCornerInTL = o["t_s_citl"] || -1;
         this.tileShadowBelowCornerOutBREnd = o["t_s_bcobre"] || -1;
         this.tileShadowBelowSideTop = o["t_s_bst"] || -1;
+        this.maxRooms = o["max_rooms"] || 0;
 
 		this.variants = o["variants"] || [];
 		for(var i=0; i<21; i++) {
@@ -315,7 +318,20 @@ cr.behaviors.Autodungen = function(runtime)
 	};
 
 	behinstProto._createRooms = function() {
+		// If we have a max room limit, shuffle the leaf nodes first so we pick random locations
+		// instead of filling up one corner of the map first (due to BSP recursion order).
+		if (this.maxRooms > 0 && this.leafNodes.length > 0) {
+			for (var i = this.leafNodes.length - 1; i > 0; i--) {
+				var j = Math.floor(this._random() * (i + 1));
+				var temp = this.leafNodes[i];
+				this.leafNodes[i] = this.leafNodes[j];
+				this.leafNodes[j] = temp;
+			}
+		}
+
 		for(var i = 0; i < this.leafNodes.length; i++) {
+			if (this.maxRooms > 0 && this.rooms.length >= this.maxRooms) break;
+
 			var leaf = this.leafNodes[i];
 			
 			var minSize = Math.max(4, this.minRoomSize - this.padding * 2);
@@ -364,7 +380,10 @@ cr.behaviors.Autodungen = function(runtime)
 	behinstProto._getRoomFromPartition = function(p) {
 		if (p.room) return p.room;
 		if (p.children) {
-			return this._getRoomFromPartition(p.children[this._randInt(0,1)]);
+			var idx = this._randInt(0, 1);
+			var r = this._getRoomFromPartition(p.children[idx]);
+			if (r) return r;
+			return this._getRoomFromPartition(p.children[1 - idx]);
 		}
 		return null;
 	};
@@ -447,6 +466,51 @@ cr.behaviors.Autodungen = function(runtime)
 		}
 	};
 
+	behinstProto._updateRoomDefinitions = function() {
+		// Update room dimensions in case walls were thickened or grid modified
+		for(var i = 0; i < this.rooms.length; i++) {
+			var r = this.rooms[i];
+			
+			var minX = r.x + r.w;
+			var maxX = r.x - 1;
+			var minY = r.y + r.h;
+			var maxY = r.y - 1;
+			var found = false;
+			
+			for(var x = r.x; x < r.x + r.w; x++) {
+				for(var y = r.y; y < r.y + r.h; y++) {
+					if (x >= 0 && x < this.mapWidth && y >= 0 && y < this.mapHeight) {
+						if (this.grid[x][y] === this.ROOM) {
+							if (x < minX) minX = x;
+							if (x > maxX) maxX = x;
+							if (y < minY) minY = y;
+							if (y > maxY) maxY = y;
+							found = true;
+						}
+					}
+				}
+			}
+			
+			if (found) {
+				r.x = minX;
+				r.y = minY;
+				r.w = (maxX - minX) + 1;
+				r.h = (maxY - minY) + 1;
+				
+				var cX = r.x + Math.floor(r.w / 2);
+				if (cX % 2 !== 0) cX--;
+				var cY = r.y + Math.floor(r.h / 2);
+				if (cY % 2 !== 0) cY--;
+				
+				r.centerX = cX;
+				r.centerY = cY;
+			} else {
+				r.w = 0;
+				r.h = 0;
+			}
+		}
+	};
+
 	behinstProto._resolveVariant = function(shapeIndex, defaultId) {
 		if (!this.variants[shapeIndex] || this.variants[shapeIndex].length === 0) return defaultId;
         
@@ -460,8 +524,6 @@ cr.behaviors.Autodungen = function(runtime)
 	};
 
 	behinstProto._getWallTile = function(x, y) {
-		var useDefault = -1;
-	
 		var isWall = (tx, ty) => {
 			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return true;
 			var tile = this.grid[tx][ty];
@@ -473,30 +535,30 @@ cr.behaviors.Autodungen = function(runtime)
 		var s = isWall(x, y + 1);
 		var w = isWall(x - 1, y);
 		
-		var ne = isWall(x + 1, y - 1);
-		var se = isWall(x + 1, y + 1);
-		var sw = isWall(x - 1, y + 1);
-		var nw = isWall(x - 1, y - 1);
-	
 		// Outer Corners (Exterior/Convex) - Wall sticking out
-		if (!n && !w && e && s && this.tileCornerOutTL !== useDefault) return this._resolveVariant(10, this.tileCornerOutTL);
-		if (!n && !e && w && s && this.tileCornerOutTR !== useDefault) return this._resolveVariant(2, this.tileCornerOutTR);
-		if (!s && !w && e && n && this.tileCornerOutBL !== useDefault) return this._resolveVariant(7, this.tileCornerOutBL);
-		if (!s && !e && w && n && this.tileCornerOutBR !== useDefault) return this._resolveVariant(6, this.tileCornerOutBR);
+		if (!n && !w && e && s) return this._resolveVariant(10, this.tileCornerOutTL);
+		if (!n && !e && w && s) return this._resolveVariant(2, this.tileCornerOutTR);
+		if (!s && !w && e && n) return this._resolveVariant(7, this.tileCornerOutBL);
+		if (!s && !e && w && n) return this._resolveVariant(6, this.tileCornerOutBR);
 	
 		// Inner Corners (Interior/Concave) - Wall surrounding floor
 		if (n && e && s && w) {
-			if (!se && this.tileCornerInTL !== useDefault) return this._resolveVariant(11, this.tileCornerInTL);
-			if (!sw && this.tileCornerInTR !== useDefault) return this._resolveVariant(0, this.tileCornerInTR);
-			if (!ne && this.tileCornerInBL !== useDefault) return this._resolveVariant(8, this.tileCornerInBL);
-			if (!nw && this.tileCornerInBR !== useDefault) return this._resolveVariant(4, this.tileCornerInBR);
+			var ne = isWall(x + 1, y - 1);
+			var se = isWall(x + 1, y + 1);
+			var sw = isWall(x - 1, y + 1);
+			var nw = isWall(x - 1, y - 1);
+
+			if (!se) return this._resolveVariant(11, this.tileCornerInTL);
+			if (!sw) return this._resolveVariant(0, this.tileCornerInTR);
+			if (!ne) return this._resolveVariant(8, this.tileCornerInBL);
+			if (!nw) return this._resolveVariant(4, this.tileCornerInBR);
 		}
 	
 		// Sides
-		if (!s && n && e && w && this.tileSideTop !== useDefault) return this._resolveVariant(1, this.tileSideTop);
-		if (!n && s && e && w && this.tileSideBottom !== useDefault) return this._resolveVariant(5, this.tileSideBottom);
-		if (!e && n && s && w && this.tileSideLeft !== useDefault) return this._resolveVariant(9, this.tileSideLeft);
-		if (!w && n && s && e && this.tileSideRight !== useDefault) return this._resolveVariant(3, this.tileSideRight);
+		if (!s && n && e && w) return this._resolveVariant(1, this.tileSideTop);
+		if (!n && s && e && w) return this._resolveVariant(5, this.tileSideBottom);
+		if (!e && n && s && w) return this._resolveVariant(9, this.tileSideLeft);
+		if (!w && n && s && e) return this._resolveVariant(3, this.tileSideRight);
 	
 		return this._resolveVariant(20, this.wallTile); // Default wall tile
 	};
@@ -524,12 +586,10 @@ cr.behaviors.Autodungen = function(runtime)
 			var e = isWall(wx + 1, wy);
 			var w = isWall(wx - 1, wy);
 			
-			if (n && e && w && this.tileBelowSideTop !== -1) {
-				return this._resolveVariant(13, this.tileBelowSideTop);
-			}
-			if (n && e && !w && this.tileBelowCornerOutBL !== -1) return this._resolveVariant(12, this.tileBelowCornerOutBL);
+			if (n && e && w) return this._resolveVariant(13, this.tileBelowSideTop);
+			if (n && e && !w) return this._resolveVariant(12, this.tileBelowCornerOutBL);
 			if (n && !e && w) {
-				if (this.tileBelowCornerOutBR !== -1) return this._resolveVariant(14, this.tileBelowCornerOutBR);
+				return this._resolveVariant(14, this.tileBelowCornerOutBR);
 			}
 		}
 
@@ -542,21 +602,19 @@ cr.behaviors.Autodungen = function(runtime)
 			var w = isWall(wx - 1, wy);
 			
 			if (n && (e || w)) {
-				if (wallWest && this.tileShadowCornerInTL !== -1) {
-					return this._resolveVariant(16, this.tileShadowCornerInTL);
-				}
-				if (this.tileShadowBelowSideTop !== -1) return this._resolveVariant(18, this.tileShadowBelowSideTop);
+				if (wallWest) return this._resolveVariant(16, this.tileShadowCornerInTL);
+				return this._resolveVariant(18, this.tileShadowBelowSideTop);
 			}
 		}
 
 		// 2. Inner Corner Shadow (North + West)
-		if (wallNorth && wallWest && this.tileShadowCornerInTL !== -1) {
+		if (wallNorth && wallWest) {
 			return this._resolveVariant(16, this.tileShadowCornerInTL);
 		}
 
 		// 3. West Wall Shadow (Side Right - Renamed from EastSideBorder)
 		if (wallWest) {
-			if (this.tileShadowSideRight !== -1) return this._resolveVariant(15, this.tileShadowSideRight);
+			return this._resolveVariant(15, this.tileShadowSideRight);
 		}
 
 		// 4. Shadow Side Right (Diagonal from CornerOutBR)
@@ -565,13 +623,13 @@ cr.behaviors.Autodungen = function(runtime)
 				var n = isWall(x - 1, y - 2);
 				var w = isWall(x - 2, y - 1);
 				if (n && w) {
-					if (this.tileShadowSideRight !== -1) return this._resolveVariant(15, this.tileShadowSideRight);
+					return this._resolveVariant(15, this.tileShadowSideRight);
 				}
 			}
 			if (!isWall(x - 1, y - 1) && isWall(x - 1, y - 2)) {
 				var n = isWall(x - 1, y - 3);
 				var w = isWall(x - 2, y - 2);
-				if (n && w && this.tileShadowBelowCornerOutBREnd !== -1) return this._resolveVariant(17, this.tileShadowBelowCornerOutBREnd);
+				if (n && w) return this._resolveVariant(17, this.tileShadowBelowCornerOutBREnd);
 			}
 		}
 
@@ -847,6 +905,10 @@ cr.behaviors.Autodungen = function(runtime)
 		this.corridorSize = Math.max(1, Math.floor(size));
 	};
 
+	Acts.prototype.SetMaxRooms = function (count) {
+		this.maxRooms = Math.max(0, Math.floor(count));
+	};
+
 	Acts.prototype.GenerateDungeon = function (width, height)
 	{
 		this._setSeed(this.seed);
@@ -871,6 +933,7 @@ cr.behaviors.Autodungen = function(runtime)
 		this._createRooms();
 		this._createCorridors();
 		this._enforceThickWalls();
+		this._updateRoomDefinitions();
 		this._paintTilemap();
 		this.runtime.trigger(cr.behaviors.Autodungen.prototype.cnds.OnGenerationComplete, this.inst);
 	};
@@ -1008,6 +1071,24 @@ cr.behaviors.Autodungen = function(runtime)
 
 	Exps.prototype.AutotileShapeAt = function (ret, x, y) {
 		ret.set_string(this._getWallShapeAt(Math.floor(x), Math.floor(y)));
+	};
+
+	Exps.prototype.RoomWidth = function (ret, index) {
+		index = Math.floor(index);
+		if (index < 0 || index >= this.rooms.length) {
+			ret.set_int(0);
+			return;
+		}
+		ret.set_int(this.rooms[index].w);
+	};
+
+	Exps.prototype.RoomHeight = function (ret, index) {
+		index = Math.floor(index);
+		if (index < 0 || index >= this.rooms.length) {
+			ret.set_int(0);
+			return;
+		}
+		ret.set_int(this.rooms[index].h);
 	};
 	
 	behaviorProto.exps = new Exps();

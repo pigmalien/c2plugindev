@@ -128,6 +128,9 @@ AddNumberParam("Tile ID", "The tile ID to use as a variant.");
 AddNumberParam("Probability", "The percentage chance (0-100) to use this variant.", "50");
 AddAction(8, af_none, "Add autotile variant", "Autotiling", "Add variant tile <b>{1}</b> for <b>{0}</b> with <b>{2}%</b> chance", "Adds a variant tile for a specific shape with a given probability.", "AddAutotileVariant");
 
+AddNumberParam("Max Rooms", "The maximum number of rooms to generate. 0 for no limit.", "0");
+AddAction(9, af_none, "Set max rooms", "Setup", "Set max rooms to <b>{0}</b>", "Sets the maximum number of rooms to generate.", "SetMaxRooms");
+
 
 ////////////////////////////////////////
 // Expressions
@@ -173,6 +176,12 @@ AddExpression(24, ef_return_number, "TileShadowCornerInTL", "Autotiling", "TileS
 AddExpression(26, ef_return_number, "TileShadowBelowCornerOutBREnd", "Autotiling", "TileShadowBelowCornerOutBREnd", "Returns the tile ID for Shadow Below Corner Out Bottom-Right End.");
 AddExpression(27, ef_return_number, "TileShadowBelowSideTop", "Autotiling", "TileShadowBelowSideTop", "Returns the tile ID for Shadow Below Side Top.");
 
+AddNumberParam("Index", "The 0-based index of the room.");
+AddExpression(28, ef_return_number, "RoomWidth", "Rooms", "RoomWidth", "Returns the width of a specific room in tiles.");
+
+AddNumberParam("Index", "The 0-based index of the room.");
+AddExpression(29, ef_return_number, "RoomHeight", "Rooms", "RoomHeight", "Returns the height of a specific room in tiles.");
+
 ////////////////////////////////////////
 ACESDone();
 
@@ -211,7 +220,8 @@ var property_list = [
     new cr.Property(ept_integer, 	"Shadow Side Right",		-1,		"Tile ID for Shadow Side Right. -1 to use default."),
     new cr.Property(ept_integer, 	"Shadow Corner In TL",		-1,		"Tile ID for Shadow Corner In Top-Left. -1 to use default."),
     new cr.Property(ept_integer, 	"Shadow Below Corner Out BR End", -1, "Tile ID for Shadow Below Corner Out Bottom-Right End. -1 to use default."),
-    new cr.Property(ept_integer, 	"Shadow Below Side Top",	-1,		"Tile ID for Shadow Below Side Top. -1 to use default.")
+    new cr.Property(ept_integer, 	"Shadow Below Side Top",	-1,		"Tile ID for Shadow Below Side Top. -1 to use default."),
+    new cr.Property(ept_integer, 	"Max Rooms",				0,		"The maximum number of rooms to generate. 0 = no limit.")
 ];
 	
 // Called by IDE when a new behavior type is to be created
