@@ -85,7 +85,7 @@ var property_list = [
 	new cr.Property(ept_integer, 	"Number of Rooms",	10,		"Target number of rooms to generate."),
 	new cr.Property(ept_integer, 	"Min Room Size",	4,		"Minimum size (width/diameter) of a room in tiles."),
 	new cr.Property(ept_integer, 	"Max Room Size",	10,		"Maximum size (width/diameter) of a room in tiles."),
-	new cr.Property(ept_combo,      "Room Shape",       "Rectangle", "The shape of the generated rooms.", "Rectangle|Circle"),
+	new cr.Property(ept_combo,      "Room Shape",       "Rectangle", "The shape of the generated rooms.", "Rectangle|Circle|Organic"),
 	new cr.Property(ept_integer,    "Wall Thickness",   1,      "Thickness of walls. -1: None, 0: Filled, >0: Thickness."),
 	new cr.Property(ept_float, 		"Connectivity",		1.0,	"0.0 (None) to 1.0 (Full MST). Controls how connected the rooms are."),
 	new cr.Property(ept_integer, 	"Floor Tile ID",	0,		"Tile ID for floors (-1 to erase)."),

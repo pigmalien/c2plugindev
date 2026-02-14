@@ -422,7 +422,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 								grid[i][j] = this.floorTile;
 						}
 					}
-				} else { // Circle
+				} else { // Circle (1) or Organic (2)
 					var centerX = Math.floor(newRoom.cx);
 					var centerY = Math.floor(newRoom.cy);
 					var radius = Math.floor(Math.min(w, h) / 2);
@@ -457,14 +457,23 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 				var x2 = Math.floor(e.v.cx);
 				var y2 = Math.floor(e.v.cy);
 
+				var corrWidth = (this.roomShape === 2) ? 3 : 1;
+
 				// Randomly choose horizontal-first or vertical-first
 				if (this._random() < 0.5) {
-					this._carveH(grid, x1, x2, y1);
-					this._carveV(grid, y1, y2, x2);
+					this._carveH(grid, x1, x2, y1, corrWidth);
+					this._carveV(grid, y1, y2, x2, corrWidth);
 				} else {
-					this._carveV(grid, y1, y2, x1);
-					this._carveH(grid, x1, x2, y2);
+					this._carveV(grid, y1, y2, x1, corrWidth);
+					this._carveH(grid, x1, x2, y2, corrWidth);
 				}
+			}
+		}
+
+		// 4. Apply Cellular Automata for Organic mode
+		if (this.roomShape === 2) {
+			for(var k=0; k<3; k++) {
+				this._applyCA(grid);
 			}
 		}
 
@@ -534,15 +543,50 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		this.runtime.trigger(cr.behaviors.DelaunayDungeon.prototype.cnds.OnGenerationComplete, this.inst);
 	};
 
-	behinstProto._carveH = function(grid, x1, x2, y) {
+	behinstProto._carveH = function(grid, x1, x2, y, width) {
+		width = width || 1;
+		var half = Math.floor(width / 2);
 		for (var x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
-			grid[x][y] = this.floorTile;
+			for (var w = -half; w <= half; w++) {
+				if (y+w >= 0 && y+w < this.mapHeight)
+					grid[x][y+w] = this.floorTile;
+			}
 		}
 	};
 
-	behinstProto._carveV = function(grid, y1, y2, x) {
+	behinstProto._carveV = function(grid, y1, y2, x, width) {
+		width = width || 1;
+		var half = Math.floor(width / 2);
 		for (var y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
-			grid[x][y] = this.floorTile;
+			for (var w = -half; w <= half; w++) {
+				if (x+w >= 0 && x+w < this.mapWidth)
+					grid[x+w][y] = this.floorTile;
+			}
+		}
+	};
+
+	behinstProto._applyCA = function(grid) {
+		var newGrid = [];
+		for(var x=0; x<this.mapWidth; x++) {
+			newGrid[x] = grid[x].slice();
+		}
+
+		for(var x=1; x<this.mapWidth-1; x++) {
+			for(var y=1; y<this.mapHeight-1; y++) {
+				var wallCount = 0;
+				for(var i=-1; i<=1; i++) {
+					for(var j=-1; j<=1; j++) {
+						if (grid[x+i][y+j] !== this.floorTile) wallCount++;
+					}
+				}
+				
+				if (wallCount >= 5) newGrid[x][y] = this.VOID_TILE;
+				else newGrid[x][y] = this.floorTile;
+			}
+		}
+		
+		for(var x=0; x<this.mapWidth; x++) {
+			grid[x] = newGrid[x];
 		}
 	};
 	
