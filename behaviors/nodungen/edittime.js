@@ -184,11 +184,14 @@ var property_list = [
 	new cr.Property(ept_integer, 	"Max Room Size",	10,		"Maximum size (width/diameter) of a room in tiles."),
 	new cr.Property(ept_combo,      "Room Shape",       "Rectangle", "The shape of the generated rooms.", "Rectangle|Circle|Organic"),
 	new cr.Property(ept_float, 		"Connectivity",		1.0,	"0.0 (None) to 1.0 (Full MST). Controls how connected the rooms are."),
+	new cr.Property(ept_integer, 	"Border Padding",	2,		"The minimum empty space (in tiles) between the map edge and any room."),
 
     // --- Tiling Settings ---
     new cr.Property(ept_combo,      "Autotiling",           	"Enabled", "Enable or disable automatic wall tiling.", "Disabled|Enabled"),
 	new cr.Property(ept_integer,    "Wall Thickness",   1,      "Thickness of walls around rooms/corridors. 0: Filled, >0: Thickness in tiles. -1: No walls."),
 	new cr.Property(ept_integer, 	"Corridor Size",	1,		"The width of corridors in tiles. Odd numbers look best."),
+	new cr.Property(ept_integer, 	"Room Padding",		1,		"The minimum empty space (in tiles) between a room's edge and its partition boundary."),
+	new cr.Property(ept_integer, 	"Gap",		        2,		"The minimum gap between rooms (in tiles)."),
 	new cr.Property(ept_integer, 	"Floor Tile",	    0,		"The tile ID to use for floors."),
 	new cr.Property(ept_integer, 	"Wall Tile (Default)",		1,		"The default tile ID for walls, or when autotiling is disabled."),
 	
