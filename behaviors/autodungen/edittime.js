@@ -193,14 +193,21 @@ ACESDone();
 // new cr.Property(ept_combo,		name,	"Item 1",		description, "Item 1|Item 2|Item 3")	// a dropdown list (initial_value is string of initially selected item)
 
 var property_list = [
+	// --- Generation Settings ---
 	new cr.Property(ept_integer, 	"Min Room Size",			8,		"The minimum width or height of a room. Partitions smaller than this will not be split."),
 	new cr.Property(ept_integer, 	"Max Room Size",			20,		"Partitions larger than this will always be split to create smaller rooms."),
+	new cr.Property(ept_integer, 	"Max Rooms",				0,		"The maximum number of rooms to generate. 0 = no limit."),
 	new cr.Property(ept_integer, 	"Room Padding",				1,		"The minimum empty space (in tiles) between a room's edge and its partition boundary."),
     new cr.Property(ept_integer, 	"Corridor Size",			1,		"The width of corridors in tiles. Odd numbers look best."),
+	new cr.Property(ept_combo, 		"Thick Walls",				"No",	"Ensure walls are at least 2 tiles thick.", "No|Yes"),
     new cr.Property(ept_text, 		"Seed",						"0",	"The seed for the random number generator. Use '0' for a random seed on startup."),
+	
+	// --- Tiling Settings ---
+    new cr.Property(ept_combo,      "Autotiling",           	"Enabled", "Enable or disable automatic wall tiling.", "Disabled|Enabled"),
 	new cr.Property(ept_integer, 	"Floor Tile",				0,		"The tile ID to use for floors and corridors."),
-    new cr.Property(ept_combo,      "Autotiling",           	"Disabled", "Enable or disable automatic wall tiling.", "Disabled|Enabled"),
 	new cr.Property(ept_integer, 	"Wall Tile (Default)",		1,		"The default tile ID for walls, or when autotiling is disabled."),
+	
+	// --- Autotile Shapes (Walls) ---
     new cr.Property(ept_integer, 	"Corner In Top-Right",		-1,		"Tile ID for this shape. -1 to use default."),
     new cr.Property(ept_integer, 	"Side Top",		            -1,		"Tile ID for this shape. -1 to use default."),
     new cr.Property(ept_integer, 	"Corner Out Top-Right",		-1,		"Tile ID for this shape. -1 to use default."),
@@ -213,15 +220,15 @@ var property_list = [
     new cr.Property(ept_integer, 	"Side Left",		        -1,		"Tile ID for this shape. -1 to use default."),
     new cr.Property(ept_integer, 	"Corner Out Top-Left",		-1,		"Tile ID for this shape. -1 to use default."),
     new cr.Property(ept_integer, 	"Corner In Top-Left",		-1,		"Tile ID for this shape. -1 to use default."),
-    new cr.Property(ept_combo, 		"Thick Walls",				"No",	"Ensure walls are at least 2 tiles thick.", "No|Yes"),
+	
+	// --- Autotile Shapes (Depth & Shadow) ---
     new cr.Property(ept_integer, 	"Below Corner Out BL",		-1,		"Tile ID below Corner Out Bottom-Left. -1 to use default."),
     new cr.Property(ept_integer, 	"Below Side Top",		    -1,		"Tile ID below Side Top. -1 to use default."),
     new cr.Property(ept_integer, 	"Below Corner Out BR",		-1,		"Tile ID below Corner Out Bottom-Right. -1 to use default."),
     new cr.Property(ept_integer, 	"Shadow Side Right",		-1,		"Tile ID for Shadow Side Right. -1 to use default."),
     new cr.Property(ept_integer, 	"Shadow Corner In TL",		-1,		"Tile ID for Shadow Corner In Top-Left. -1 to use default."),
     new cr.Property(ept_integer, 	"Shadow Below Corner Out BR End", -1, "Tile ID for Shadow Below Corner Out Bottom-Right End. -1 to use default."),
-    new cr.Property(ept_integer, 	"Shadow Below Side Top",	-1,		"Tile ID for Shadow Below Side Top. -1 to use default."),
-    new cr.Property(ept_integer, 	"Max Rooms",				0,		"The maximum number of rooms to generate. 0 = no limit.")
+    new cr.Property(ept_integer, 	"Shadow Below Side Top",	-1,		"Tile ID for Shadow Below Side Top. -1 to use default.")
 ];
 	
 // Called by IDE when a new behavior type is to be created

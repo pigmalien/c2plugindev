@@ -48,53 +48,37 @@ cr.behaviors.Autodungen = function(runtime)
 	behinstProto.onCreate = function()
 	{
 		var p = this.properties;
-		var isNewVersion = p.length > 19; // Previous version had 19 properties
 
 		// Properties
 		this.minRoomSize = p[0];
 		this.maxRoomSize = p[1];
-		this.padding = p[2];
-
-		var offset = 0;
-		if (isNewVersion) {
-			this.corridorSize = p[3];
-			offset = 1;
-		} else {
-			this.corridorSize = 1; // Default for old projects
-		}
-
-		this.seed = p[3 + offset];
-		this.floorTile = p[4 + offset];
-        this.autotiling = p[5 + offset];
-		this.wallTile = p[6 + offset];
-		this.tileCornerInTR = p[7 + offset];
-        this.tileSideTop = p[8 + offset];
-        this.tileCornerOutTR = p[9 + offset];
-        this.tileSideRight = p[10 + offset];
-        this.tileCornerInBR = p[11 + offset];
-        this.tileSideBottom = p[12 + offset];
-        this.tileCornerOutBR = p[13 + offset];
-        this.tileCornerOutBL = p[14 + offset];
-        this.tileCornerInBL = p[15 + offset];
-        this.tileSideLeft = p[16 + offset];
-        this.tileCornerOutTL = p[17 + offset];
-        this.tileCornerInTL = p[18 + offset];
-        this.thickWalls = (p.length > 20) ? p[20] : 0; // 0=No, 1=Yes
-        this.tileBelowCornerOutBL = (p.length > 21) ? p[21] : -1;
-        this.tileBelowSideTop = (p.length > 22) ? p[22] : -1;
-        this.tileBelowCornerOutBR = (p.length > 23) ? p[23] : -1;
-        this.tileShadowSideRight = (p.length > 24) ? p[24] : -1;
-        this.tileShadowCornerInTL = (p.length > 25) ? p[25] : -1;
-        this.tileShadowBelowCornerOutBREnd = (p.length > 26) ? p[26] : -1;
-        this.tileShadowBelowSideTop = (p.length > 27) ? p[27] : -1;
-        this.maxRooms = (p.length > 28) ? p[28] : 0; // 0 = No limit
-
-		// Backwards compatibility for old property order
-		if (typeof this.autotiling === "undefined") {
-			this.wallTile = p[4];
-			this.floorTile = p[5];
-			this.autotiling = 0; // Disabled by default for old projects
-		}
+		this.maxRooms = p[2];
+		this.padding = p[3];
+		this.corridorSize = p[4];
+		this.thickWalls = p[5]; // 0=No, 1=Yes
+		this.seed = p[6];
+        this.autotiling = p[7]; // 0=Disabled, 1=Enabled
+		this.floorTile = p[8];
+		this.wallTile = p[9];
+		this.tileCornerInTR = p[10];
+        this.tileSideTop = p[11];
+        this.tileCornerOutTR = p[12];
+        this.tileSideRight = p[13];
+        this.tileCornerInBR = p[14];
+        this.tileSideBottom = p[15];
+        this.tileCornerOutBR = p[16];
+        this.tileCornerOutBL = p[17];
+        this.tileCornerInBL = p[18];
+        this.tileSideLeft = p[19];
+        this.tileCornerOutTL = p[20];
+        this.tileCornerInTL = p[21];
+        this.tileBelowCornerOutBL = p[22];
+        this.tileBelowSideTop = p[23];
+        this.tileBelowCornerOutBR = p[24];
+        this.tileShadowSideRight = p[25];
+        this.tileShadowCornerInTL = p[26];
+        this.tileShadowBelowCornerOutBREnd = p[27];
+        this.tileShadowBelowSideTop = p[28];
 
 		this.prng = null;
 		this.grid = [];

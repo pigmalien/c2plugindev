@@ -48,22 +48,54 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 
 	behinstProto.onCreate = function()
 	{
-		this.mapWidth = this.properties[0];
-		this.mapHeight = this.properties[1];
-		this.numRooms = this.properties[2];
-		this.minRoomSize = this.properties[3];
-		this.maxRoomSize = this.properties[4];
-		this.roomShape = this.properties[5]; // 0=Rect, 1=Circle
-        this.wallThickness = this.properties[6];
-		this.connectivity = this.properties[7];
-		this.floorTile = this.properties[8];
-		this.wallTile = this.properties[9];
-		this.seed = this.properties[10];
+		var p = this.properties;
+		this.mapWidth = p[0];
+		this.mapHeight = p[1];
+		this.seed = p[2];
+		this.numRooms = p[3];
+		this.minRoomSize = p[4];
+		this.maxRoomSize = p[5];
+		this.roomShape = p[6]; // 0=Rect, 1=Circle, 2=Organic
+		this.connectivity = p[7];
+		this.autotiling = p[8]; // 0=Disabled, 1=Enabled
+		this.wallThickness = p[9];
+		this.corridorSize = p[10];
+		this.floorTile = p[11];
+		this.wallTile = p[12];
+		this.tileCornerInTR = p[13];
+		this.tileSideTop = p[14];
+		this.tileCornerOutTR = p[15];
+		this.tileSideRight = p[16];
+		this.tileCornerInBR = p[17];
+		this.tileSideBottom = p[18];
+		this.tileCornerOutBR = p[19];
+		this.tileCornerOutBL = p[20];
+		this.tileCornerInBL = p[21];
+		this.tileSideLeft = p[22];
+		this.tileCornerOutTL = p[23];
+		this.tileCornerInTL = p[24];
+		this.tileBelowCornerOutBL = p[25];
+		this.tileBelowSideTop = p[26];
+		this.tileBelowCornerOutBR = p[27];
+		this.tileShadowSideRight = p[28];
+		this.tileShadowCornerInTL = p[29];
+		this.tileShadowBelowCornerOutBREnd = p[30];
+		this.tileShadowBelowSideTop = p[31];
 
 		this.generatedRooms = 0;
-
-		this.VOID_TILE = -2; // Internal constant for empty space
 		this.prng = null;
+		this.grid = [];
+
+		this.variants = [];
+		for(var i=0; i<21; i++) this.variants[i] = [];
+
+		// Internal tile types
+		this.VOID = 0;
+		this.WALL = 1;
+		this.FLOOR = 2;
+		// this.ROOM = 3; // Not used in this generator, but keep for consistency
+
+		this._setSeed(this.seed);
 	};
 	
 	behinstProto.onDestroy = function ()
@@ -71,6 +103,8 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		// called when associated object is being destroyed
 		// note runtime may keep the object and behavior alive after this call for recycling;
 		// release, recycle or reset any references here as necessary
+		this.grid = null;
+		this.prng = null;
 	};
 	
 	// called when saving the full state of the game
@@ -80,17 +114,40 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		// note you MUST use double-quote syntax (e.g. "property": value) to prevent
 		// Closure Compiler renaming and breaking the save format
 		return {
-			"mw": this.mapWidth,
-			"mh": this.mapHeight,
+			"w": this.mapWidth,
+			"h": this.mapHeight,
+			"seed": this.seed,
 			"nr": this.numRooms,
 			"minr": this.minRoomSize,
 			"maxr": this.maxRoomSize,
 			"rs": this.roomShape,
-            "wth": this.wallThickness,
 			"conn": this.connectivity,
-			"ft": this.floorTile,
-			"wt": this.wallTile,
-			"seed": this.seed
+			"autotile": this.autotiling,
+			"wth": this.wallThickness,
+			"cs": this.corridorSize,
+			"floor_t": this.floorTile,
+			"wall_t": this.wallTile,
+			"t_citr": this.tileCornerInTR,
+			"t_st": this.tileSideTop,
+			"t_cotr": this.tileCornerOutTR,
+			"t_sr": this.tileSideRight,
+			"t_cibr": this.tileCornerInBR,
+			"t_sb": this.tileSideBottom,
+			"t_cobr": this.tileCornerOutBR,
+			"t_cobl": this.tileCornerOutBL,
+			"t_cibl": this.tileCornerInBL,
+			"t_sl": this.tileSideLeft,
+			"t_cotl": this.tileCornerOutTL,
+			"t_citl": this.tileCornerInTL,
+			"t_b_cobl": this.tileBelowCornerOutBL,
+			"t_b_st": this.tileBelowSideTop,
+			"t_b_cobr": this.tileBelowCornerOutBR,
+			"t_s_sr": this.tileShadowSideRight,
+			"t_s_citl": this.tileShadowCornerInTL,
+			"t_s_bcobre": this.tileShadowBelowCornerOutBREnd,
+			"t_s_bst": this.tileShadowBelowSideTop,
+			"variants": this.variants,
+			"grid": this.grid
 		};
 	};
 	
@@ -98,17 +155,46 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 	behinstProto.loadFromJSON = function (o)
 	{
 		// load from the state previously saved by saveToJSON
-		this.mapWidth = o["mw"];
-		this.mapHeight = o["mh"];
+		this.mapWidth = o["w"];
+		this.mapHeight = o["h"];
+		this.seed = o["seed"];
 		this.numRooms = o["nr"];
 		this.minRoomSize = o["minr"];
 		this.maxRoomSize = o["maxr"];
 		this.roomShape = o["rs"];
-        this.wallThickness = o["wth"];
 		this.connectivity = o["conn"];
-		this.floorTile = o["ft"];
-		this.wallTile = o["wt"];
-		this.seed = o["seed"];
+		this.autotiling = o["autotile"] || 0;
+		this.wallThickness = o["wth"];
+		this.corridorSize = o["cs"] || 1;
+		this.floorTile = o["floor_t"];
+		this.wallTile = o["wall_t"];
+		this.tileCornerInTR = o["t_citr"] || -1;
+		this.tileSideTop = o["t_st"] || -1;
+		this.tileCornerOutTR = o["t_cotr"] || -1;
+		this.tileSideRight = o["t_sr"] || -1;
+		this.tileCornerInBR = o["t_cibr"] || -1;
+		this.tileSideBottom = o["t_sb"] || -1;
+		this.tileCornerOutBR = o["t_cobr"] || -1;
+		this.tileCornerOutBL = o["t_cobl"] || -1;
+		this.tileCornerInBL = o["t_cibl"] || -1;
+		this.tileSideLeft = o["t_sl"] || -1;
+		this.tileCornerOutTL = o["t_cotl"] || -1;
+		this.tileCornerInTL = o["t_citl"] || -1;
+		this.tileBelowCornerOutBL = o["t_b_cobl"] || -1;
+		this.tileBelowSideTop = o["t_b_st"] || -1;
+		this.tileBelowCornerOutBR = o["t_b_cobr"] || -1;
+		this.tileShadowSideRight = o["t_s_sr"] || -1;
+		this.tileShadowCornerInTL = o["t_s_citl"] || -1;
+		this.tileShadowBelowCornerOutBREnd = o["t_s_bcobre"] || -1;
+		this.tileShadowBelowSideTop = o["t_s_bst"] || -1;
+
+		this.variants = o["variants"] || [];
+		for(var i=0; i<21; i++) {
+			if (!this.variants[i]) this.variants[i] = [];
+		}
+		this.grid = o["grid"];
+
+		this._setSeed(this.seed); // Re-init PRNG
 	};
 
 	behinstProto.tick = function ()
@@ -152,7 +238,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 	};
 
 	behinstProto._setSeed = function(seed) {
-		if (seed === 0 || seed === "0" || seed === "") {
+		if (seed === 0 || seed === "0" || !seed) {
 			this.seed = Date.now().toString();
 		} else {
 			this.seed = seed;
@@ -326,6 +412,180 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		return mstEdges;
 	};
 	
+	// --- Autotiling Logic (from Autodungen) ---
+	behinstProto._resolveVariant = function(shapeIndex, defaultId) {
+		if (!this.variants[shapeIndex] || this.variants[shapeIndex].length === 0) return defaultId;
+        
+        for (var i = 0; i < this.variants[shapeIndex].length; i++) {
+            var v = this.variants[shapeIndex][i];
+            if (this._random() * 100 < v.prob) {
+                return v.id;
+            }
+        }
+        return defaultId;
+	};
+
+	behinstProto._getWallTile = function(x, y) {
+		var isWall = (tx, ty) => {
+			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return true;
+			var tile = this.grid[tx][ty];
+			return tile !== this.FLOOR;
+		};
+	
+		var n = isWall(x, y - 1);
+		var e = isWall(x + 1, y);
+		var s = isWall(x, y + 1);
+		var w = isWall(x - 1, y);
+		
+		// Outer Corners (Exterior/Convex) - Wall sticking out
+		if (!n && !w && e && s) return this._resolveVariant(10, this.tileCornerOutTL);
+		if (!n && !e && w && s) return this._resolveVariant(2, this.tileCornerOutTR);
+		if (!s && !w && (e || n)) return this._resolveVariant(7, this.tileCornerOutBL);
+		if (!s && !e && (w || n)) return this._resolveVariant(6, this.tileCornerOutBR);
+	
+		// Inner Corners (Interior/Concave) - Wall surrounding floor
+		if (n && e && s && w) {
+			var ne = isWall(x + 1, y - 1);
+			var se = isWall(x + 1, y + 1);
+			var sw = isWall(x - 1, y + 1);
+			var nw = isWall(x - 1, y - 1);
+
+			if (!se) return this._resolveVariant(11, this.tileCornerInTL);
+			if (!sw) return this._resolveVariant(0, this.tileCornerInTR);
+			if (!ne) return this._resolveVariant(8, this.tileCornerInBL);
+			if (!nw) return this._resolveVariant(4, this.tileCornerInBR);
+		}
+	
+		// Sides
+		if (!s && n && e && w) return this._resolveVariant(1, this.tileSideTop);
+		if (!n && s && e && w) return this._resolveVariant(5, this.tileSideBottom);
+		if (!e && n && s && w) return this._resolveVariant(9, this.tileSideLeft);
+		if (!w && n && s && e) return this._resolveVariant(3, this.tileSideRight);
+	
+		return this._resolveVariant(20, this.wallTile); // Default wall tile
+	};
+
+	behinstProto._getDepthTile = function(x, y) {
+		// (x, y) is the floor tile coordinate
+		var isWall = (tx, ty) => {
+			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return true;
+			var tile = this.grid[tx][ty];
+			return tile !== this.FLOOR;
+		};
+
+		var wallNorth = isWall(x, y - 1);
+		var wallWest = isWall(x - 1, y);
+
+		// 1. North Wall Shadows (Depth)
+		if (wallNorth) {
+			var wx = x;
+			var wy = y - 1;
+			var n = isWall(wx, wy - 1);
+			var e = isWall(wx + 1, wy);
+			var w = isWall(wx - 1, wy);
+			
+			if (n && e && w) return this._resolveVariant(13, this.tileBelowSideTop);
+			if (n && e && !w) return this._resolveVariant(12, this.tileBelowCornerOutBL);
+			if (n && !e && w) return this._resolveVariant(14, this.tileBelowCornerOutBR);
+		}
+
+		// 2. Shadow below the face (3/4 view corner shadow)
+		if (!wallNorth && isWall(x, y - 2)) {
+			var wx = x;
+			var wy = y - 2;
+			var n = isWall(wx, wy - 1);
+			var e = isWall(wx + 1, wy);
+			var w = isWall(wx - 1, wy);
+			
+			if (n && (e || w)) {
+				if (wallWest) return this._resolveVariant(16, this.tileShadowCornerInTL);
+				return this._resolveVariant(18, this.tileShadowBelowSideTop);
+			}
+		}
+
+		// 3. Inner Corner Shadow (North + West)
+		if (wallNorth && wallWest) {
+			return this._resolveVariant(16, this.tileShadowCornerInTL);
+		}
+
+		// 4. West Wall Shadow (Side Right)
+		if (wallWest) {
+			return this._resolveVariant(15, this.tileShadowSideRight);
+		}
+
+		// 5. Shadow Side Right (Diagonal from CornerOutBR)
+		if (!wallNorth && !wallWest) {
+			if (isWall(x - 1, y - 1)) {
+				var n = isWall(x - 1, y - 2);
+				var w = isWall(x - 2, y - 1);
+				if (n && w) {
+					return this._resolveVariant(15, this.tileShadowSideRight);
+				}
+			}
+			if (!isWall(x - 1, y - 1) && isWall(x - 1, y - 2)) {
+				var n = isWall(x - 1, y - 3);
+				var w = isWall(x - 2, y - 2);
+				if (n && w) return this._resolveVariant(17, this.tileShadowBelowCornerOutBREnd);
+			}
+		}
+
+		return -1;
+	};
+
+	behinstProto._getWallShapeAt = function(x, y) {
+		if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return "OutOfBounds";
+		
+		var t = this.grid[x][y];
+		var isWall = (tx, ty) => {
+			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return true;
+			return this.grid[tx][ty] !== this.FLOOR;
+		};
+
+		if (t === this.FLOOR) {
+			// Check for shadow/depth tiles
+			var tileId = this._getDepthTile(x, y);
+			if (tileId === this.tileBelowSideTop) return "BelowSideTop";
+			if (tileId === this.tileBelowCornerOutBL) return "BelowCornerOutBL";
+			if (tileId === this.tileBelowCornerOutBR) return "BelowCornerOutBR";
+			if (tileId === this.tileShadowBelowSideTop) return "ShadowBelowSideTop";
+			if (tileId === this.tileShadowCornerInTL) return "ShadowCornerInTL";
+			if (tileId === this.tileShadowSideRight) return "ShadowSideRight";
+			if (tileId === this.tileShadowBelowCornerOutBREnd) return "ShadowBelowCornerOutBREnd";
+			return "Floor";
+		}
+	
+		var n = isWall(x, y - 1);
+		var e = isWall(x + 1, y);
+		var s = isWall(x, y + 1);
+		var w = isWall(x - 1, y);
+		
+		// Outer Corners (Exterior/Convex)
+		if (!n && !w && e && s) return "CornerOutTL";
+		if (!n && !e && w && s) return "CornerOutTR";
+		if (!s && !w && e && n) return "CornerOutBL";
+		if (!s && !e && w && n) return "CornerOutBR";
+
+		// Inner Corners (Interior/Concave)
+		if (n && e && s && w) {
+			var ne = isWall(x + 1, y - 1);
+			var se = isWall(x + 1, y + 1);
+			var sw = isWall(x - 1, y + 1);
+			var nw = isWall(x - 1, y - 1);
+			if (!se) return "CornerInTL";
+			if (!sw) return "CornerInTR";
+			if (!ne) return "CornerInBL";
+			if (!nw) return "CornerInBR";
+		}
+	
+		// Sides
+		if (!s && n && e && w) return "SideTop";
+		if (!n && s && e && w) return "SideBottom";
+		if (!e && n && s && w) return "SideLeft";
+		if (!w && n && s && e) return "SideRight";
+	
+		return "Wall";
+	};
+
 	// The comments around these functions ensure they are removed when exporting, since the
 	// debugger code is no longer relevant after publishing.
 	/**BEGIN-PREVIEWONLY**/
@@ -380,18 +640,18 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		tilemapInst.height = this.mapHeight * th;
 		if (tilemapInst.set_bbox_changed) tilemapInst.set_bbox_changed();
 
-		var grid = [];
+		this.grid = [];
 		for(var x=0; x<this.mapWidth; x++) {
-			grid[x] = [];
+			this.grid[x] = [];
 			for(var y=0; y<this.mapHeight; y++) {
-				grid[x][y] = this.VOID_TILE;
+				this.grid[x][y] = this.VOID;
 			}
 		}
 
 		// 2. Generate Rooms
 		var rooms = [];
 		var attempts = 0;
-		var maxAttempts = this.numRooms * 20;
+		var maxAttempts = this.numRooms * 30;
 		
 		while(rooms.length < this.numRooms && attempts < maxAttempts) {
 			attempts++;
@@ -418,8 +678,9 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 				if (this.roomShape === 0) { // Rectangle
 					for(var i=rx; i<rx+w; i++) {
 						for(var j=ry; j<ry+h; j++) {
-							if (i >= 0 && i < this.mapWidth && j >= 0 && j < this.mapHeight)
-								grid[i][j] = this.floorTile;
+							if (i >= 0 && i < this.mapWidth && j >= 0 && j < this.mapHeight) {
+								this.grid[i][j] = this.FLOOR;
+							}
 						}
 					}
 				} else { // Circle (1) or Organic (2)
@@ -435,7 +696,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 							var dx = i - centerX;
 							var dy = j - centerY;
 							if ((dx*dx) + (dy*dy) <= r2) {
-								grid[i][j] = this.floorTile;
+								this.grid[i][j] = this.FLOOR;
 							}
 						}
 					}
@@ -457,23 +718,23 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 				var x2 = Math.floor(e.v.cx);
 				var y2 = Math.floor(e.v.cy);
 
-				var corrWidth = (this.roomShape === 2) ? 3 : 1;
+				var corrWidth = this.corridorSize;
 
 				// Randomly choose horizontal-first or vertical-first
 				if (this._random() < 0.5) {
-					this._carveH(grid, x1, x2, y1, corrWidth);
-					this._carveV(grid, y1, y2, x2, corrWidth);
+					this._carveH(this.grid, x1, x2, y1, corrWidth);
+					this._carveV(this.grid, y1, y2, x2, corrWidth);
 				} else {
-					this._carveV(grid, y1, y2, x1, corrWidth);
-					this._carveH(grid, x1, x2, y2, corrWidth);
+					this._carveV(this.grid, y1, y2, x1, corrWidth);
+					this._carveH(this.grid, x1, x2, y2, corrWidth);
 				}
 			}
 		}
 
 		// 4. Apply Cellular Automata for Organic mode
 		if (this.roomShape === 2) {
-			for(var k=0; k<3; k++) {
-				this._applyCA(grid);
+			for(var k=0; k<2; k++) {
+				this._applyCA(this.grid);
 			}
 		}
 
@@ -482,62 +743,48 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 			// Filled mode: Turn all VOID into WALL
 			for (var x = 0; x < this.mapWidth; x++) {
 				for (var y = 0; y < this.mapHeight; y++) {
-					if (grid[x][y] === this.VOID_TILE) {
-						grid[x][y] = this.wallTile;
+					if (this.grid[x][y] === this.VOID) {
+						this.grid[x][y] = this.WALL;
 					}
 				}
 			}
 		} else if (this.wallThickness > 0) {
-			// Thickness mode: Expand walls 'wallThickness' times
+			// Thickness mode: Expand walls 'wallThickness' times from floor
 			for (var i = 0; i < this.wallThickness; i++) {
 				var wallsToPlace = [];
 				for (var x = 0; x < this.mapWidth; x++) {
 					for (var y = 0; y < this.mapHeight; y++) {
-						if (grid[x][y] === this.VOID_TILE) {
+						if (this.grid[x][y] === this.VOID) {
 							var isAdjacent = false;
 							// Check 8 neighbors
 							for (var nx = x - 1; nx <= x + 1; nx++) {
 								for (var ny = y - 1; ny <= y + 1; ny++) {
 									if ((nx === x && ny === y) || nx < 0 || ny < 0 || nx >= this.mapWidth || ny >= this.mapHeight) continue;
 									
-									var neighbor = grid[nx][ny];
+									var neighbor = this.grid[nx][ny];
 									// Attach to Floor or previously placed Wall
-									if (neighbor === this.floorTile || neighbor === this.wallTile) {
+									if (neighbor === this.FLOOR || neighbor === this.WALL) {
 										isAdjacent = true;
 										break;
 									}
 								}
 								if (isAdjacent) break;
 							}
-							if (isAdjacent) {
-								wallsToPlace.push({x: x, y: y});
-							}
+							if (isAdjacent) wallsToPlace.push({x: x, y: y});
 						}
 					}
 				}
 				
 				if (wallsToPlace.length === 0) break;
-				
 				for(var j=0; j<wallsToPlace.length; j++) {
 					var p = wallsToPlace[j];
-					grid[p.x][p.y] = this.wallTile;
+					this.grid[p.x][p.y] = this.WALL;
 				}
 			}
 		}
 
 		// 5. Apply to Tilemap
-		if (tilemapActs && tilemapActs.SetTile) {
-			for(var x=0; x<this.mapWidth; x++) {
-				for(var y=0; y<this.mapHeight; y++) {
-					var t = grid[x][y];
-					if (t < 0) { // Covers -1 (user erase) and -2 (VOID)
-						if (tilemapActs.EraseTile) tilemapActs.EraseTile.call(tilemapInst, x, y);
-					} else {
-						tilemapActs.SetTile.call(tilemapInst, x, y, t);
-					}
-				}
-			}
-		}
+		this._paintTilemap();
 		
 		this.runtime.redraw = true;
 		this.runtime.trigger(cr.behaviors.DelaunayDungeon.prototype.cnds.OnGenerationComplete, this.inst);
@@ -549,7 +796,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		for (var x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
 			for (var w = -half; w <= half; w++) {
 				if (y+w >= 0 && y+w < this.mapHeight)
-					grid[x][y+w] = this.floorTile;
+					grid[x][y+w] = this.FLOOR;
 			}
 		}
 	};
@@ -560,7 +807,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		for (var y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
 			for (var w = -half; w <= half; w++) {
 				if (x+w >= 0 && x+w < this.mapWidth)
-					grid[x+w][y] = this.floorTile;
+					grid[x+w][y] = this.FLOOR;
 			}
 		}
 	};
@@ -576,12 +823,12 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 				var wallCount = 0;
 				for(var i=-1; i<=1; i++) {
 					for(var j=-1; j<=1; j++) {
-						if (grid[x+i][y+j] !== this.floorTile) wallCount++;
+						if (grid[x+i][y+j] !== this.FLOOR) wallCount++;
 					}
 				}
 				
-				if (wallCount >= 5) newGrid[x][y] = this.VOID_TILE;
-				else newGrid[x][y] = this.floorTile;
+				if (wallCount >= 5) newGrid[x][y] = this.VOID;
+				else if (wallCount <= 2) newGrid[x][y] = this.FLOOR;
 			}
 		}
 		
@@ -589,10 +836,99 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 			grid[x] = newGrid[x];
 		}
 	};
+
+	behinstProto._paintTilemap = function() {
+		var tilemapInst = this.inst;
+		if (!tilemapInst) return;
+		
+		var tilemapActs = tilemapInst.type.plugin.acts;
+		
+		if (tilemapActs && tilemapActs.SetTile)
+		{
+			for(var x = 0; x < this.mapWidth; x++) {
+				for(var y = 0; y < this.mapHeight; y++) {
+					var tileType = this.grid[x][y];
+					var outputTile = -1;
+
+					if (tileType === this.FLOOR) {
+						var depthTile = -1;
+						if (this.autotiling === 1) {
+							depthTile = this._getDepthTile(x, y);
+						}
+						
+						if (depthTile !== -1) outputTile = depthTile;
+						else outputTile = this._resolveVariant(19, this.floorTile);
+					}
+					else if (tileType === this.WALL) {
+                        if (this.autotiling === 1) {
+                            outputTile = this._getWallTile(x, y);
+                        } else {
+						    outputTile = this._resolveVariant(20, this.wallTile);
+                        }
+					}
+					// If VOID, outputTile remains -1, which will erase the tile.
+
+					if (outputTile === -1 && tilemapActs.EraseTile)
+						tilemapActs.EraseTile.call(tilemapInst, x, y);
+					else if (outputTile > -1)
+						tilemapActs.SetTile.call(tilemapInst, x, y, outputTile);
+				}
+			}
+		}
+		
+		if (tilemapInst.set_bbox_changed)
+			tilemapInst.set_bbox_changed();
+		
+		this.runtime.redraw = true;
+	};
 	
 	// ... other actions here ...
 	
 	behaviorProto.acts = new Acts();
+
+	//////////////////////////////////////
+	// Actions
+    Acts.prototype.SetAutotilingEnabled = function (state) {
+        this.autotiling = state;
+    };
+
+	Acts.prototype.SetAutotileID = function (shape_index, id) {
+        switch(shape_index) {
+            case 0: this.tileCornerInTR = id; break;
+            case 1: this.tileSideTop = id; break;
+            case 2: this.tileCornerOutTR = id; break;
+            case 3: this.tileSideRight = id; break;
+            case 4: this.tileCornerInBR = id; break;
+            case 5: this.tileSideBottom = id; break;
+            case 6: this.tileCornerOutBR = id; break;
+            case 7: this.tileCornerOutBL = id; break;
+            case 8: this.tileCornerInBL = id; break;
+            case 9: this.tileSideLeft = id; break;
+            case 10: this.tileCornerOutTL = id; break;
+            case 11: this.tileCornerInTL = id; break;
+            case 12: this.tileBelowCornerOutBL = id; break;
+            case 13: this.tileBelowSideTop = id; break;
+            case 14: this.tileBelowCornerOutBR = id; break;
+            case 15: this.tileShadowSideRight = id; break;
+            case 16: this.tileShadowCornerInTL = id; break;
+            case 17: this.tileShadowBelowCornerOutBREnd = id; break;
+            case 18: this.tileShadowBelowSideTop = id; break;
+        }
+    };
+
+	Acts.prototype.AddAutotileVariant = function (shape_index, id, prob) {
+        if (!this.variants[shape_index]) this.variants[shape_index] = [];
+        this.variants[shape_index].push({id: id, prob: prob});
+    };
+
+	Acts.prototype.SetFloorTile = function (id) { this.floorTile = id; };
+	Acts.prototype.SetWallTile = function (id) { this.wallTile = id; };
+	Acts.prototype.SetSeed = function (seed) { this._setSeed(seed); };
+	
+	Acts.prototype.SetCorridorSize = function (size) {
+		this.corridorSize = Math.max(1, Math.floor(size));
+	};
+
 
 	//////////////////////////////////////
 	// Expressions
@@ -603,6 +939,35 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		ret.set_int(this.generatedRooms);
 	};
 	
+	Exps.prototype.AutotileShapeAt = function (ret, x, y) {
+		ret.set_string(this._getWallShapeAt(Math.floor(x), Math.floor(y)));
+	};
+
+	Exps.prototype.TileCornerInTR = function (ret) { ret.set_int(this.tileCornerInTR); };
+	Exps.prototype.TileSideTop = function (ret) { ret.set_int(this.tileSideTop); };
+	Exps.prototype.TileCornerOutTR = function (ret) { ret.set_int(this.tileCornerOutTR); };
+	Exps.prototype.TileSideRight = function (ret) { ret.set_int(this.tileSideRight); };
+	Exps.prototype.TileCornerInBR = function (ret) { ret.set_int(this.tileCornerInBR); };
+	Exps.prototype.TileSideBottom = function (ret) { ret.set_int(this.tileSideBottom); };
+	Exps.prototype.TileCornerOutBR = function (ret) { ret.set_int(this.tileCornerOutBR); };
+	Exps.prototype.TileCornerOutBL = function (ret) { ret.set_int(this.tileCornerOutBL); };
+	Exps.prototype.TileCornerInBL = function (ret) { ret.set_int(this.tileCornerInBL); };
+	Exps.prototype.TileSideLeft = function (ret) { ret.set_int(this.tileSideLeft); };
+	Exps.prototype.TileCornerOutTL = function (ret) { ret.set_int(this.tileCornerOutTL); };
+	Exps.prototype.TileCornerInTL = function (ret) { ret.set_int(this.tileCornerInTL); };
+
+	Exps.prototype.TileBelowCornerOutBL = function (ret) { ret.set_int(this.tileBelowCornerOutBL); };
+	Exps.prototype.TileBelowSideTop = function (ret) { ret.set_int(this.tileBelowSideTop); };
+	Exps.prototype.TileBelowCornerOutBR = function (ret) { ret.set_int(this.tileBelowCornerOutBR); };
+	Exps.prototype.TileShadowSideRight = function (ret) { ret.set_int(this.tileShadowSideRight); };
+	Exps.prototype.TileShadowCornerInTL = function (ret) { ret.set_int(this.tileShadowCornerInTL); };
+	Exps.prototype.TileShadowBelowCornerOutBREnd = function (ret) { ret.set_int(this.tileShadowBelowCornerOutBREnd); };
+	Exps.prototype.TileShadowBelowSideTop = function (ret) { ret.set_int(this.tileShadowBelowSideTop); };
+
+	Exps.prototype.GetSeed = function (ret) {
+		ret.set_string(this.seed.toString());
+	};
+
 	// ... other expressions here ...
 	
 	behaviorProto.exps = new Exps();

@@ -55,6 +55,72 @@ AddCondition(0, cf_trigger, "On generation complete", "Generation", "On generati
 // example
 AddAction(0, af_none, "Generate dungeon", "Generation", "Generate dungeon", "Generates the dungeon layout on the Tilemap.", "GenerateDungeon");
 
+AddComboParamOption("Disabled");
+AddComboParamOption("Enabled");
+AddComboParam("State", "Set whether to use autotiling.", 1);
+AddAction(1, af_none, "Set autotiling enabled", "Autotiling", "Set autotiling to <b>{0}</b>", "Enable or disable automatic wall tiling.", "SetAutotilingEnabled");
+
+AddComboParamOption("Corner In Top-Right");
+AddComboParamOption("Side Top");
+AddComboParamOption("Corner Out Top-Right");
+AddComboParamOption("Side Right");
+AddComboParamOption("Corner In Bottom-Right");
+AddComboParamOption("Side Bottom");
+AddComboParamOption("Corner Out Bottom-Right");
+AddComboParamOption("Corner Out Bottom-Left");
+AddComboParamOption("Corner In Bottom-Left");
+AddComboParamOption("Side Left");
+AddComboParamOption("Corner Out Top-Left");
+AddComboParamOption("Corner In Top-Left");
+AddComboParamOption("Below Corner Out Bottom-Left");
+AddComboParamOption("Below Side Top");
+AddComboParamOption("Below Corner Out Bottom-Right");
+AddComboParamOption("Shadow Side Right");
+AddComboParamOption("Shadow Corner In Top-Left");
+AddComboParamOption("Shadow Below Corner Out Bottom-Right End");
+AddComboParamOption("Shadow Below Side Top");
+AddComboParam("Shape", "The wall shape to set the tile for.");
+AddNumberParam("Tile ID", "The tile ID to use (-1 for default).");
+AddAction(2, af_none, "Set autotile ID", "Autotiling", "Set autotile for <b>{0}</b> to <b>{1}</b>", "Sets a specific tile ID for autotiling.", "SetAutotileID");
+
+AddComboParamOption("Corner In Top-Right");
+AddComboParamOption("Side Top");
+AddComboParamOption("Corner Out Top-Right");
+AddComboParamOption("Side Right");
+AddComboParamOption("Corner In Bottom-Right");
+AddComboParamOption("Side Bottom");
+AddComboParamOption("Corner Out Bottom-Right");
+AddComboParamOption("Corner Out Bottom-Left");
+AddComboParamOption("Corner In Bottom-Left");
+AddComboParamOption("Side Left");
+AddComboParamOption("Corner Out Top-Left");
+AddComboParamOption("Corner In Top-Left");
+AddComboParamOption("Below Corner Out Bottom-Left");
+AddComboParamOption("Below Side Top");
+AddComboParamOption("Below Corner Out Bottom-Right");
+AddComboParamOption("Shadow Side Right");
+AddComboParamOption("Shadow Corner In Top-Left");
+AddComboParamOption("Shadow Below Corner Out Bottom-Right End");
+AddComboParamOption("Shadow Below Side Top");
+AddComboParamOption("Floor");
+AddComboParamOption("Wall");
+AddComboParam("Shape", "The wall shape to add a variant for.");
+AddNumberParam("Tile ID", "The tile ID to use as a variant.");
+AddNumberParam("Probability", "The percentage chance (0-100) to use this variant.", "50");
+AddAction(3, af_none, "Add autotile variant", "Autotiling", "Add variant tile <b>{1}</b> for <b>{0}</b> with <b>{2}%</b> chance", "Adds a variant tile for a specific shape with a given probability.", "AddAutotileVariant");
+
+AddNumberParam("Floor Tile ID", "The tile ID to use for floors.", "0");
+AddAction(4, af_none, "Set floor tile", "Setup", "Set floor tile ID to <b>{0}</b>", "Sets the tile ID used for floors.", "SetFloorTile");
+
+AddNumberParam("Wall Tile ID", "The tile ID to use for walls.", "1");
+AddAction(5, af_none, "Set wall tile (default)", "Setup", "Set default wall tile ID to <b>{0}</b>", "Sets the default tile ID used for walls.", "SetWallTile");
+
+AddStringParam("Seed", "The seed for the random number generator. Use the same seed for the same layout. Use '0' for a random seed.", "\"\"");
+AddAction(6, af_none, "Set seed", "Setup", "Set generation seed to {0}", "Sets the seed to ensure deterministic results.", "SetSeed");
+
+AddNumberParam("Size", "The width of corridors in tiles. Odd numbers look best.", "1");
+AddAction(7, af_none, "Set corridor size", "Setup", "Set corridor size to <b>{0}</b>", "Sets the width of generated corridors.", "SetCorridorSize");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -69,6 +135,33 @@ AddAction(0, af_none, "Generate dungeon", "Generation", "Generate dungeon", "Gen
 // example
 AddExpression(0, ef_return_number, "RoomCount", "Generation", "RoomCount", "Returns the number of rooms generated.");
 
+AddNumberParam("X", "The X coordinate (in tiles).");
+AddNumberParam("Y", "The Y coordinate (in tiles).");
+AddExpression(1, ef_return_string, "AutotileShapeAt", "Autotiling", "AutotileShapeAt", "Returns the name of the autotile shape at the given coordinates.");
+
+AddExpression(2, ef_return_number, "TileCornerInTR", "Autotiling", "TileCornerInTR", "Returns the tile ID for Corner In Top-Right.");
+AddExpression(3, ef_return_number, "TileSideTop", "Autotiling", "TileSideTop", "Returns the tile ID for Side Top.");
+AddExpression(4, ef_return_number, "TileCornerOutTR", "Autotiling", "TileCornerOutTR", "Returns the tile ID for Corner Out Top-Right.");
+AddExpression(5, ef_return_number, "TileSideRight", "Autotiling", "TileSideRight", "Returns the tile ID for Side Right.");
+AddExpression(6, ef_return_number, "TileCornerInBR", "Autotiling", "TileCornerInBR", "Returns the tile ID for Corner In Bottom-Right.");
+AddExpression(7, ef_return_number, "TileSideBottom", "Autotiling", "TileSideBottom", "Returns the tile ID for Side Bottom.");
+AddExpression(8, ef_return_number, "TileCornerOutBR", "Autotiling", "TileCornerOutBR", "Returns the tile ID for Corner Out Bottom-Right.");
+AddExpression(9, ef_return_number, "TileCornerOutBL", "Autotiling", "TileCornerOutBL", "Returns the tile ID for Corner Out Bottom-Left.");
+AddExpression(10, ef_return_number, "TileCornerInBL", "Autotiling", "TileCornerInBL", "Returns the tile ID for Corner In Bottom-Left.");
+AddExpression(11, ef_return_number, "TileSideLeft", "Autotiling", "TileSideLeft", "Returns the tile ID for Side Left.");
+AddExpression(12, ef_return_number, "TileCornerOutTL", "Autotiling", "TileCornerOutTL", "Returns the tile ID for Corner Out Top-Left.");
+AddExpression(13, ef_return_number, "TileCornerInTL", "Autotiling", "TileCornerInTL", "Returns the tile ID for Corner In Top-Left.");
+
+AddExpression(14, ef_return_number, "TileBelowCornerOutBL", "Autotiling", "TileBelowCornerOutBL", "Returns the tile ID for Below Corner Out Bottom-Left.");
+AddExpression(15, ef_return_number, "TileBelowSideTop", "Autotiling", "TileBelowSideTop", "Returns the tile ID for Below Side Top.");
+AddExpression(16, ef_return_number, "TileBelowCornerOutBR", "Autotiling", "TileBelowCornerOutBR", "Returns the tile ID for Below Corner Out Bottom-Right.");
+AddExpression(17, ef_return_number, "TileShadowSideRight", "Autotiling", "TileShadowSideRight", "Returns the tile ID for Shadow Side Right.");
+AddExpression(18, ef_return_number, "TileShadowCornerInTL", "Autotiling", "TileShadowCornerInTL", "Returns the tile ID for Shadow Corner In Top-Left.");
+AddExpression(19, ef_return_number, "TileShadowBelowCornerOutBREnd", "Autotiling", "TileShadowBelowCornerOutBREnd", "Returns the tile ID for Shadow Below Corner Out Bottom-Right End.");
+AddExpression(20, ef_return_number, "TileShadowBelowSideTop", "Autotiling", "TileShadowBelowSideTop", "Returns the tile ID for Shadow Below Side Top.");
+
+AddExpression(21, ef_return_string, "GetSeed", "Setup", "GetSeed", "Returns the current seed being used by the generator.");
+
 ////////////////////////////////////////
 ACESDone();
 
@@ -80,17 +173,47 @@ ACESDone();
 // new cr.Property(ept_combo,		name,	"Item 1",		description, "Item 1|Item 2|Item 3")	// a dropdown list (initial_value is string of initially selected item)
 
 var property_list = [
+    // --- Generation Settings ---
 	new cr.Property(ept_integer, 	"Map Width",		50,		"Width of the dungeon in tiles."),
 	new cr.Property(ept_integer, 	"Map Height",		50,		"Height of the dungeon in tiles."),
+	new cr.Property(ept_text, 		"Seed",				"",		"The seed for the random number generator. Leave empty for random."),
+
+    // --- Room Settings ---
 	new cr.Property(ept_integer, 	"Number of Rooms",	10,		"Target number of rooms to generate."),
 	new cr.Property(ept_integer, 	"Min Room Size",	4,		"Minimum size (width/diameter) of a room in tiles."),
 	new cr.Property(ept_integer, 	"Max Room Size",	10,		"Maximum size (width/diameter) of a room in tiles."),
 	new cr.Property(ept_combo,      "Room Shape",       "Rectangle", "The shape of the generated rooms.", "Rectangle|Circle|Organic"),
-	new cr.Property(ept_integer,    "Wall Thickness",   1,      "Thickness of walls. -1: None, 0: Filled, >0: Thickness."),
 	new cr.Property(ept_float, 		"Connectivity",		1.0,	"0.0 (None) to 1.0 (Full MST). Controls how connected the rooms are."),
-	new cr.Property(ept_integer, 	"Floor Tile ID",	0,		"Tile ID for floors (-1 to erase)."),
-	new cr.Property(ept_integer, 	"Wall Tile ID",		1,		"Tile ID for walls (-1 to erase)."),
-	new cr.Property(ept_text, 		"Seed",				"",		"The seed for the random number generator. Leave empty for random.")
+
+    // --- Tiling Settings ---
+    new cr.Property(ept_combo,      "Autotiling",           	"Enabled", "Enable or disable automatic wall tiling.", "Disabled|Enabled"),
+	new cr.Property(ept_integer,    "Wall Thickness",   1,      "Thickness of walls around rooms/corridors. 0: Filled, >0: Thickness in tiles. -1: No walls."),
+	new cr.Property(ept_integer, 	"Corridor Size",	1,		"The width of corridors in tiles. Odd numbers look best."),
+	new cr.Property(ept_integer, 	"Floor Tile",	    0,		"The tile ID to use for floors."),
+	new cr.Property(ept_integer, 	"Wall Tile (Default)",		1,		"The default tile ID for walls, or when autotiling is disabled."),
+	
+	// --- Autotile Shapes (Walls) ---
+    new cr.Property(ept_integer, 	"Corner In Top-Right",		-1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Side Top",		            -1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Corner Out Top-Right",		-1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Side Right",		        -1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Corner In Bottom-Right",	-1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Side Bottom",		        -1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Corner Out Bottom-Right",	-1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Corner Out Bottom-Left",	-1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Corner In Bottom-Left",	-1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Side Left",		        -1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Corner Out Top-Left",		-1,		"Tile ID for this shape. -1 to use default."),
+    new cr.Property(ept_integer, 	"Corner In Top-Left",		-1,		"Tile ID for this shape. -1 to use default."),
+	
+	// --- Autotile Shapes (Depth & Shadow) ---
+    new cr.Property(ept_integer, 	"Below Corner Out BL",		-1,		"Tile ID below Corner Out Bottom-Left. -1 to use default."),
+    new cr.Property(ept_integer, 	"Below Side Top",		    -1,		"Tile ID below Side Top. -1 to use default."),
+    new cr.Property(ept_integer, 	"Below Corner Out BR",		-1,		"Tile ID below Corner Out Bottom-Right. -1 to use default."),
+    new cr.Property(ept_integer, 	"Shadow Side Right",		-1,		"Tile ID for Shadow Side Right. -1 to use default."),
+    new cr.Property(ept_integer, 	"Shadow Corner In TL",		-1,		"Tile ID for Shadow Corner In Top-Left. -1 to use default."),
+    new cr.Property(ept_integer, 	"Shadow Below Corner Out BR End", -1, "Tile ID for Shadow Below Corner Out Bottom-Right End. -1 to use default."),
+    new cr.Property(ept_integer, 	"Shadow Below Side Top",	-1,		"Tile ID for Shadow Below Side Top. -1 to use default.")
 	];
 	
 // Called by IDE when a new behavior type is to be created
