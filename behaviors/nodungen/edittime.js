@@ -1,4 +1,4 @@
-﻿function GetBehaviorSettings()
+﻿﻿function GetBehaviorSettings()
 {
 	return {
 		"name":			"Delaunay Dungeon",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
@@ -40,6 +40,7 @@
 				
 // example				
 AddCondition(0, cf_trigger, "On generation complete", "Generation", "On generation complete", "Triggered when the dungeon generation is finished.", "OnGenerationComplete");
+AddCondition(1, cf_looping | cf_not_invertible, "For each room", "Rooms", "For each room", "Loop through each room that was generated.", "ForEachRoom");
 
 ////////////////////////////////////////
 // Actions
@@ -161,6 +162,19 @@ AddExpression(19, ef_return_number, "TileShadowBelowCornerOutBREnd", "Autotiling
 AddExpression(20, ef_return_number, "TileShadowBelowSideTop", "Autotiling", "TileShadowBelowSideTop", "Returns the tile ID for Shadow Below Side Top.");
 
 AddExpression(21, ef_return_string, "GetSeed", "Setup", "GetSeed", "Returns the current seed being used by the generator.");
+AddExpression(22, ef_return_number, "LoopRoomIndex", "Rooms", "LoopRoomIndex", "Returns the current 0-based index in a 'For each room' loop.");
+
+AddNumberParam("Index", "The 0-based index of the room.");
+AddExpression(23, ef_return_number, "RoomX", "Rooms", "RoomX", "Returns the X coordinate (in tiles) of the top-left corner of a specific room.");
+
+AddNumberParam("Index", "The 0-based index of the room.");
+AddExpression(24, ef_return_number, "RoomY", "Rooms", "RoomY", "Returns the Y coordinate (in tiles) of the top-left corner of a specific room.");
+
+AddNumberParam("Index", "The 0-based index of the room.");
+AddExpression(25, ef_return_number, "RoomWidth", "Rooms", "RoomWidth", "Returns the width of a specific room in tiles.");
+
+AddNumberParam("Index", "The 0-based index of the room.");
+AddExpression(26, ef_return_number, "RoomHeight", "Rooms", "RoomHeight", "Returns the height of a specific room in tiles.");
 
 ////////////////////////////////////////
 ACESDone();

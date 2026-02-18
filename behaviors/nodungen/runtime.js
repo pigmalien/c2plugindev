@@ -88,6 +88,8 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		this.generatedRooms = 0;
 		this.prng = null;
 		this.grid = [];
+		this.rooms = [];
+		this.loop_room_index = 0;
 
 		this.variants = [];
 		for(var i=0; i<21; i++) this.variants[i] = [];
@@ -153,7 +155,8 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 			"t_s_bcobre": this.tileShadowBelowCornerOutBREnd,
 			"t_s_bst": this.tileShadowBelowSideTop,
 			"variants": this.variants,
-			"grid": this.grid
+			"grid": this.grid,
+			"rooms": this.rooms
 		};
 	};
 	
@@ -202,6 +205,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 			if (!this.variants[i]) this.variants[i] = [];
 		}
 		this.grid = o["grid"];
+		this.rooms = o["rooms"] || [];
 
 		this._setSeed(this.seed); // Re-init PRNG
 	};
@@ -674,6 +678,32 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 	
 	Cnds.prototype.OnGenerationComplete = function () { return true; };
 	
+	Cnds.prototype.ForEachRoom = function ()
+	{
+		if (!this.rooms || this.rooms.length === 0)
+			return false;
+
+		var current_event = this.runtime.getCurrentEventStack().current_event;
+		var sol = this.type.objtype.getCurrentSol();
+		var solModifierAfterCnds = !sol.select_all;
+
+		var loop_count = this.rooms.length;
+		this.loop_room_index = 0;
+
+		for (; this.loop_room_index < loop_count; this.loop_room_index++)
+		{
+			if (solModifierAfterCnds)
+				this.runtime.pushCopySol(sol);
+
+			current_event.retrigger();
+
+			if (solModifierAfterCnds)
+				this.runtime.popSol(sol);
+		}
+
+		return false;
+	};
+
 	// ... other conditions here ...
 	
 	behaviorProto.cnds = new Cnds();
@@ -708,11 +738,11 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		}
 
 		// 2. Generate Rooms
-		var rooms = [];
+		this.rooms = [];
 		var attempts = 0;
 		var maxAttempts = this.numRooms * 30;
 		
-		while(rooms.length < this.numRooms && attempts < maxAttempts) {
+		while(this.rooms.length < this.numRooms && attempts < maxAttempts) {
 			attempts++;
 			var w = this._randInt(this.minRoomSize, this.maxRoomSize);
 			var h = this._randInt(this.minRoomSize, this.maxRoomSize);
@@ -721,8 +751,8 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 			var ry = this._randInt(bp, this.mapHeight - h - bp);
 			
 			var overlap = false;
-			for(var i=0; i<rooms.length; i++) {
-				var r = rooms[i];
+			for(var i=0; i<this.rooms.length; i++) {
+				var r = this.rooms[i];
 				// Add gap
 				if(rx < r.x + r.w + this.gap && rx + w + this.gap > r.x && ry < r.y + r.h + this.gap && ry + h + this.gap > r.y) {
 					overlap = true;
@@ -731,8 +761,8 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 			}
 			
 			if(!overlap) {
-				var newRoom = {x: rx, y: ry, w: w, h: h, cx: rx + w/2, cy: ry + h/2, id: rooms.length};
-				rooms.push(newRoom);
+				var newRoom = {x: rx, y: ry, w: w, h: h, cx: rx + w/2, cy: ry + h/2, id: this.rooms.length};
+				this.rooms.push(newRoom);
 
 				// Carve room based on shape
 				if (this.roomShape === 0) { // Rectangle
@@ -763,12 +793,12 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 				}
 			}
 		}
-		this.generatedRooms = rooms.length;
+		this.generatedRooms = this.rooms.length;
 
 		// 3. Delaunay & MST
-		if(rooms.length > 1 && this.connectivity > 0) {
-			var edges = this._triangulate(rooms);
-			var mstEdges = this._computeMST(rooms, edges, this.connectivity);
+		if(this.rooms.length > 1 && this.connectivity > 0) {
+			var edges = this._triangulate(this.rooms);
+			var mstEdges = this._computeMST(this.rooms, edges, this.connectivity);
 			
 			// 4. Carve Corridors (L-Shaped)
 			for(var i=0; i<mstEdges.length; i++) {
@@ -1079,6 +1109,46 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 
 	Exps.prototype.GetSeed = function (ret) {
 		ret.set_string(this.seed.toString());
+	};
+
+	Exps.prototype.LoopRoomIndex = function (ret) {
+		ret.set_int(this.loop_room_index);
+	};
+
+	Exps.prototype.RoomX = function (ret, index) {
+		index = Math.floor(index);
+		if (this.rooms && index >= 0 && index < this.rooms.length) {
+			ret.set_int(this.rooms[index].x);
+		} else {
+			ret.set_int(0);
+		}
+	};
+
+	Exps.prototype.RoomY = function (ret, index) {
+		index = Math.floor(index);
+		if (this.rooms && index >= 0 && index < this.rooms.length) {
+			ret.set_int(this.rooms[index].y);
+		} else {
+			ret.set_int(0);
+		}
+	};
+
+	Exps.prototype.RoomWidth = function (ret, index) {
+		index = Math.floor(index);
+		if (this.rooms && index >= 0 && index < this.rooms.length) {
+			ret.set_int(this.rooms[index].w);
+		} else {
+			ret.set_int(0);
+		}
+	};
+
+	Exps.prototype.RoomHeight = function (ret, index) {
+		index = Math.floor(index);
+		if (this.rooms && index >= 0 && index < this.rooms.length) {
+			ret.set_int(this.rooms[index].h);
+		} else {
+			ret.set_int(0);
+		}
 	};
 
 	// ... other expressions here ...
