@@ -85,6 +85,9 @@ AddComboParamOption("Yes");
 AddComboParam("Stop on solids", "Enable or disable stopping on solids.");
 AddAction(2, af_none, "Set stop on solids", "Parameters", "Set stop on solids to <b>{0}</b>", "Enable or disable collision with solids.", "SetStopOnSolids");
 
+AddNumberParam("Avoidance", "The new avoidance distance in pixels.");
+AddAction(10, af_none, "Set avoidance", "Parameters", "Set avoidance to {0}", "Set the obstacle avoidance look-ahead distance.", "SetAvoidance");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -117,7 +120,8 @@ var property_list = [
 	new cr.Property(ept_float, 	"Rotation speed",	2,		"How quickly the object rotates to face the target in 'Steering' mode (higher is faster)."),
 	new cr.Property(ept_combo,	"Flip",				"None",	"Automatically flip the object horizontally. Best used when 'Rotation speed' is 0.", "None|Horizontal"),
 	new cr.Property(ept_float, 	"Effective radius",	300,	"The distance from the target at which speed scaling is maxed out."),
-	new cr.Property(ept_combo,	"Stop on solids",	"No",	"Enable to stop when colliding with Solid objects.", "No|Yes")
+	new cr.Property(ept_combo,	"Stop on solids",	"No",	"Enable to stop when colliding with Solid objects.", "No|Yes"),
+	new cr.Property(ept_float, 	"Avoidance",		0,		"Look-ahead distance to avoid solids (0 to disable).")
 	];
 	
 // Called by IDE when a new behavior type is to be created

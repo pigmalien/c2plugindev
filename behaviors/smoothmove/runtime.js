@@ -60,6 +60,7 @@ cr.behaviors.SmoothMove = function(runtime)
 		this.flipMode = this.properties[6]; // 0=None, 1=Horizontal
 		this.effectiveRadius = this.properties[7];
 		this.stopOnSolids = (this.properties[8] === 1); // 0=No, 1=Yes
+		this.avoidance = this.properties[9];
 		
 		// object is sealed after this call, so make sure any properties you'll ever need are created, e.g.
 		this.velocity = { x: 0, y: 0 };
@@ -97,7 +98,8 @@ cr.behaviors.SmoothMove = function(runtime)
 			"tx": this.targetX,
 			"ty": this.targetY,
 			"iat": false, // No longer used, for savegame compatibility
-			"sos": this.stopOnSolids
+			"sos": this.stopOnSolids,
+			"avd": this.avoidance
 		};
 	};
 	
@@ -118,6 +120,7 @@ cr.behaviors.SmoothMove = function(runtime)
 		this.targetX = o["tx"];
 		this.targetY = o["ty"];
 		this.stopOnSolids = o["sos"];
+		this.avoidance = o["avd"] || 0;
 		// this.isAtTarget is no longer used
 		// note you MUST use double-quote syntax (e.g. o["property"]) to prevent
 		// Closure Compiler renaming and breaking the save format
@@ -168,11 +171,34 @@ cr.behaviors.SmoothMove = function(runtime)
             }
 			else {
 				const targetAngle = cr.angleTo(inst.x, inst.y, this.targetX, this.targetY);
-			
+				let moveAngle = targetAngle;
+				
+				// --- Avoidance ---
+				if (this.avoidance > 0)
+				{
+					// Check if path ahead is blocked
+					if (this.testOverlapAt(inst.x + Math.cos(moveAngle) * this.avoidance, inst.y + Math.sin(moveAngle) * this.avoidance))
+					{
+						// Path blocked, look for open direction
+						// Check angles in alternating directions: 30, -30, 60, -60, 90, -90
+						var candidates = [Math.PI/6, -Math.PI/6, Math.PI/3, -Math.PI/3, Math.PI/2, -Math.PI/2];
+						
+						for (var i = 0; i < candidates.length; i++)
+						{
+							var testAngle = moveAngle + candidates[i];
+							if (!this.testOverlapAt(inst.x + Math.cos(testAngle) * this.avoidance, inst.y + Math.sin(testAngle) * this.avoidance))
+							{
+								moveAngle = testAngle;
+								break;
+							}
+						}
+					}
+				}
+
 				// Only rotate the object if in 'Steering' mode.
 				if (this.movementMode === 0) // 0 = Steering
 				{
-					inst.angle = cr.anglelerp(inst.angle, targetAngle, this.rotationSpeed * dt);
+					inst.angle = cr.anglelerp(inst.angle, moveAngle, this.rotationSpeed * dt);
 				}
 
 				// Calculate speed based on distance.
@@ -180,10 +206,18 @@ cr.behaviors.SmoothMove = function(runtime)
 				let targetSpeed = cr.lerp(this.minSpeed, this.maxSpeed, speedRatio);
 				targetSpeed = Math.min(targetSpeed, distance / dt); // Prevent overshooting
 
-				// Always calculate velocity based on the direct angle to the target
-				// to ensure accurate movement and prevent orbiting.
-				vel.x = Math.cos(targetAngle) * targetSpeed;
-				vel.y = Math.sin(targetAngle) * targetSpeed;
+				// Smoothly interpolate velocity angle
+				var currentSpeedSq = vel.x * vel.x + vel.y * vel.y;
+				var finalAngle = moveAngle;
+				
+				if (currentSpeedSq > 0) {
+					var currentAngle = Math.atan2(vel.y, vel.x);
+					// Use a smoothing factor (e.g. 10) to prevent snapping
+					finalAngle = cr.anglelerp(currentAngle, moveAngle, 3 * dt);
+				}
+
+				vel.x = Math.cos(finalAngle) * targetSpeed;
+				vel.y = Math.sin(finalAngle) * targetSpeed;
 			}
         }
 		else // Is enabled but has no target
@@ -199,9 +233,11 @@ cr.behaviors.SmoothMove = function(runtime)
 			}
 
 			// Flip based on horizontal velocity (with a small threshold to prevent rapid flipping)
-			if (vel.x < -0.01)
+			// Hysteresis: only flip if velocity is significantly in the opposite direction
+			var threshold = 0.5;
+			if (inst.width > 0 && vel.x < -threshold)
 				inst.width = -this.lastKnownWidth;
-			else if (vel.x > 0.01)
+			else if (inst.width < 0 && vel.x > threshold)
 				inst.width = this.lastKnownWidth;
 		}
 
@@ -249,6 +285,25 @@ cr.behaviors.SmoothMove = function(runtime)
 		}
 	};
 	
+	behinstProto.testOverlapAt = function(x, y)
+	{
+		var inst = this.inst;
+		var oldX = inst.x;
+		var oldY = inst.y;
+		
+		inst.x = x;
+		inst.y = y;
+		inst.set_bbox_changed();
+		
+		var overlap = this.runtime.testOverlapSolid(inst);
+		
+		inst.x = oldX;
+		inst.y = oldY;
+		inst.set_bbox_changed();
+		
+		return overlap;
+	};
+
 	// The comments around these functions ensure they are removed when exporting, since the
 	// debugger code is no longer relevant after publishing.
 	/**BEGIN-PREVIEWONLY**/
@@ -272,7 +327,8 @@ cr.behaviors.SmoothMove = function(runtime)
 				{"name": "Rotation speed", "value": this.rotationSpeed},
 				{"name": "Effective radius", "value": this.effectiveRadius},
 				{"name": "Stop on solids", "value": this.stopOnSolids},
-				{"name": "Target", "value": targetName, "readonly": true}
+				{"name": "Target", "value": targetName, "readonly": true},
+				{"name": "Avoidance", "value": this.avoidance}
 			]
 		});
 	};
@@ -289,6 +345,7 @@ cr.behaviors.SmoothMove = function(runtime)
 			case "Rotation speed": 	 this.rotationSpeed = value; break;
 			case "Effective radius": this.effectiveRadius = value; break;
 			case "Stop on solids":	 this.stopOnSolids = value; break;
+			case "Avoidance":		 this.avoidance = value; break;
 		}
 	};
 	/**END-PREVIEWONLY**/
@@ -343,6 +400,7 @@ cr.behaviors.SmoothMove = function(runtime)
 	Acts.prototype.SetRotationSpeed = function (r) { this.rotationSpeed = r; };
 	Acts.prototype.SetEffectiveRadius = function (r) { this.effectiveRadius = r; };
 	Acts.prototype.SetStopOnSolids = function (s) { this.stopOnSolids = (s === 1); };
+	Acts.prototype.SetAvoidance = function (a) { this.avoidance = a; };
 	
 	behaviorProto.acts = new Acts();
 
