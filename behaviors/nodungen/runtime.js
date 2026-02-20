@@ -1,4 +1,4 @@
-﻿// ECMAScript 5 strict mode
+﻿﻿// ECMAScript 5 strict mode
 "use strict";
 
 assert2(cr, "cr namespace not created");
@@ -1070,6 +1070,81 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 	
 	Acts.prototype.SetCorridorSize = function (size) {
 		this.corridorSize = Math.max(1, Math.floor(size));
+	};
+
+	Acts.prototype.RevealCircle = function (centerX, centerY, radius, transparentTileID, floorTileID)
+	{
+		var maskTilemapInst = this.inst;
+		var maskTilemapActs = maskTilemapInst.type.plugin.acts;
+		if (!maskTilemapActs || !maskTilemapActs.SetTile || !maskTilemapActs.EraseTile) {
+			return; // Not a valid tilemap object
+		}
+
+		var dungeonTilemap = this.inst;
+		if (!dungeonTilemap.tilewidth || !dungeonTilemap.tileheight) return;
+
+		var tx = Math.floor(centerX / dungeonTilemap.tilewidth);
+		var ty = Math.floor(centerY / dungeonTilemap.tileheight);
+		var r2 = radius * radius;
+
+		var int_radius = Math.ceil(radius);
+
+		for (var dx = -int_radius; dx <= int_radius; dx++) {
+			for (var dy = -int_radius; dy <= int_radius; dy++) {
+				
+				if (dx * dx + dy * dy > r2) {
+					continue;
+				}
+
+				var targetX = tx + dx;
+				var targetY = ty + dy;
+
+				// Check bounds of the dungeon grid
+				if (targetX < 0 || targetX >= this.mapWidth || targetY < 0 || targetY >= this.mapHeight) {
+					continue;
+				}
+
+				var tileType = this.grid[targetX][targetY];
+
+				if (tileType === this.FLOOR) {
+					if (floorTileID === -1) {
+						// Erase the tile on the mask
+						maskTilemapActs.EraseTile.call(maskTilemapInst, targetX, targetY);
+					} else {
+						maskTilemapActs.SetTile.call(maskTilemapInst, targetX, targetY, floorTileID);
+					}
+				}
+				else if (tileType === this.WALL) {
+					// Check if this wall is adjacent to a floor tile
+					var isAdjacentToFloor = false;
+					// Check 8-way neighbors
+					for (var ni = -1; ni <= 1; ni++) {
+						for (var nj = -1; nj <= 1; nj++) {
+							if (ni === 0 && nj === 0) continue;
+
+							var nx = targetX + ni;
+							var ny = targetY + nj;
+
+							if (nx >= 0 && nx < this.mapWidth && ny >= 0 && ny < this.mapHeight && this.grid[nx][ny] === this.FLOOR) {
+								isAdjacentToFloor = true;
+								break; // break inner loop
+							}
+						}
+						if (isAdjacentToFloor) break; // break outer loop
+					}
+
+					if (isAdjacentToFloor) {
+						// It's a wall bordering a floor, so set the transparent tile on the mask
+						maskTilemapActs.SetTile.call(maskTilemapInst, targetX, targetY, transparentTileID);
+					}
+				}
+			}
+		}
+
+		// Force the mask tilemap to redraw
+		if (maskTilemapInst.runtime) {
+			maskTilemapInst.runtime.redraw = true;
+		}
 	};
 
 
