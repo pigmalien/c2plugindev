@@ -1193,7 +1193,8 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 	Exps.prototype.RoomX = function (ret, index) {
 		index = Math.floor(index);
 		if (this.rooms && index >= 0 && index < this.rooms.length) {
-			ret.set_int(this.rooms[index].x);
+			var tw = this.inst.tilewidth || 32;
+			ret.set_float(this.rooms[index].cx * tw);
 		} else {
 			ret.set_int(0);
 		}
@@ -1202,7 +1203,8 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 	Exps.prototype.RoomY = function (ret, index) {
 		index = Math.floor(index);
 		if (this.rooms && index >= 0 && index < this.rooms.length) {
-			ret.set_int(this.rooms[index].y);
+			var th = this.inst.tileheight || 32;
+			ret.set_float(this.rooms[index].cy * th);
 		} else {
 			ret.set_int(0);
 		}

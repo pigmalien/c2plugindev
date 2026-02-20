@@ -172,10 +172,10 @@ AddExpression(21, ef_return_string, "GetSeed", "Setup", "GetSeed", "Returns the 
 AddExpression(22, ef_return_number, "LoopRoomIndex", "Rooms", "LoopRoomIndex", "Returns the current 0-based index in a 'For each room' loop.");
 
 AddNumberParam("Index", "The 0-based index of the room.");
-AddExpression(23, ef_return_number, "RoomX", "Rooms", "RoomX", "Returns the X coordinate (in tiles) of the top-left corner of a specific room.");
+AddExpression(23, ef_return_number, "RoomX", "Rooms", "RoomX", "Returns the X coordinate (in pixels) of the center of a specific room.");
 
 AddNumberParam("Index", "The 0-based index of the room.");
-AddExpression(24, ef_return_number, "RoomY", "Rooms", "RoomY", "Returns the Y coordinate (in tiles) of the top-left corner of a specific room.");
+AddExpression(24, ef_return_number, "RoomY", "Rooms", "RoomY", "Returns the Y coordinate (in pixels) of the center of a specific room.");
 
 AddNumberParam("Index", "The 0-based index of the room.");
 AddExpression(25, ef_return_number, "RoomWidth", "Rooms", "RoomWidth", "Returns the width of a specific room in tiles.");
