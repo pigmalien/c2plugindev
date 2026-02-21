@@ -40,6 +40,9 @@
 //				script_name);		// corresponding runtime function name
 				
 AddCondition(0, cf_none, "Is active", "State", "{my} is active", "True if the behavior is currently active.", "IsActive");
+AddCondition(1, cf_none, "Is moving", "State", "{my} is moving", "True if the object is currently moving.", "IsMoving");
+AddCondition(2, cf_none, "Is wandering", "State", "{my} is wandering", "True if the object is currently in wander mode.", "IsWandering");
+AddCondition(3, cf_none, "Is stuck", "State", "{my} is stuck", "True if the object is trying to move but is blocked by an obstacle.", "IsStuck");
 ////////////////////////////////////////
 // Actions
 
@@ -74,6 +77,15 @@ AddObjectParam("Solid", "The object to block movement.");
 AddAction(9, af_none, "Add solid", "Obstacles", "Add solid {0}", "Add an object type to block movement.", "AddSolid");
 AddAction(10, af_none, "Clear solids", "Obstacles", "Clear solids", "Remove all added solids.", "ClearSolids");
 
+AddNumberParam("X", "The X coordinate of the target.");
+AddNumberParam("Y", "The Y coordinate of the target.");
+AddAction(11, af_none, "Set target position", "Target", "Set target to ({0}, {1})", "Set the target coordinates to move towards.", "SetTargetXY");
+
+AddComboParamOption("Follow target");
+AddComboParamOption("Wander");
+AddComboParam("Mode", "The movement mode to set.");
+AddAction(12, af_none, "Set mode", "State", "Set mode to <b>{0}</b>", "Set the movement behavior mode.", "SetMode");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -101,7 +113,10 @@ var property_list = [
 	new cr.Property(ept_float, 	"Rotation speed",	4,		"The speed at which the object rotates to face its direction, from 0 (none) to 100 (instant)."),
 	new cr.Property(ept_combo,	"Flip",				"None",			"Automatically flip the object's appearance. Only applies if 'Rotation speed' is 0.", "None|Horizontal"),
 	new cr.Property(ept_float, 	"Repulsion radius",	40,		"The distance at which objects will start pushing each other away."),
-	new cr.Property(ept_float, 	"Repulsion force",	0.8,	"The strength of the push-away force, from 0 to 1.")
+	new cr.Property(ept_float, 	"Repulsion force",	0.8,	"The strength of the push-away force, from 0 to 1."),
+	new cr.Property(ept_combo,	"Mode",				"Follow target", "Choose whether to follow the target or wander randomly.", "Follow target|Wander"),
+	new cr.Property(ept_float, 	"Wander radius",	100,	"The maximum distance from the starting point to wander."),
+	new cr.Property(ept_float, 	"Wander rate",		1.0,	"How often (in seconds) to pick a new wander position.")
 	];
 	
 // Called by IDE when a new behavior type is to be created

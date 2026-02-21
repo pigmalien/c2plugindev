@@ -35,6 +35,9 @@ cr.behaviors.MobsMovement = function(runtime)
 		// This is a shared property for all instances of this behavior.
 		// It stores the UID of the target instance.
 		this.targetUid = -1; 
+		this.targetMode = 0; // 0 = Object, 1 = Position
+		this.targetX = 0;
+		this.targetY = 0;
 
 		// This will hold the final movement vector for each mover instance.
 		this.forces = {}; // Using an object with UIDs as keys
@@ -63,6 +66,13 @@ cr.behaviors.MobsMovement = function(runtime)
 		this.flipMode = this.properties[3];      // 0=None, 1=Horizontal
 		this.repulsionRadius = this.properties[4];
 		this.repulsionForce = this.properties[5];
+		this.mode = this.properties[6];          // 0=Follow, 1=Wander
+		this.wanderRadius = this.properties[7];
+		this.wanderRate = this.properties[8];
+		
+		this.wanderTimer = Math.random() * this.wanderRate;
+		this.wanderX = this.inst.x;
+		this.wanderY = this.inst.y;
 		
 		// object is sealed after this call, so make sure any properties you'll ever need are created, e.g.
 		// This will be calculated once per tick for this instance
@@ -70,6 +80,8 @@ cr.behaviors.MobsMovement = function(runtime)
 
 		// For restoring width when flipping
 		this.lastKnownWidth = this.inst.width;
+		this.isMoving = false;
+		this.isStuck = false;
 	};
 	
 	behinstProto.onDestroy = function ()
@@ -87,7 +99,10 @@ cr.behaviors.MobsMovement = function(runtime)
 		// Closure Compiler renaming and breaking the save format
 		return {
 			"tuid": this.type.targetUid,
-			"isActive": this.isActive
+			"isActive": this.isActive,
+			"tm": this.type.targetMode,
+			"tx": this.type.targetX,
+			"ty": this.type.targetY
 		};
 	};
 	
@@ -98,6 +113,9 @@ cr.behaviors.MobsMovement = function(runtime)
 		// 'o' provides the same object that you saved, e.g.
 		this.type.targetUid = o["tuid"];
 		this.isActive = o["isActive"];
+		this.type.targetMode = o["tm"] || 0;
+		this.type.targetX = o["tx"] || 0;
+		this.type.targetY = o["ty"] || 0;
 		// note you MUST use double-quote syntax (e.g. o["property"]) to prevent
 		// Closure Compiler renaming and breaking the save format
 	};
@@ -109,6 +127,20 @@ cr.behaviors.MobsMovement = function(runtime)
 		if (!this.isActive)
 			return;
 			
+		// Update Wander Logic
+		if (this.mode === 1) // Wander
+		{
+			var dt = this.runtime.getDt(this.inst);
+			this.wanderTimer -= dt;
+			if (this.wanderTimer <= 0) {
+				this.wanderTimer = this.wanderRate + (Math.random() * 0.5); // Add slight variance
+				var angle = Math.random() * Math.PI * 2;
+				var dist = Math.random() * this.wanderRadius;
+				this.wanderX = this.inst.x + Math.cos(angle) * dist;
+				this.wanderY = this.inst.y + Math.sin(angle) * dist;
+			}
+		}
+
 		if (this.runtime.tickcount !== this.type.lastTick) {
 			this.type.lastTick = this.runtime.tickcount;
 			this.calculateAllForces();
@@ -121,6 +153,9 @@ cr.behaviors.MobsMovement = function(runtime)
 		// tick2 runs after tick, ensuring all forces are calculated before they are applied.
 		if (!this.isActive)
 			return;
+			
+		this.isMoving = false;
+		this.isStuck = false;
 			
 		var dt = this.runtime.getDt(this.inst);
 		var uid = this.inst.uid;
@@ -144,19 +179,53 @@ cr.behaviors.MobsMovement = function(runtime)
 			// Apply movement based on the final force, max speed, and delta-time.
 			var oldx = this.inst.x;
 			var oldy = this.inst.y;
+			var moveX = finalForceX * currentSpeed * dt;
+			var moveY = finalForceY * currentSpeed * dt;
+			var blockedX = false;
+			var blockedY = false;
 
-			this.inst.x += finalForceX * currentSpeed * dt;
+			this.inst.x += moveX;
 			this.inst.set_bbox_changed();
 			if (this.testObstacleOverlap() || this.testSolidOverlap()) {
 				this.inst.x = oldx;
 				this.inst.set_bbox_changed();
+				blockedX = true;
 			}
 
-			this.inst.y += finalForceY * currentSpeed * dt;
+			this.inst.y += moveY;
 			this.inst.set_bbox_changed();
 			if (this.testObstacleOverlap() || this.testSolidOverlap()) {
 				this.inst.y = oldy;
 				this.inst.set_bbox_changed();
+				blockedY = true;
+			}
+			
+			// Smart Slide: If blocked on one axis, apply full speed to the other
+			if (blockedX && !blockedY && Math.abs(finalForceY) > 0.01)
+			{
+				var targetMoveY = (finalForceY > 0 ? 1 : -1) * currentSpeed * dt;
+				this.inst.y = oldy + targetMoveY;
+				this.inst.set_bbox_changed();
+				if (this.testObstacleOverlap() || this.testSolidOverlap()) {
+					this.inst.y = oldy + moveY; // Revert to partial move if full slide fails
+					this.inst.set_bbox_changed();
+				}
+			}
+			else if (blockedY && !blockedX && Math.abs(finalForceX) > 0.01)
+			{
+				var targetMoveX = (finalForceX > 0 ? 1 : -1) * currentSpeed * dt;
+				this.inst.x = oldx + targetMoveX;
+				this.inst.set_bbox_changed();
+				if (this.testObstacleOverlap() || this.testSolidOverlap()) {
+					this.inst.x = oldx + moveX; // Revert to partial move
+					this.inst.set_bbox_changed();
+				}
+			}
+			
+			if (this.inst.x !== oldx || this.inst.y !== oldy) {
+				this.isMoving = true;
+			} else if (forceMagnitude > 0.1) {
+				this.isStuck = true;
 			}
 
 			// Update angle or flip based on properties
@@ -187,7 +256,6 @@ cr.behaviors.MobsMovement = function(runtime)
 
 	behinstProto.calculateAllForces = function()
 	{
-		var target = this.runtime.getObjectByUID(this.type.targetUid);
 		var movers = this.type.objtype.instances;
 		var forces = this.type.forces;
 
@@ -198,7 +266,19 @@ cr.behaviors.MobsMovement = function(runtime)
 			}
 		}
 
-		if (!target || movers.length === 0) {
+		var globalTargetX, globalTargetY;
+		if (this.type.targetMode === 1) {
+			globalTargetX = this.type.targetX;
+			globalTargetY = this.type.targetY;
+		} else {
+			var target = this.runtime.getObjectByUID(this.type.targetUid);
+			if (target) {
+				globalTargetX = target.x;
+				globalTargetY = target.y;
+			}
+		}
+
+		if (movers.length === 0) {
 			return;
 		}
 
@@ -217,12 +297,24 @@ cr.behaviors.MobsMovement = function(runtime)
 			if (!behA || !behA.isActive)
 				continue;
 
+			// Determine target for this specific instance
+			var targetX, targetY;
+			if (behA.mode === 1) { // Wander
+				targetX = behA.wanderX;
+				targetY = behA.wanderY;
+			} else {
+				// If following global target but it doesn't exist, skip steering
+				if (typeof globalTargetX === "undefined") continue;
+				targetX = globalTargetX;
+				targetY = globalTargetY;
+			}
+
 			var totalForceX = 0;
 			var totalForceY = 0;
 
 			// A. Steering Force (towards target)
-			var dx = target.x - moverA.x;
-			var dy = target.y - moverA.y;
+			var dx = targetX - moverA.x;
+			var dy = targetY - moverA.y;
 			var distToTarget = Math.sqrt(dx * dx + dy * dy);
 			
 			// Scale steering by distance if close (arrival behavior) to stop jitter at target
@@ -276,7 +368,11 @@ cr.behaviors.MobsMovement = function(runtime)
 					var obstacle = obstacles[m];
 					
 					var dx = obstacle.x - moverA.x;
+					if (Math.abs(dx) > behA.repulsionRadius) continue;
+
 					var dy = obstacle.y - moverA.y;
+					if (Math.abs(dy) > behA.repulsionRadius) continue;
+
 					var distSq = (dx * dx) + (dy * dy);
 
 					if (distSq > 0 && distSq < behA.repulsionRadiusSq) {
@@ -323,8 +419,13 @@ cr.behaviors.MobsMovement = function(runtime)
 	/**BEGIN-PREVIEWONLY**/
 	behinstProto.getDebuggerValues = function (propsections)
 	{
-		var targetInst = this.runtime.getObjectByUID(this.type.targetUid);
-		var targetName = targetInst ? targetInst.type.name + " (UID: " + targetInst.uid + ")" : "None";
+		var targetName = "";
+		if (this.type.targetMode === 1) {
+			targetName = "(" + this.type.targetX.toFixed(0) + ", " + this.type.targetY.toFixed(0) + ")";
+		} else {
+			var targetInst = this.runtime.getObjectByUID(this.type.targetUid);
+			targetName = targetInst ? targetInst.type.name + " (UID: " + targetInst.uid + ")" : "None";
+		}
 		
 		// Append to propsections any debugger sections you want to appear.
 		// Each section is an object with two members: "title" and "properties".
@@ -366,6 +467,23 @@ cr.behaviors.MobsMovement = function(runtime)
 		return this.isActive;
 	};
 	
+	Cnds.prototype.IsMoving = function ()
+	{
+		if (!this.isActive) return false;
+		return this.isMoving;
+	};
+	
+	Cnds.prototype.IsWandering = function ()
+	{
+		return (this.mode === 1);
+	};
+	
+	Cnds.prototype.IsStuck = function ()
+	{
+		if (!this.isActive) return false;
+		return this.isStuck;
+	};
+	
 	behaviorProto.cnds = new Cnds();
 
 	//////////////////////////////////////
@@ -380,6 +498,7 @@ cr.behaviors.MobsMovement = function(runtime)
 
 		// Store the target's UID. This is shared across all instances of the behavior.
 		this.type.targetUid = inst.uid;
+		this.type.targetMode = 0;
 	};
 	
 	Acts.prototype.SetActive = function ()
@@ -437,6 +556,25 @@ cr.behaviors.MobsMovement = function(runtime)
 		this.type.solidTypes.length = 0;
 	};
 	
+	Acts.prototype.SetTargetXY = function (x, y)
+	{
+		this.type.targetX = x;
+		this.type.targetY = y;
+		this.type.targetMode = 1;
+	};
+
+	Acts.prototype.SetMode = function (m)
+	{
+		if (this.mode !== m)
+		{
+			this.mode = m;
+			if (this.mode === 1) // Wander
+			{
+				this.wanderTimer = 0; // Force immediate new target selection
+			}
+		}
+	};
+
 	// ... other actions here ...
 	
 	behaviorProto.acts = new Acts();
