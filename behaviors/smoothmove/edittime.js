@@ -100,6 +100,7 @@ AddAction(10, af_none, "Set avoidance", "Parameters", "Set avoidance to {0}", "S
 //				 description);	// description in expressions panel
 
 AddExpression(0, ef_return_number, "CurrentSpeed", "Movement", "CurrentSpeed", "Return the current speed of the object in pixels per second.");
+AddExpression(1, ef_return_number, "AngleOfMotion", "Movement", "AngleOfMotion", "Return the current angle of motion in degrees.");
 
 ////////////////////////////////////////
 ACESDone();

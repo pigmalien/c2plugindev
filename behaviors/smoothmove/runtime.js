@@ -414,6 +414,12 @@ cr.behaviors.SmoothMove = function(runtime)
 		ret.set_float(speed);
 	};
 	
+	Exps.prototype.AngleOfMotion = function (ret)
+	{
+		var angle = cr.to_degrees(Math.atan2(this.velocity.y, this.velocity.x));
+		ret.set_float(angle);
+	};
+	
 	behaviorProto.exps = new Exps();
 	
 }());
