@@ -109,6 +109,10 @@ cr.behaviors.MyCam = function(runtime)
 		this.snapTargetY = 0;
 		this.snapTime = 0;
 
+		// Logical room state (prevents lookahead jitter)
+		this.currentRoomX = 0;
+		this.currentRoomY = 0;
+
 		// Clamping
 		this.useCustomClamp = false;
 		this.minX = 0;
@@ -153,7 +157,8 @@ cr.behaviors.MyCam = function(runtime)
 			"cy": this.cameraY,
 			"stuid": this.secondaryTargetUid,
 			"ucc": this.useCustomClamp,
-			"cminx": this.minX, "cminy": this.minY, "cmaxx": this.maxX, "cmaxy": this.maxY
+			"cminx": this.minX, "cminy": this.minY, "cmaxx": this.maxX, "cmaxy": this.maxY,
+			"crx": this.currentRoomX, "cry": this.currentRoomY
 		};
 	};
 	
@@ -180,6 +185,8 @@ cr.behaviors.MyCam = function(runtime)
 		this.secondaryTargetUid = o["stuid"];
 		this.useCustomClamp = o["ucc"];
 		this.minX = o["cminx"]; this.minY = o["cminy"]; this.maxX = o["cmaxx"]; this.maxY = o["cmaxy"];
+		this.currentRoomX = o["crx"] || 0;
+		this.currentRoomY = o["cry"] || 0;
 
 		// When loading from a save state, it is never the first tick.
 		this.firstTick = false;
@@ -215,6 +222,11 @@ cr.behaviors.MyCam = function(runtime)
 				this.cameraY = inst.y;
 				this.lastHostX = inst.x;
 				this.lastHostY = inst.y;
+
+				if (this.roomWidth > 0 && this.roomHeight > 0) {
+					this.currentRoomX = Math.floor(inst.x / this.roomWidth);
+					this.currentRoomY = Math.floor(inst.y / this.roomHeight);
+				}
 			}
 
 			// If a pan was requested on startup (before this first tick), ensure its start coords are now valid.
@@ -328,20 +340,30 @@ cr.behaviors.MyCam = function(runtime)
 			this.cameraY = cr.lerp(this.cameraY, targetY, lerpFactor);
 
 			// Grid Snap Trigger
-			if (this.gridSnapping && this.roomWidth > 0 && this.roomHeight > 0)
+			if (this.roomWidth > 0 && this.roomHeight > 0)
 			{
-				var camRoomX = Math.floor(this.cameraX / this.roomWidth);
-				var camRoomY = Math.floor(this.cameraY / this.roomHeight);
 				var hostRoomX = Math.floor(inst.x / this.roomWidth);
 				var hostRoomY = Math.floor(inst.y / this.roomHeight);
 
-				if (camRoomX !== hostRoomX || camRoomY !== hostRoomY) {
-					this.isSnapping = true;
-					this.snapTime = 0;
-					this.snapStartX = this.cameraX;
-					this.snapStartY = this.cameraY;
-					this.snapTargetX = (hostRoomX * this.roomWidth) + (this.roomWidth / 2);
-					this.snapTargetY = (hostRoomY * this.roomHeight) + (this.roomHeight / 2);
+				if (this.gridSnapping)
+				{
+					if (this.currentRoomX !== hostRoomX || this.currentRoomY !== hostRoomY) {
+						this.isSnapping = true;
+						this.snapTime = 0;
+						this.snapStartX = this.cameraX;
+						this.snapStartY = this.cameraY;
+						this.snapTargetX = (hostRoomX * this.roomWidth) + (this.roomWidth / 2);
+						this.snapTargetY = (hostRoomY * this.roomHeight) + (this.roomHeight / 2);
+						
+						this.currentRoomX = hostRoomX;
+						this.currentRoomY = hostRoomY;
+					}
+				}
+				else
+				{
+					// Keep synced so enabling doesn't cause wild snaps
+					this.currentRoomX = hostRoomX;
+					this.currentRoomY = hostRoomY;
 				}
 			}
 		}

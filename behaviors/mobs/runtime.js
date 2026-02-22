@@ -69,6 +69,8 @@ cr.behaviors.MobsMovement = function(runtime)
 		this.mode = this.properties[6];          // 0=Follow, 1=Wander
 		this.wanderRadius = this.properties[7];
 		this.wanderRate = this.properties[8];
+		this.stuckPadding = this.properties[9];
+		this.stuckWait = this.properties[10];
 		
 		this.wanderTimer = Math.random() * this.wanderRate;
 		this.wanderX = this.inst.x;
@@ -81,7 +83,12 @@ cr.behaviors.MobsMovement = function(runtime)
 		// For restoring width when flipping
 		this.lastKnownWidth = this.inst.width;
 		this.isMoving = false;
-		this.isStuck = false;
+
+		// Stuck detection state
+		this.stuckTimer = this.stuckWait;
+		this.lastStuckCheckX = this.inst.x;
+		this.lastStuckCheckY = this.inst.y;
+		this.flipTimer = 0;
 	};
 	
 	behinstProto.onDestroy = function ()
@@ -102,7 +109,11 @@ cr.behaviors.MobsMovement = function(runtime)
 			"isActive": this.isActive,
 			"tm": this.type.targetMode,
 			"tx": this.type.targetX,
-			"ty": this.type.targetY
+			"ty": this.type.targetY,
+			"st": this.stuckTimer,
+			"scx": this.lastStuckCheckX,
+			"scy": this.lastStuckCheckY,
+			"ft": this.flipTimer
 		};
 	};
 	
@@ -116,6 +127,10 @@ cr.behaviors.MobsMovement = function(runtime)
 		this.type.targetMode = o["tm"] || 0;
 		this.type.targetX = o["tx"] || 0;
 		this.type.targetY = o["ty"] || 0;
+		this.stuckTimer = o["st"] || 0;
+		this.lastStuckCheckX = o["scx"] || 0;
+		this.lastStuckCheckY = o["scy"] || 0;
+		this.flipTimer = o["ft"] || 0;
 		// note you MUST use double-quote syntax (e.g. o["property"]) to prevent
 		// Closure Compiler renaming and breaking the save format
 	};
@@ -123,14 +138,45 @@ cr.behaviors.MobsMovement = function(runtime)
 	behinstProto.tick = function ()
 	{
 		// This is the first instance being ticked this frame.
-		// We run the force calculation for all instances here, once per tick.
 		if (!this.isActive)
 			return;
 			
+		var dt = this.runtime.getDt(this.inst);
+
+		// Stuck check logic (only in follow mode)
+		if (this.mode === 0 && this.stuckWait > 0)
+		{
+			this.stuckTimer -= dt;
+	
+			if (this.stuckTimer <= 0)
+			{
+				var dx = this.inst.x - this.lastStuckCheckX;
+				var dy = this.inst.y - this.lastStuckCheckY;
+				var distSq = (dx * dx) + (dy * dy);
+	
+				// Check if it moved less than the padding distance
+				if (distSq < (this.stuckPadding * this.stuckPadding))
+				{
+					// Also check if it was actually trying to move
+					var force = this.type.forces[this.inst.uid];
+					if (force) {
+						var forceMagnitude = Math.sqrt(force.x * force.x + force.y * force.y);
+						if (forceMagnitude > 0.1) {
+							this.runtime.trigger(cr.behaviors.MobsMovement.prototype.cnds.OnStuck, this.inst);
+						}
+					}
+				}
+	
+				// Reset for the next check
+				this.stuckTimer = this.stuckWait;
+				this.lastStuckCheckX = this.inst.x;
+				this.lastStuckCheckY = this.inst.y;
+			}
+		}
+
 		// Update Wander Logic
 		if (this.mode === 1) // Wander
 		{
-			var dt = this.runtime.getDt(this.inst);
 			this.wanderTimer -= dt;
 			if (this.wanderTimer <= 0) {
 				this.wanderTimer = this.wanderRate + (Math.random() * 0.5); // Add slight variance
@@ -141,6 +187,7 @@ cr.behaviors.MobsMovement = function(runtime)
 			}
 		}
 
+		// We run the force calculation for all instances here, once per tick.
 		if (this.runtime.tickcount !== this.type.lastTick) {
 			this.type.lastTick = this.runtime.tickcount;
 			this.calculateAllForces();
@@ -155,13 +202,15 @@ cr.behaviors.MobsMovement = function(runtime)
 			return;
 			
 		this.isMoving = false;
-		this.isStuck = false;
 			
 		var dt = this.runtime.getDt(this.inst);
 		var uid = this.inst.uid;
 		var force = this.type.forces[uid];
 
 		if (!force) return;
+
+		if (this.flipTimer > 0)
+			this.flipTimer -= dt;
 
 		// Normalize the final force vector to ensure consistent speed.
 		var forceMagnitude = Math.sqrt(force.x * force.x + force.y * force.y);
@@ -224,9 +273,7 @@ cr.behaviors.MobsMovement = function(runtime)
 			
 			if (this.inst.x !== oldx || this.inst.y !== oldy) {
 				this.isMoving = true;
-			} else if (forceMagnitude > 0.1) {
-				this.isStuck = true;
-			}
+			} 
 
 			// Update angle or flip based on properties
 			if (this.rotationSpeed > 0)
@@ -243,11 +290,19 @@ cr.behaviors.MobsMovement = function(runtime)
 					this.lastKnownWidth = this.inst.width;
 				}
 				
-				// Flip based on horizontal direction (with a small threshold to prevent rapid flipping)
-				if (finalForceX < -0.01)
-					this.inst.width = -this.lastKnownWidth;
-				else if (finalForceX > 0.01)
-					this.inst.width = this.lastKnownWidth;
+				// Flip based on actual movement direction to prevent jitter when blocked
+				if (this.flipTimer <= 0)
+				{
+					var moveDirX = this.inst.x - oldx;
+					if (moveDirX < -0.01 && this.inst.width > 0) {
+						this.inst.width = -this.lastKnownWidth;
+						this.flipTimer = 0.2; // 0.2s cooldown
+					}
+					else if (moveDirX > 0.01 && this.inst.width < 0) {
+						this.inst.width = this.lastKnownWidth;
+						this.flipTimer = 0.2; // 0.2s cooldown
+					}
+				}
 			}
 
 			this.inst.set_bbox_changed();
@@ -478,11 +533,9 @@ cr.behaviors.MobsMovement = function(runtime)
 		return (this.mode === 1);
 	};
 	
-	Cnds.prototype.IsStuck = function ()
-	{
-		if (!this.isActive) return false;
-		return this.isStuck;
-	};
+	Cnds.prototype.OnStuck = function () {
+		return true;
+	}
 	
 	behaviorProto.cnds = new Cnds();
 
@@ -575,14 +628,33 @@ cr.behaviors.MobsMovement = function(runtime)
 		}
 	};
 
-	// ... other actions here ...
+	Acts.prototype.SetStuckPadding = function (p)
+	{
+		this.stuckPadding = p;
+	};
+
+	Acts.prototype.SetStuckWait = function (w)
+	{
+		this.stuckWait = w;
+		// Prevent long waits if the new value is smaller than the current timer
+		if (this.stuckTimer > w)
+			this.stuckTimer = w;
+	};
 	
 	behaviorProto.acts = new Acts();
 
 	//////////////////////////////////////
 	// Expressions
 	function Exps() {};
-	
+
+	Exps.prototype.StuckPadding = function (ret) {
+		ret.set_float(this.stuckPadding);
+	};
+
+	Exps.prototype.StuckWait = function (ret) {
+		ret.set_float(this.stuckWait);
+	};
+
 	behaviorProto.exps = new Exps();
 	
 }());

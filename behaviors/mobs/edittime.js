@@ -38,11 +38,11 @@
 //				display_str,		// as appears in event sheet - use {0}, {1} for parameters and also <b></b>, <i></i>, and {my} for the current behavior icon & name
 //				description,		// appears in event wizard dialog when selected
 //				script_name);		// corresponding runtime function name
-				
+
 AddCondition(0, cf_none, "Is active", "State", "{my} is active", "True if the behavior is currently active.", "IsActive");
 AddCondition(1, cf_none, "Is moving", "State", "{my} is moving", "True if the object is currently moving.", "IsMoving");
 AddCondition(2, cf_none, "Is wandering", "State", "{my} is wandering", "True if the object is currently in wander mode.", "IsWandering");
-AddCondition(3, cf_none, "Is stuck", "State", "{my} is stuck", "True if the object is trying to move but is blocked by an obstacle.", "IsStuck");
+AddCondition(3, cf_trigger, "On stuck", "State", "On stuck", "Triggered when the object fails to move a significant distance while in Follow mode.", "OnStuck");
 ////////////////////////////////////////
 // Actions
 
@@ -86,6 +86,12 @@ AddComboParamOption("Wander");
 AddComboParam("Mode", "The movement mode to set.");
 AddAction(12, af_none, "Set mode", "State", "Set mode to <b>{0}</b>", "Set the movement behavior mode.", "SetMode");
 
+AddNumberParam("Padding", "The new stuck padding in pixels.");
+AddAction(13, af_none, "Set stuck padding", "Parameters", "Set stuck padding to {0}", "Set the distance threshold for the stuck check.", "SetStuckPadding");
+
+AddNumberParam("Wait", "The new stuck wait time in seconds.");
+AddAction(14, af_none, "Set stuck wait", "Parameters", "Set stuck wait to {0}", "Set the time between stuck checks.", "SetStuckWait");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -96,6 +102,9 @@ AddAction(12, af_none, "Set mode", "State", "Set mode to <b>{0}</b>", "Set the m
 //				 category,		// category in expressions panel
 //				 exp_name,		// the expression name after the dot, e.g. "foo" for "myobject.foo" - also the runtime function name
 //				 description);	// description in expressions panel
+
+AddExpression(0, ef_return_number, "StuckPadding", "Parameters", "StuckPadding", "Get the current stuck padding value.");
+AddExpression(1, ef_return_number, "StuckWait", "Parameters", "StuckWait", "Get the current stuck wait time.");
 
 ////////////////////////////////////////
 ACESDone();
@@ -116,7 +125,9 @@ var property_list = [
 	new cr.Property(ept_float, 	"Repulsion force",	0.8,	"The strength of the push-away force, from 0 to 1."),
 	new cr.Property(ept_combo,	"Mode",				"Follow target", "Choose whether to follow the target or wander randomly.", "Follow target|Wander"),
 	new cr.Property(ept_float, 	"Wander radius",	100,	"The maximum distance from the starting point to wander."),
-	new cr.Property(ept_float, 	"Wander rate",		1.0,	"How often (in seconds) to pick a new wander position.")
+	new cr.Property(ept_float, 	"Wander rate",		1.0,	"How often (in seconds) to pick a new wander position."),
+	new cr.Property(ept_float, 	"Stuck padding",	5,		"The distance in pixels the object must move within the 'Stuck wait' time to not be considered stuck."),
+	new cr.Property(ept_float, 	"Stuck wait",		1.0,	"The time in seconds to wait before checking if the object is stuck.")
 	];
 	
 // Called by IDE when a new behavior type is to be created
