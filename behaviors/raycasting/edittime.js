@@ -30,6 +30,8 @@ AddCondition(0, cf_trigger, "On ray hit", "Raycasting", "On ray hit", "Triggered
 AddCondition(1, cf_none, "Ray did hit", "Raycasting", "Ray did hit", "True if the last ray cast resulted in a hit.", "DidHit");
 AddCondition(2, cf_trigger, "On ray failed", "Raycasting", "On ray failed", "Triggered when a ray cast fails to hit a target object.", "OnRayFailed");
 AddCondition(3, cf_trigger, "On solid hit", "Raycasting", "On solid hit", "Triggered when the ray hits a solid object.", "OnRayHitSolid");
+AddObjectParam("Target", "The object to check line of sight to.");
+AddCondition(4, cf_none, "Has line of sight", "Line of Sight", "Has line of sight to {0}", "Check if the object has a clear line of sight to a target.", "HasLOS");
 
 ////////////////////////////////////////
 // Expressions

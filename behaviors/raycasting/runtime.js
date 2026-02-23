@@ -65,6 +65,37 @@ assert2(cr.behaviors, "cr.behaviors not created");
     Cnds.prototype.DidHit = function() { return this.didHit; };
     Cnds.prototype.OnRayFailed = function() { return true; };
     Cnds.prototype.OnRayHitSolid = function() { return true; };
+    
+    Cnds.prototype.HasLOS = function (obj) {
+        if (!obj) return false;
+        var target = obj.getFirstPicked(this.inst);
+        if (!target) return false;
+
+        var startX = this.inst.x;
+        var startY = this.inst.y;
+        var endX = target.x;
+        var endY = target.y;
+
+        // Check if any solid blocks the way
+        // We trace the ray from start to end. If we hit anything, LOS is blocked.
+        for (var k = 0; k < this.type.solidTypes.length; k++) {
+            var solidType = this.type.solidTypes[k];
+            var solids = solidType.instances;
+            for (var i = 0; i < solids.length; i++) {
+                var inst = solids[i];
+                if (inst === this.inst || inst === target) continue; // Ignore self and target
+
+                var hit = check_intersection(startX, startY, endX, endY, inst);
+                if (hit) {
+                    // If we hit a solid, we are blocked.
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    };
+    
     behaviorProto.cnds = new Cnds();
 
     // Helper function for squared distance, as cr.distanceSqTo is not in the C2 SDK
@@ -121,6 +152,17 @@ assert2(cr.behaviors, "cr.behaviors not created");
         return closest_hit;
     }
 
+    // Helper to check intersection with any object type (Box or Tilemap)
+    function check_intersection(startX, startY, endX, endY, inst) {
+        // Use the object's own ray intersection method if available (e.g. Tilemap)
+        if (inst.rayIntersection)
+            return inst.rayIntersection(startX, startY, endX, endY);
+
+        // Default bounding box handling
+        inst.update_bbox();
+        return ray_box_intersection(startX, startY, endX, endY, inst.bbox);
+    }
+
     function Acts() {};
     Acts.prototype.CastRay = function(angle, distance, obj) {
         if (!obj) return;
@@ -151,8 +193,7 @@ assert2(cr.behaviors, "cr.behaviors not created");
             var inst = candidates[i];
             if (inst === this.inst) continue; // Don't hit self
 
-            inst.update_bbox();
-            var result = ray_box_intersection(startX, startY, endX, endY, inst.bbox);
+            var result = check_intersection(startX, startY, endX, endY, inst);
 
             if (result) {
                 var distSq = distanceSqTo(startX, startY, result.x, result.y);
@@ -178,9 +219,7 @@ assert2(cr.behaviors, "cr.behaviors not created");
                 var inst = solids[i];
                 if (inst === this.inst) continue;
 
-                inst.update_bbox();
-                var result = ray_box_intersection(startX, startY, endX, endY, inst.bbox);
-
+                var result = check_intersection(startX, startY, endX, endY, inst);
                 if (result) {
                     var distSq = distanceSqTo(startX, startY, result.x, result.y);
                     if (distSq < closestSolidDistSq) {
