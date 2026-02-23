@@ -372,16 +372,30 @@ cr.behaviors.MyCam = function(runtime)
 		var finalX = this.cameraX;
 		var finalY = this.cameraY;
 
+		// Auto Zoom
+		// This must be processed before clamping, so the clamp boundaries can be calculated with the correct scale.
+		if (this.autoZoom && this.maxSpeedForZoom > 0)
+		{
+			var speedRatio = cr.clamp(hostSpeed / this.maxSpeedForZoom, 0, 1);
+			var targetScale = cr.lerp(this.maxScale, this.minScale, speedRatio);
+			var zoomLerpFactor = 1 - Math.pow(1 - this.zoomSpeed, dt); // Framerate-independent lerp
+			this.currentLayerScale = cr.lerp(this.currentLayerScale, targetScale, zoomLerpFactor);
+			layer.scale = this.currentLayerScale;
+		}
+
 		// Clamping
 		if (this.clampToLayout || this.useCustomClamp)
 		{
 			var layout = inst.layer.layout;
-			var viewW = layer.viewRight - layer.viewLeft;
-			var viewH = layer.viewBottom - layer.viewTop;
-			var minX = this.useCustomClamp ? this.minX : (viewW / 2);
-			var minY = this.useCustomClamp ? this.minY : (viewH / 2);
-			var maxX = this.useCustomClamp ? this.maxX : (layout.width - viewW / 2);
-			var maxY = this.useCustomClamp ? this.maxY : (layout.height - viewH / 2);
+			// The effective view size in world coordinates depends on the layer's scale.
+			var currentScale = layer.scale;
+			var worldViewW = (layer.viewRight - layer.viewLeft) / currentScale;
+			var worldViewH = (layer.viewBottom - layer.viewTop) / currentScale;
+
+			var minX = this.useCustomClamp ? this.minX : (worldViewW / 2);
+			var minY = this.useCustomClamp ? this.minY : (worldViewH / 2);
+			var maxX = this.useCustomClamp ? this.maxX : (layout.width - worldViewW / 2);
+			var maxY = this.useCustomClamp ? this.maxY : (layout.height - worldViewH / 2);
 
 			finalX = cr.clamp(finalX, minX, maxX);
 			finalY = cr.clamp(finalY, minY, maxY);
@@ -402,16 +416,6 @@ cr.behaviors.MyCam = function(runtime)
 				finalX += (Math.random() * 2 - 1) * currentIntensity;
 				finalY += (Math.random() * 2 - 1) * currentIntensity;
 			}
-		}
-
-		// Auto Zoom
-		if (this.autoZoom && this.maxSpeedForZoom > 0)
-		{
-			var speedRatio = cr.clamp(hostSpeed / this.maxSpeedForZoom, 0, 1);
-			var targetScale = cr.lerp(this.maxScale, this.minScale, speedRatio);
-			var zoomLerpFactor = 1 - Math.pow(1 - this.zoomSpeed, dt * 60);
-			this.currentLayerScale = cr.lerp(this.currentLayerScale, targetScale, zoomLerpFactor);
-			layer.scale = this.currentLayerScale;
 		}
 
 		// Set Layer Scroll (Pixel-Perfect)
@@ -508,9 +512,9 @@ cr.behaviors.MyCam = function(runtime)
 		this.maxY = maxY;
 	};
 
-	Acts.prototype.SetClampToLayout = function () {
+	Acts.prototype.SetClampToLayout = function (s) {
 		this.useCustomClamp = false;
-		this.clampToLayout = true;
+		this.clampToLayout = (s === 1);
 	};
 
 	Acts.prototype.SetSmoothness = function (s) {

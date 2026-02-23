@@ -63,7 +63,10 @@ AddNumberParam("Max X", "The maximum X coordinate to clamp to.");
 AddNumberParam("Max Y", "The maximum Y coordinate to clamp to.");
 AddAction(5, af_none, "Set custom clamping", "Clamping", "Set {my} custom clamp to (<i>{0}</i>, <i>{1}</i>) to (<i>{2}</i>, <i>{3}</i>)", "Define a custom bounding box to clamp the camera to.", "SetCustomClamping");
 
-AddAction(6, af_none, "Set clamp to layout", "Clamping", "Set {my} clamp to layout", "Clamp the camera to the layout boundaries.", "SetClampToLayout");
+AddComboParamOption("Disabled");
+AddComboParamOption("Enabled");
+AddComboParam("State", "Set whether to clamp the camera to the layout boundaries.");
+AddAction(6, af_none, "Set clamp to layout", "Clamping", "Set clamp to layout to <b>{0}</b>", "Enable or disable clamping the camera to the layout boundaries.", "SetClampToLayout");
 
 AddNumberParam("Smoothness", "The damping factor (0 to 1).", "0.1");
 AddAction(7, af_none, "Set smoothness", "Tuning", "Set {my} smoothness to <i>{0}</i>", "Set the camera's damping factor.", "SetSmoothness");
