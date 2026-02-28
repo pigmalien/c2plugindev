@@ -122,12 +122,10 @@ AddAction(6, af_none, "Set seed", "Setup", "Set generation seed to {0}", "Sets t
 AddNumberParam("Size", "The width of corridors in tiles. Odd numbers look best.", "1");
 AddAction(7, af_none, "Set corridor size", "Setup", "Set corridor size to <b>{0}</b>", "Sets the width of generated corridors.", "SetCorridorSize");
 
-AddNumberParam("Center X", "The world X coordinate for the center of the view.");
-AddNumberParam("Center Y", "The world Y coordinate for the center of the view.");
+AddNumberParam("Center X", "The world X coordinate for the center of the circle.");
+AddNumberParam("Center Y", "The world Y coordinate for the center of the circle.");
 AddNumberParam("Radius", "The radius of the circle in tiles.", "5");
-AddNumberParam("Transparent Tile", "The tile ID to set for revealed walls on the mask.", "0");
-AddNumberParam("Floor Tile", "The tile ID to set for revealed floors on the mask (-1 to erase).", "-1");
-AddAction(8, af_none, "Reveal circle", "Masking", "Reveal circle at ({0}, {1}) with radius {2} (Wall: {3}, Floor: {4})", "Reveals a circular area on the tilemap.", "RevealCircle");
+AddAction(8, af_none, "Erase circle", "Masking", "Erase circular area at ({0}, {1}) with radius {2}", "Erases a circular area of tiles on the tilemap.", "RevealCircle");
 
 ////////////////////////////////////////
 // Expressions

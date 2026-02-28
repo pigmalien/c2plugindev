@@ -377,7 +377,49 @@ cr.behaviors.MyCam = function(runtime)
 		if (this.autoZoom && this.maxSpeedForZoom > 0)
 		{
 			var speedRatio = cr.clamp(hostSpeed / this.maxSpeedForZoom, 0, 1);
-			var targetScale = cr.lerp(this.maxScale, this.minScale, speedRatio);
+			var speedTargetScale = cr.lerp(this.maxScale, this.minScale, speedRatio);
+			
+			var targetScale = speedTargetScale;
+
+			if (this.clampToLayout)
+			{
+				var layout = layer.layout;
+				
+				// --- Constraint 1: Don't zoom out past layout bounds ---
+				var minAllowedScaleX = this.runtime.width / layout.width;
+				var minAllowedScaleY = this.runtime.height / layout.height;
+				var minAllowedScale = Math.max(minAllowedScaleX, minAllowedScaleY);
+
+				if (targetScale < minAllowedScale)
+					targetScale = minAllowedScale;
+				
+				// --- Constraint 2: Don't zoom in if it would "cramp" the view at the edges ---
+				// We predict if the camera *would* be clamped at the currently desired scale.
+				var potentialWorldViewW = this.runtime.width / targetScale;
+				var potentialWorldViewH = this.runtime.height / targetScale;
+
+				var potentialMinX = potentialWorldViewW / 2;
+				var potentialMinY = potentialWorldViewH / 2;
+				var potentialMaxX = layout.width - (potentialWorldViewW / 2);
+				var potentialMaxY = layout.height - (potentialWorldViewH / 2);
+				
+				// Check if the camera's current (unclamped) position is outside the potential clamp zone.
+				var wouldBeClamped = this.cameraX < potentialMinX || this.cameraX > potentialMaxX ||
+				                     this.cameraY < potentialMinY || this.cameraY > potentialMaxY;
+
+				// If the camera is pushing against an edge and the desired zoom is > 1 (zooming in),
+				// override the target scale and ease back to a neutral 1.0 scale. This prevents
+				// the view from feeling "cut off" when at a layout boundary.
+				if (wouldBeClamped && targetScale > 1.0)
+				{
+					targetScale = 1.0;
+					
+					// Ensure 1.0 is not smaller than the minimum allowed scale (for very narrow layouts).
+					if (targetScale < minAllowedScale)
+						targetScale = minAllowedScale;
+				}
+			}
+
 			var zoomLerpFactor = 1 - Math.pow(1 - this.zoomSpeed, dt); // Framerate-independent lerp
 			this.currentLayerScale = cr.lerp(this.currentLayerScale, targetScale, zoomLerpFactor);
 			layer.scale = this.currentLayerScale;
@@ -388,10 +430,11 @@ cr.behaviors.MyCam = function(runtime)
 		{
 			var layout = inst.layer.layout;
 			// The effective view size in world coordinates depends on the layer's scale.
-			var currentScale = layer.scale;
-			var worldViewW = (layer.viewRight - layer.viewLeft) / currentScale;
-			var worldViewH = (layer.viewBottom - layer.viewTop) / currentScale;
-
+			// The layer's view size properties (viewRight, viewLeft, etc.) are already in layout
+			// coordinates and account for the layer's scale. We do not need to divide by the scale again.
+			var worldViewW = layer.viewRight - layer.viewLeft;
+			var worldViewH = layer.viewBottom - layer.viewTop;
+			
 			var minX = this.useCustomClamp ? this.minX : (worldViewW / 2);
 			var minY = this.useCustomClamp ? this.minY : (worldViewH / 2);
 			var maxX = this.useCustomClamp ? this.maxX : (layout.width - worldViewW / 2);

@@ -1072,26 +1072,27 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		this.corridorSize = Math.max(1, Math.floor(size));
 	};
 
-	Acts.prototype.RevealCircle = function (centerX, centerY, radius, transparentTileID, floorTileID)
+	Acts.prototype.RevealCircle = function (centerX, centerY, radius)
 	{
-		var maskTilemapInst = this.inst;
-		var maskTilemapActs = maskTilemapInst.type.plugin.acts;
-		if (!maskTilemapActs || !maskTilemapActs.SetTile || !maskTilemapActs.EraseTile) {
-			return; // Not a valid tilemap object
+		var tilemapInst = this.inst;
+		var tilemapActs = tilemapInst.type.plugin.acts;
+		if (!tilemapActs || !tilemapActs.EraseTile) {
+			return; // Not a valid tilemap object or doesn't have EraseTile action
 		}
 
-		var dungeonTilemap = this.inst;
-		if (!dungeonTilemap.tilewidth || !dungeonTilemap.tileheight) return;
+		if (!tilemapInst.tilewidth || !tilemapInst.tileheight || radius <= 0) return;
 
-		var tx = Math.floor(centerX / dungeonTilemap.tilewidth);
-		var ty = Math.floor(centerY / dungeonTilemap.tileheight);
+		var tx = Math.floor(centerX / tilemapInst.tilewidth);
+		var ty = Math.floor(centerY / tilemapInst.tileheight);
 		var r2 = radius * radius;
 
 		var int_radius = Math.ceil(radius);
 
+		// Iterate through a square of tiles around the center point
 		for (var dx = -int_radius; dx <= int_radius; dx++) {
 			for (var dy = -int_radius; dy <= int_radius; dy++) {
 				
+				// Check if the tile is within the circular radius
 				if (dx * dx + dy * dy > r2) {
 					continue;
 				}
@@ -1099,52 +1100,20 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 				var targetX = tx + dx;
 				var targetY = ty + dy;
 
-				// Check bounds of the dungeon grid
-				if (targetX < 0 || targetX >= this.mapWidth || targetY < 0 || targetY >= this.mapHeight) {
+				// Check bounds of the tilemap itself
+				if (targetX < 0 || targetX >= tilemapInst.mapwidth || targetY < 0 || targetY >= tilemapInst.mapheight) {
 					continue;
 				}
 
-				var tileType = this.grid[targetX][targetY];
-
-				if (tileType === this.FLOOR) {
-					if (floorTileID === -1) {
-						// Erase the tile on the mask
-						maskTilemapActs.EraseTile.call(maskTilemapInst, targetX, targetY);
-					} else {
-						maskTilemapActs.SetTile.call(maskTilemapInst, targetX, targetY, floorTileID);
-					}
-				}
-				else if (tileType === this.WALL) {
-					// Check if this wall is adjacent to a floor tile
-					var isAdjacentToFloor = false;
-					// Check 8-way neighbors
-					for (var ni = -1; ni <= 1; ni++) {
-						for (var nj = -1; nj <= 1; nj++) {
-							if (ni === 0 && nj === 0) continue;
-
-							var nx = targetX + ni;
-							var ny = targetY + nj;
-
-							if (nx >= 0 && nx < this.mapWidth && ny >= 0 && ny < this.mapHeight && this.grid[nx][ny] === this.FLOOR) {
-								isAdjacentToFloor = true;
-								break; // break inner loop
-							}
-						}
-						if (isAdjacentToFloor) break; // break outer loop
-					}
-
-					if (isAdjacentToFloor) {
-						// It's a wall bordering a floor, so set the transparent tile on the mask
-						maskTilemapActs.SetTile.call(maskTilemapInst, targetX, targetY, transparentTileID);
-					}
-				}
+				// Erase the tile
+				tilemapActs.EraseTile.call(tilemapInst, targetX, targetY);
 			}
 		}
 
-		// Force the mask tilemap to redraw
-		if (maskTilemapInst.runtime) {
-			maskTilemapInst.runtime.redraw = true;
-		}
+		// Force the tilemap to redraw
+		tilemapInst.runtime.redraw = true;
+		if (tilemapInst.set_bbox_changed)
+			tilemapInst.set_bbox_changed();
 	};
 
 
