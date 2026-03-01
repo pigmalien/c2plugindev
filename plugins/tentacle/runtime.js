@@ -71,6 +71,10 @@ cr.plugins_.Tentacle = function(runtime)
 		this.wave_time = 0;
 		this.is_moving = false;
 
+		this.pinnedToUID = -1;
+		this.pinZOrder = 0; // 0=No, 1=Behind, 2=In front
+		this.pinImagePoint = 0;
+
 		if (this.segments.length !== this.segment_count)
 		{
 			this.segments.length = 0;
@@ -92,8 +96,46 @@ cr.plugins_.Tentacle = function(runtime)
 
 	instanceProto.tick = function()
 	{
-		var dt = this.runtime.getDt(this.inst);
+		var dt = this.runtime.getDt(this);
 		if (dt === 0) return;
+
+		// Pinning logic
+		if (this.pinnedToUID !== -1)
+		{
+			var pinTo = this.runtime.getObjectByUID(this.pinnedToUID);
+			if (pinTo)
+			{
+				var newX = pinTo.x;
+				var newY = pinTo.y;
+
+				if (this.pinImagePoint !== 0 && pinTo.getImagePoint)
+				{
+					newX = pinTo.getImagePoint(this.pinImagePoint, true);
+					newY = pinTo.getImagePoint(this.pinImagePoint, false);
+				}
+
+				// Update position to match pinned object
+				if (this.x !== newX || this.y !== newY)
+				{
+					this.x = newX;
+					this.y = newY;
+					this.set_bbox_changed();
+				}
+
+				// Z-order logic
+				if (this.pinZOrder > 0 && this.layer && pinTo.layer && this.layer === pinTo.layer && this.layer.moveInstanceAdjacent)
+				{
+					// pinZOrder: 1 = Behind, 2 = In front
+					var isAfter = (this.pinZOrder === 2);
+					this.layer.moveInstanceAdjacent(this, pinTo, isAfter);
+				}
+			}
+			else
+			{
+				// Pinned object has been destroyed, so unpin
+				this.pinnedToUID = -1;
+			}
+		}
 
 		this.wave_time += dt * this.wave_speed;
 
@@ -123,7 +165,10 @@ cr.plugins_.Tentacle = function(runtime)
 		}
 
 		return {
-			"segs": segs
+			"segs": segs,
+			"pinUid": this.pinnedToUID,
+			"pinZo": this.pinZOrder,
+			"pinPt": this.pinImagePoint
 		};
 	};
 	
@@ -143,6 +188,10 @@ cr.plugins_.Tentacle = function(runtime)
 			this.segments[i].oldx = segs[i][2];
 			this.segments[i].oldy = segs[i][3];
 		}
+
+		this.pinnedToUID = o["pinUid"] === undefined ? -1 : o["pinUid"];
+		this.pinZOrder = o["pinZo"] === undefined ? 0 : o["pinZo"];
+		this.pinImagePoint = o["pinPt"] === undefined ? 0 : o["pinPt"];
 	};
 
 	instanceProto.updatePhysics = function(dt)
@@ -329,10 +378,10 @@ cr.plugins_.Tentacle = function(runtime)
 		var testX = c.x;
 		var testY = c.y;
 
-		if (c.x < r.l) testX = r.l;
-		else if (c.x > r.r) testX = r.r;
-		if (c.y < r.t) testY = r.t;
-		else if (c.y > r.b) testY = r.b;
+		if (c.x < r.left) testX = r.left;
+		else if (c.x > r.right) testX = r.right;
+		if (c.y < r.top) testY = r.top;
+		else if (c.y > r.bottom) testY = r.bottom;
 
 		var distX = c.x - testX;
 		var distY = c.y - testY;
@@ -341,7 +390,7 @@ cr.plugins_.Tentacle = function(runtime)
 		return distanceSq <= (c.radius * c.radius);
 	}
 
-	Cnds.prototype.OnSegmentCollision = function (obj)
+	Cnds.prototype.IsSegmentOverlapping = function (obj)
 	{
 		if (!obj) return false;
 
@@ -349,39 +398,43 @@ cr.plugins_.Tentacle = function(runtime)
 		var instances = sol.getObjects();
 		if (instances.length === 0) return false;
 
-		var l = instances.length;
 		var i, j, inst, segment;
-		var triggered = false;
+		var picked = [];
 		var circle = {x:0, y:0, radius:0};
 
-		for (j = 1; j < this.segment_count; ++j)
+		for (j = 0; j < this.segment_count; ++j)
 		{
-			segment = this.segments[j];
-			segment.width = cr.lerp(this.start_width, this.end_width, j / (this.segment_count - 1));
-			circle.x = segment.x;
-			circle.y = segment.y;
-			circle.radius = segment.width / 2;
+			this.segments[j].width = cr.lerp(this.start_width, this.end_width, j / (this.segment_count - 1));
+		}
 
-			for (i = 0; i < l; ++i)
+		for (i = 0; i < instances.length; ++i)
+		{
+			inst = instances[i];
+			inst.update_bbox();
+
+			for (j = 0; j < this.segment_count; ++j)
 			{
-				inst = instances[i];
-				inst.update_bbox();
+				segment = this.segments[j];
+				circle.x = segment.x;
+				circle.y = segment.y;
+				circle.radius = segment.width / 2;
+
 				if (circlepart_intersects_rect(circle, inst.bbox))
 				{
-					triggered = true;
-					this.runtime.pushCopySol(sol);
-					sol.select_all = false;
-					sol.instances.length = 1;
-					sol.instances[0] = inst;
-					
-					this.runtime.getCurrentEventStack().current_event.retrigger();
-
-					this.runtime.popSol(sol);
+					picked.push(inst);
+					break;
 				}
 			}
 		}
 
-		return false; // Triggers are fired inside the loop
+		if (picked.length > 0)
+		{
+			sol.select_all = false;
+			sol.instances = picked;
+			return true;
+		}
+
+		return false;
 	};
 
 	Cnds.prototype.IsMoving = function()
@@ -400,6 +453,28 @@ cr.plugins_.Tentacle = function(runtime)
 	//////////////////////////////////////
 	// Actions
 	function Acts() {};
+
+	Acts.prototype.PinToObject = function (obj, zorder, imgpt)
+	{
+		if (!obj)
+		{
+			this.pinnedToUID = -1; // Unpin if no object provided
+			return;
+		}
+		var inst = obj.getFirstPicked();
+		if (inst) {
+			this.pinnedToUID = inst.uid;
+			this.pinZOrder = zorder; // 0=No, 1=Behind, 2=In front
+			this.pinImagePoint = imgpt;
+		} else {
+			this.pinnedToUID = -1; // If no instance picked, unpin
+		}
+	};
+
+	Acts.prototype.Unpin = function ()
+	{
+		this.pinnedToUID = -1;
+	};
 
 	Acts.prototype.SetStartWidth = function(w) { this.start_width = w; };
 	Acts.prototype.SetEndWidth = function(w) { this.end_width = w; };
@@ -425,6 +500,21 @@ cr.plugins_.Tentacle = function(runtime)
 		var rad = cr.to_radians(angle);
 		seg.oldx -= Math.cos(rad) * force;
 		seg.oldy -= Math.sin(rad) * force;
+	};
+
+	Acts.prototype.SetSineWaveAmount = function(a)
+	{
+		this.wave_amount = a;
+	};
+
+	Acts.prototype.SetSineWaveSpeed = function(s)
+	{
+		this.wave_speed = s;
+	};
+
+	Acts.prototype.SetSineWaveFrequency = function(f)
+	{
+		this.wave_freq = f;
 	};
 	
 	pluginProto.acts = new Acts();

@@ -1,4 +1,4 @@
-﻿function GetPluginSettings()
+﻿﻿function GetPluginSettings()
 {
 	return {
 		"name":			"Tentacle",
@@ -10,7 +10,7 @@
 		"category":		"Drawing",
 		"type":			"world",				// either "world" (appears in layout and is drawn), else "object"
 		"rotatable":	true,					// only used when "type" is "world".  Enables an angle property on the object.
-		"flags":		pf_texture | pf_predraw | pf_position_aces | pf_size_aces | pf_angle_aces | pf_appearance_aces | pf_effects
+		"flags":		pf_texture | pf_predraw | pf_position_aces | pf_size_aces | pf_angle_aces | pf_appearance_aces | pf_zorder_aces | pf_effects
 	};
 };
 
@@ -41,7 +41,7 @@
 //				script_name);		// corresponding runtime function name
 				
 AddObjectParam("Object", "Choose the object to check for collision with.");
-AddCondition(0, cf_trigger, "On segment collision", "Collisions", "On collision with {0}", "Triggered when a tentacle segment collides with an object.", "OnSegmentCollision");
+AddCondition(0, cf_none, "Is segment overlapping", "Collisions", "Is segment overlapping {0}", "True if a tentacle segment is overlapping an object.", "IsSegmentOverlapping");
 
 AddCondition(1, cf_none, "Is moving", "Movement", "Is moving", "True if the tentacle is currently in motion.", "IsMoving");
 
@@ -83,6 +83,25 @@ AddNumberParam("Segment Index", "The 0-based index of the segment to apply the i
 AddNumberParam("Force", "The strength of the impulse.");
 AddNumberParam("Angle", "The angle of the impulse in degrees.");
 AddAction(5, af_none, "Apply impulse to segment", "Movement", "Apply impulse of force {1} at angle {2} to segment {0}", "Apply an impulse to a specific segment.", "ApplyImpulseToSegment");
+
+AddObjectParam("Object", "The object to pin the tentacle base to.");
+AddComboParamOption("No Z-ordering");
+AddComboParamOption("Behind target");
+AddComboParamOption("In front of target");
+AddComboParam("Z-order", "Set the Z-order relative to the pinned object.", 1);
+AddAnyTypeParam("Image Point", "The name or number of the image point to pin to (0 for origin).", "0");
+AddAction(6, af_none, "Pin to object", "Movement", "Pin to {0} (Z-order: {1}, Image Point: {2})", "Pin the base of the tentacle to another object.", "PinToObject");
+
+AddAction(7, af_none, "Unpin", "Movement", "Unpin from object", "Unpin the tentacle from any object it is pinned to.", "Unpin");
+
+AddNumberParam("Amount", "The magnitude of the sine wave.");
+AddAction(8, af_none, "Set sine wave amount", "Appearance", "Set sine wave amount to {0}", "Set the magnitude of the sine wave animation.", "SetSineWaveAmount");
+
+AddNumberParam("Speed", "The speed of the sine wave.");
+AddAction(9, af_none, "Set sine wave speed", "Appearance", "Set sine wave speed to {0}", "Set the speed of the sine wave animation.", "SetSineWaveSpeed");
+
+AddNumberParam("Frequency", "The frequency of the sine wave.");
+AddAction(10, af_none, "Set sine wave frequency", "Appearance", "Set sine wave frequency to {0}", "Set the frequency of the sine wave animation.", "SetSineWaveFrequency");
 
 ////////////////////////////////////////
 // Expressions
