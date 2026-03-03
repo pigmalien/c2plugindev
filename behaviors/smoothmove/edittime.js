@@ -88,6 +88,11 @@ AddAction(2, af_none, "Set stop on solids", "Parameters", "Set stop on solids to
 AddNumberParam("Avoidance", "The new avoidance distance in pixels.");
 AddAction(10, af_none, "Set avoidance", "Parameters", "Set avoidance to {0}", "Set the obstacle avoidance look-ahead distance.", "SetAvoidance");
 
+AddObjectParam("Obstacle", "The object type to avoid.");
+AddAction(11, af_none, "Add obstacle", "Obstacles", "Add obstacle {0}", "Add an object type for the behavior to avoid.", "AddObstacle");
+
+AddAction(12, af_none, "Clear obstacles", "Obstacles", "Clear all obstacles", "Remove all object types from the list of obstacles to avoid.", "ClearObstacles");
+
 ////////////////////////////////////////
 // Expressions
 

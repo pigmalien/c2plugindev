@@ -34,6 +34,7 @@ cr.behaviors.SmoothMove = function(runtime)
 	{
 		// This is a shared property for all instances of this behavior.
 		this.targetUid = -1;
+		this.obstacleTypes = [];
 	};
 
 	/////////////////////////////////////
@@ -68,6 +69,7 @@ cr.behaviors.SmoothMove = function(runtime)
 		this.targetX = 0;
 		this.targetY = 0;
 		this.lastKnownWidth = this.inst.width;
+		// Note: obstacleTypes is stored on the behavior type, not the instance.
 
 	};
 	
@@ -253,33 +255,24 @@ cr.behaviors.SmoothMove = function(runtime)
 		// --- Apply Final Velocity to Position ---
 		if (vel.x !== 0 || vel.y !== 0)
 		{
-			if (this.stopOnSolids)
-			{
-				var oldx = inst.x;
-				var oldy = inst.y;
+			var oldx = inst.x;
+			var oldy = inst.y;
 
-				// Move X and check for collision
-				inst.x += vel.x * dt;
+			// Move X and check for collision
+			inst.x += vel.x * dt;
+			inst.set_bbox_changed();
+			if (this._testOverlapAny()) {
+				inst.x = oldx;
+				vel.x = 0;
 				inst.set_bbox_changed();
-				if (this.runtime.testOverlapSolid(inst)) {
-					inst.x = oldx;
-					vel.x = 0;
-					inst.set_bbox_changed();
-				}
-
-				// Move Y and check for collision
-				inst.y += vel.y * dt;
-				inst.set_bbox_changed();
-				if (this.runtime.testOverlapSolid(inst)) {
-					inst.y = oldy;
-					vel.y = 0;
-					inst.set_bbox_changed();
-				}
 			}
-			else
-			{
-				inst.x += vel.x * dt;
-				inst.y += vel.y * dt;
+
+			// Move Y and check for collision
+			inst.y += vel.y * dt;
+			inst.set_bbox_changed();
+			if (this._testOverlapAny()) {
+				inst.y = oldy;
+				vel.y = 0;
 				inst.set_bbox_changed();
 			}
 		}
@@ -295,13 +288,59 @@ cr.behaviors.SmoothMove = function(runtime)
 		inst.y = y;
 		inst.set_bbox_changed();
 		
-		var overlap = this.runtime.testOverlapSolid(inst);
+		var overlap = this._testOverlapAny();
 		
 		inst.x = oldX;
 		inst.y = oldY;
 		inst.set_bbox_changed();
 		
 		return overlap;
+	};
+	
+	behinstProto._testOverlapAny = function()
+	{
+		var test_inst = this.inst;
+
+		// 1. Test against Solids
+		if (this.stopOnSolids && this.runtime.testOverlapSolid(test_inst))
+			return true;
+		
+		// 2. Test against custom obstacles
+		for (var i = 0; i < this.type.obstacleTypes.length; i++) {
+			var type = this.type.obstacleTypes[i];
+			var instances = type.instances;
+			for (var j = 0; j < instances.length; j++) {
+				var obstacle_inst = instances[j];
+				
+				// Special handling for Tilemap obstacles to get polygon-perfect collision
+				if (obstacle_inst.type && obstacle_inst.type.plugin && obstacle_inst.type.plugin.id === "Tilemap")
+				{
+					if (!this.runtime.testOverlap(test_inst, obstacle_inst))
+						continue;
+					
+					test_inst.update_bbox();
+					var poly = test_inst.collision_poly;
+					
+					if (poly && poly.pts.length > 0)
+					{
+						for(var k = 0; k < poly.pts.length; k++)
+						{
+							var ptx = poly.pts[k][0] + test_inst.x;
+							var pty = poly.pts[k][1] + test_inst.y;
+							
+							if (obstacle_inst.testPoint(ptx, pty))
+								return true;
+						}
+					}
+					else if (obstacle_inst.testPoint(test_inst.x, test_inst.y))
+						return true;
+				}
+				else if (this.runtime.testOverlap(test_inst, obstacle_inst))
+					return true;
+			}
+		}
+		
+		return false;
 	};
 
 	// The comments around these functions ensure they are removed when exporting, since the
@@ -401,6 +440,18 @@ cr.behaviors.SmoothMove = function(runtime)
 	Acts.prototype.SetEffectiveRadius = function (r) { this.effectiveRadius = r; };
 	Acts.prototype.SetStopOnSolids = function (s) { this.stopOnSolids = (s === 1); };
 	Acts.prototype.SetAvoidance = function (a) { this.avoidance = a; };
+	
+	Acts.prototype.AddObstacle = function (obj)
+	{
+		if (!obj) return;
+		if (this.type.obstacleTypes.indexOf(obj) === -1)
+			this.type.obstacleTypes.push(obj);
+	};
+
+	Acts.prototype.ClearObstacles = function ()
+	{
+		this.type.obstacleTypes.length = 0;
+	};
 	
 	behaviorProto.acts = new Acts();
 

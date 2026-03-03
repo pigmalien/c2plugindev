@@ -50,7 +50,9 @@ AddAction(2, af_none, "Clear secondary target", "Targeting", "Clear {my} seconda
 AddNumberParam("X", "The X coordinate to pan to.");
 AddNumberParam("Y", "The Y coordinate to pan to.");
 AddNumberParam("Duration", "The time in seconds for the pan to complete.", "1.0");
-AddAction(3, af_none, "Pan to position", "Pan", "Pan {my} to (<i>{0}</i>, <i>{1}</i>) over <i>{2}</i> seconds", "Smoothly pan the camera to a specific layout position.", "PanToPosition");
+AddNumberParam("Hold Delay", "Time in seconds to wait at the target before the next phase (return pan or tracking).", "0");
+AddNumberParam("Return Duration", "Time in seconds for the pan to return to its starting point. 0 to resume tracking instead.", "0");
+AddAction(3, af_none, "Pan to position", "Pan", "Pan {my} to (<i>{0}</i>, <i>{1}</i>) over <i>{2}</i>s (hold: <i>{3}</i>s, return pan: <i>{4}</i>s)", "Smoothly pan the camera to a specific layout position, optionally waiting and then panning back.", "PanToPosition");
 
 AddNumberParam("Intensity", "The maximum pixel offset of the shake.", "10");
 AddNumberParam("Duration", "The time in seconds for the shake to last.", "0.5");

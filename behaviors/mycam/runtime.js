@@ -93,6 +93,14 @@ cr.behaviors.MyCam = function(runtime)
 		this.panTargetY = 0;
 		this.panTime = 0;
 		this.panDuration = 1;
+		this.isPanHolding = false;
+		this.panHoldTime = 0;
+		this.panHoldDuration = 0;
+
+		// Return Panning state
+		this.isReturnPanning = false;
+		this.returnPanTime = 0;
+		this.returnPanDuration = 0;
 
 		// Shaking state
 		this.isShaking = false;
@@ -158,7 +166,21 @@ cr.behaviors.MyCam = function(runtime)
 			"stuid": this.secondaryTargetUid,
 			"ucc": this.useCustomClamp,
 			"cminx": this.minX, "cminy": this.minY, "cmaxx": this.maxX, "cmaxy": this.maxY,
-			"crx": this.currentRoomX, "cry": this.currentRoomY
+			"crx": this.currentRoomX, "cry": this.currentRoomY,
+			// Panning state
+			"ip": this.isPanning,
+			"psx": this.panStartX,
+			"psy": this.panStartY,
+			"ptx": this.panTargetX,
+			"pty": this.panTargetY,
+			"pt": this.panTime,
+			"pd": this.panDuration,
+			"iph": this.isPanHolding,
+			"pht": this.panHoldTime,
+			"phd": this.panHoldDuration,
+			"irp": this.isReturnPanning,
+			"rpt": this.returnPanTime,
+			"rpd": this.returnPanDuration
 		};
 	};
 	
@@ -187,6 +209,21 @@ cr.behaviors.MyCam = function(runtime)
 		this.minX = o["cminx"]; this.minY = o["cminy"]; this.maxX = o["cmaxx"]; this.maxY = o["cmaxy"];
 		this.currentRoomX = o["crx"] || 0;
 		this.currentRoomY = o["cry"] || 0;
+
+		// Panning state
+		this.isPanning = o["ip"] || false;
+		this.panStartX = o["psx"] || 0;
+		this.panStartY = o["psy"] || 0;
+		this.panTargetX = o["ptx"] || 0;
+		this.panTargetY = o["pty"] || 0;
+		this.panTime = o["pt"] || 0;
+		this.panDuration = o["pd"] || 1;
+		this.isPanHolding = o["iph"] || false;
+		this.panHoldTime = o["pht"] || 0;
+		this.panHoldDuration = o["phd"] || 0;
+		this.isReturnPanning = o["irp"] || false;
+		this.returnPanTime = o["rpt"] || 0;
+		this.returnPanDuration = o["rpd"] || 0;
 
 		// When loading from a save state, it is never the first tick.
 		this.firstTick = false;
@@ -265,11 +302,55 @@ cr.behaviors.MyCam = function(runtime)
 				this.isPanning = false;
 				this.cameraX = this.panTargetX;
 				this.cameraY = this.panTargetY;
-				this.runtime.trigger(cr.behaviors.MyCam.prototype.cnds.OnPanFinished, inst);
+
+				if (this.panHoldDuration > 0) {
+					this.isPanHolding = true;
+					this.panHoldTime = 0;
+				}
+				else if (this.returnPanDuration > 0) {
+					this.isReturnPanning = true;
+					this.returnPanTime = 0;
+				}
+				else {
+					this.runtime.trigger(cr.behaviors.MyCam.prototype.cnds.OnPanFinished, inst);
+				}
 			} else {
 				var eased_t = easeInOutQuad(pan_t);
 				this.cameraX = cr.lerp(this.panStartX, this.panTargetX, eased_t);
 				this.cameraY = cr.lerp(this.panStartY, this.panTargetY, eased_t);
+			}
+		}
+		// State: Holding after a pan
+		else if (this.isPanHolding)
+		{
+			this.panHoldTime += dt;
+			if (this.panHoldTime >= this.panHoldDuration) {
+				this.isPanHolding = false;
+
+				if (this.returnPanDuration > 0) {
+					this.isReturnPanning = true;
+					this.returnPanTime = 0;
+				}
+				else {
+					this.runtime.trigger(cr.behaviors.MyCam.prototype.cnds.OnPanFinished, inst);
+				}
+			}
+			// While holding, camera remains static at the pan target.
+		}
+		// State: Panning back to the start
+		else if (this.isReturnPanning)
+		{
+			this.returnPanTime += dt;
+			var return_t = this.returnPanTime / this.returnPanDuration;
+
+			if (return_t >= 1) {
+				this.isReturnPanning = false;
+				this.cameraX = this.panStartX;
+				this.cameraY = this.panStartY;
+				this.runtime.trigger(cr.behaviors.MyCam.prototype.cnds.OnPanFinished, inst);
+			} else {
+				this.cameraX = cr.lerp(this.panTargetX, this.panStartX, easeInOutQuad(return_t));
+				this.cameraY = cr.lerp(this.panTargetY, this.panStartY, easeInOutQuad(return_t));
 			}
 		}
 		// State: Grid Snapping overrides tracking
@@ -497,10 +578,14 @@ cr.behaviors.MyCam = function(runtime)
 	function Cnds() {};
 
 	Cnds.prototype.IsMoving = function () {
-		return this.isPanning || this.isSnapping;
+		// True if the camera is in any non-tracking movement state (pan, snap, return pan).
+		return this.isPanning || this.isSnapping || this.isReturnPanning;
 	};
 	Cnds.prototype.IsShaking = function () { return this.isShaking; };
-	Cnds.prototype.IsPanning = function () { return this.isPanning; };
+	Cnds.prototype.IsPanning = function () {
+		// True for the entire duration of a pan action, including hold and return phases.
+		return this.isPanning || this.isPanHolding || this.isReturnPanning;
+	};
 	Cnds.prototype.OnShakeFinished = function () { return true; };
 	Cnds.prototype.OnPanFinished = function () { return true; };
 	Cnds.prototype.OnSnapFinished = function () { return true; };
@@ -526,16 +611,20 @@ cr.behaviors.MyCam = function(runtime)
 		this.secondaryTargetUid = -1;
 	};
 
-	Acts.prototype.PanToPosition = function (x, y, duration) {
+	Acts.prototype.PanToPosition = function (x, y, duration, holdDelay, returnDuration) {
 		if (!isFinite(x) || !isFinite(y)) return;
 
 		this.isPanning = true;
+		this.isPanHolding = false;
+		this.isReturnPanning = false;
 		this.panStartX = isFinite(this.cameraX) ? this.cameraX : (isFinite(this.inst.x) ? this.inst.x : 0);
 		this.panStartY = isFinite(this.cameraY) ? this.cameraY : (isFinite(this.inst.y) ? this.inst.y : 0);
 		this.panTargetX = x;
 		this.panTargetY = y;
 		this.panDuration = Math.max(duration, 0.001);
 		this.panTime = 0;
+		this.panHoldDuration = holdDelay || 0;
+		this.returnPanDuration = returnDuration || 0;
 	};
 
 	Acts.prototype.TriggerShake = function (intensity, duration, decay) {
