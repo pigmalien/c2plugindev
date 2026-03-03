@@ -63,7 +63,9 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.trajectoryScaling = this.properties[11];
 		this.visualSpeed = this.properties[12];
 		this.setAngle = (this.properties[13] !== 0);
+		this.useSolids = (this.properties[14] === 0); // 0=Yes, 1=No
 		this.visualType = null;
+		this.obstacleTypes = [];
 		
 		// State Machine: 0=IDLE, 1=READY, 2=DRAGGING, 3=COOLDOWN, 4=MOVING
 		this.state = 0;
@@ -141,7 +143,8 @@ cr.behaviors.VectorLauncher = function(runtime)
 			"lsx": this.launchStartX,
 			"lsy": this.launchStartY,
 			"vs": this.visualSpeed,
-			"sa": this.setAngle
+			"sa": this.setAngle,
+			"us": this.useSolids
 		};
 	};
 	
@@ -172,6 +175,7 @@ cr.behaviors.VectorLauncher = function(runtime)
 		this.launchStartX = o["lsx"] || 0;
 		this.launchStartY = o["lsy"] || 0;
 		this.visualSpeed = o["vs"] || 0;
+		this.useSolids = (typeof o["us"] !== "undefined" ? o["us"] : true);
 		this.setAngle = (typeof o["sa"] !== "undefined" ? o["sa"] : true);
 	};
 
@@ -708,6 +712,64 @@ cr.behaviors.VectorLauncher = function(runtime)
 		}
 	};
 	
+	behinstProto._testOverlapAny = function()
+	{
+		var test_inst = this.inst;
+
+		// 1. Test against Solids (this is the best method, it's polygon-perfect for all types including Tilemap)
+		if (this.useSolids && this.runtime.testOverlapSolid(test_inst))
+			return true;
+		
+		// 2. Test against custom obstacles
+		for (var i = 0; i < this.obstacleTypes.length; i++) {
+			var type = this.obstacleTypes[i];
+			var instances = type.instances;
+			for (var j = 0; j < instances.length; j++) {
+				var obstacle_inst = instances[j];
+				
+				// Special handling for Tilemap obstacles to get polygon-perfect collision
+				if (obstacle_inst.type && obstacle_inst.type.plugin && obstacle_inst.type.plugin.id === "Tilemap")
+				{
+					// First, do a broad-phase check. If bboxes don't overlap, no need for expensive checks.
+					if (!this.runtime.testOverlap(test_inst, obstacle_inst))
+						continue; // No overlap, check next obstacle
+					
+					// Bboxes overlap. Now do a narrow-phase, polygon-aware check.
+					// We check if any of the projectile's collision points are inside a solid tile.
+					test_inst.update_bbox();
+					var poly = test_inst.collision_poly;
+					
+					// If the projectile has a collision polygon, test its vertices.
+					if (poly && poly.pts.length > 0)
+					{
+						for(var k = 0; k < poly.pts.length; k++)
+						{
+							// Convert polygon point from object-local to layout coordinates
+							var ptx = poly.pts[k][0] + test_inst.x;
+							var pty = poly.pts[k][1] + test_inst.y;
+							
+							// The tilemap's testPoint method is polygon-aware.
+							if (obstacle_inst.testPoint(ptx, pty))
+								return true; // A vertex of the projectile is inside a solid tile polygon.
+						}
+					}
+					else // If no collision polygon, test the center of the sprite.
+					{
+						if (obstacle_inst.testPoint(test_inst.x, test_inst.y))
+							return true;
+					}
+				}
+				else // For all other object types, standard overlap is fine.
+				{
+					if (this.runtime.testOverlap(test_inst, obstacle_inst))
+						return true;
+				}
+			}
+		}
+		
+		return false;
+	};
+
 	behinstProto.calculateRaycast = function()
 	{
 		this.rayPoints = [];
@@ -749,31 +811,88 @@ cr.behaviors.VectorLauncher = function(runtime)
 				this.inst.y = currentY;
 				this.inst.set_bbox_changed();
 				
-				if (this.runtime.testOverlapSolid(this.inst)) {
+				if (this._testOverlapAny()) {
 					hit = true;
 					break;
 				}
 			}
 			
 			if (hit) {
-				// Backtrack
-				var safeX = currentX - dirX * stepSize;
-				var safeY = currentY - dirY * stepSize;
+				// Backtrack to the last known safe position before the large step hit
+				var lastSafeX = currentX - dirX * stepSize;
+				var lastSafeY = currentY - dirY * stepSize;
 				
-				// Determine Normal
-				this.inst.x = currentX; this.inst.y = safeY; this.inst.set_bbox_changed();
-				var hitX = this.runtime.testOverlapSolid(this.inst);
+				// Refine the hit location by stepping forward 1 pixel at a time from the last safe spot.
+				var preciseX = lastSafeX;
+				var preciseY = lastSafeY;
+
+				for (var i = 0; i < stepSize; i++)
+				{
+					preciseX += dirX;
+					preciseY += dirY;
+					this.inst.x = preciseX;
+					this.inst.y = preciseY;
+					this.inst.set_bbox_changed();
+
+					if (this._testOverlapAny())
+					{
+						// Hit detected, so the actual collision point is one step back.
+						preciseX -= dirX;
+						preciseY -= dirY;
+						break;
+					}
+				}
 				
-				this.inst.x = safeX; this.inst.y = currentY; this.inst.set_bbox_changed();
-				var hitY = this.runtime.testOverlapSolid(this.inst);
+				// --- Improved Normal Detection for Corner Hits ---
+				// After finding the precise hit point (preciseX, preciseY), which is the last non-colliding point.
+				// We check which axis is responsible for the collision by testing them separately.
+				// We push into the wall by one pixel from the safe spot.
+				var testX = preciseX + dirX;
+				var testY = preciseY + dirY;
+
+				// Test moving only on X axis from the safe point
+				this.inst.x = testX;
+				this.inst.y = preciseY;
+				this.inst.set_bbox_changed();
+				var hitOnX = this._testOverlapAny();
+
+				// Test moving only on Y axis from the safe point
+				this.inst.x = preciseX;
+				this.inst.y = testY;
+				this.inst.set_bbox_changed();
+				var hitOnY = this._testOverlapAny();
+
+				var normalX = 0;
+				var normalY = 0;
+
+				if (hitOnX) {
+					normalX = (dirX > 0) ? -1 : 1;
+				}
+				if (hitOnY) {
+					normalY = (dirY > 0) ? -1 : 1;
+				}
+
+				// If a normal was found, reflect the direction vector.
+				if (normalX !== 0 || normalY !== 0) {
+					// Normalize the normal vector (it will be axis-aligned or diagonal)
+					var len = Math.sqrt(normalX * normalX + normalY * normalY);
+					var nx = normalX / len;
+					var ny = normalY / len;
+
+					// Reflection formula: R = V - 2 * dot(V, N) * N
+					var dot = dirX * nx + dirY * ny;
+					dirX = dirX - 2 * dot * nx;
+					dirY = dirY - 2 * dot * ny;
+				} else {
+					// Fallback for complex polygons where separated axis tests fail.
+					// Reflect back along the incident vector (180 degrees).
+					dirX *= -1;
+					dirY *= -1;
+				}
 				
-				if (hitX) dirX *= -1;
-				if (hitY) dirY *= -1;
-				if (!hitX && !hitY) { dirX *= -1; dirY *= -1; }
-				
-				this.rayPoints.push({x: safeX, y: safeY});
-				currentX = safeX + dirX * stepSize;
-				currentY = safeY + dirY * stepSize;
+				this.rayPoints.push({x: preciseX, y: preciseY});
+				currentX = preciseX + dirX * stepSize;
+				currentY = preciseY + dirY * stepSize;
 				bounces++;
 			} else {
 				this.rayPoints.push({x: currentX, y: currentY});
@@ -1003,6 +1122,18 @@ cr.behaviors.VectorLauncher = function(runtime)
 	Acts.prototype.SetVisualSpeed = function (s)
 	{
 		this.visualSpeed = s;
+	};
+
+	Acts.prototype.AddObstacle = function (obj)
+	{
+		if (!obj) return;
+		if (this.obstacleTypes.indexOf(obj) === -1)
+			this.obstacleTypes.push(obj);
+	};
+
+	Acts.prototype.ClearObstacles = function ()
+	{
+		this.obstacleTypes.length = 0;
 	};
 	
 	behaviorProto.acts = new Acts();

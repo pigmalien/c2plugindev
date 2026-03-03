@@ -111,6 +111,11 @@ AddAction(12, af_none, "Set trajectory scaling", "Launcher", "Set trajectory sca
 AddNumberParam("Speed", "The visual speed in pixels per second (0 = use physics).");
 AddAction(13, af_none, "Set visual speed", "Launcher", "Set visual speed to {0}", "Set the visual speed for Gravity mode.", "SetVisualSpeed");
 
+AddObjectParam("Object", "The object to treat as an obstacle.");
+AddAction(14, af_none, "Add obstacle", "Raycast (Ricochet)", "Add obstacle {0}", "Add an object to collide with in Raycast mode.", "AddObstacle");
+
+AddAction(15, af_none, "Clear obstacles", "Raycast (Ricochet)", "Clear obstacles", "Remove all custom obstacles.", "ClearObstacles");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -178,7 +183,8 @@ var property_list = [
 	new cr.Property(ept_float, 	"Z Scale",		1.0,	"Visual scaling factor for the Z-axis (Top-Down only)."),
 	new cr.Property(ept_float, 	"Trajectory Scaling", 0.0, "Scale multiplier for the visual trajectory sprites based on Z height (0 = no scaling)."),
 	new cr.Property(ept_float, 	"Visual Speed",	0,		"The visual speed in pixels per second for Gravity mode (0 = use physics speed)."),
-	new cr.Property(ept_combo, 	"Set Angle",	"Yes",	"Rotate the object to face its direction of travel.", "No|Yes")
+	new cr.Property(ept_combo, 	"Set Angle",	"Yes",	"Rotate the object to face its direction of travel.", "No|Yes"),
+	new cr.Property(ept_combo, 	"Use Solids",	"Yes",	"Check for collisions with objects that have the Solid behavior.", "Yes|No")
 	];
 	
 // Called by IDE when a new behavior type is to be created

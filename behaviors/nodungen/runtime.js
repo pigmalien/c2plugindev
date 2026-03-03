@@ -77,13 +77,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		this.tileSideLeft = p[25];
 		this.tileCornerOutTL = p[26];
 		this.tileCornerInTL = p[27];
-		this.tileBelowCornerOutBL = p[28];
-		this.tileBelowSideTop = p[29];
-		this.tileBelowCornerOutBR = p[30];
-		this.tileShadowSideRight = p[31];
-		this.tileShadowCornerInTL = p[32];
-		this.tileShadowBelowCornerOutBREnd = p[33];
-		this.tileShadowBelowSideTop = p[34];
+		this.cleanupEnabled = (p[28] !== 0); // Default Enabled
 
 		this.generatedRooms = 0;
 		this.prng = null;
@@ -92,7 +86,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		this.loop_room_index = 0;
 
 		this.variants = [];
-		for(var i=0; i<21; i++) this.variants[i] = [];
+		for(var i=0; i<14; i++) this.variants[i] = [];
 
 		// Internal tile types
 		this.VOID = 0;
@@ -147,16 +141,10 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 			"t_sl": this.tileSideLeft,
 			"t_cotl": this.tileCornerOutTL,
 			"t_citl": this.tileCornerInTL,
-			"t_b_cobl": this.tileBelowCornerOutBL,
-			"t_b_st": this.tileBelowSideTop,
-			"t_b_cobr": this.tileBelowCornerOutBR,
-			"t_s_sr": this.tileShadowSideRight,
-			"t_s_citl": this.tileShadowCornerInTL,
-			"t_s_bcobre": this.tileShadowBelowCornerOutBREnd,
-			"t_s_bst": this.tileShadowBelowSideTop,
 			"variants": this.variants,
 			"grid": this.grid,
-			"rooms": this.rooms
+			"rooms": this.rooms,
+			"cleanup": this.cleanupEnabled
 		};
 	};
 	
@@ -192,16 +180,10 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		this.tileSideLeft = o["t_sl"] || -1;
 		this.tileCornerOutTL = o["t_cotl"] || -1;
 		this.tileCornerInTL = o["t_citl"] || -1;
-		this.tileBelowCornerOutBL = o["t_b_cobl"] || -1;
-		this.tileBelowSideTop = o["t_b_st"] || -1;
-		this.tileBelowCornerOutBR = o["t_b_cobr"] || -1;
-		this.tileShadowSideRight = o["t_s_sr"] || -1;
-		this.tileShadowCornerInTL = o["t_s_citl"] || -1;
-		this.tileShadowBelowCornerOutBREnd = o["t_s_bcobre"] || -1;
-		this.tileShadowBelowSideTop = o["t_s_bst"] || -1;
+		this.cleanupEnabled = (typeof o["cleanup"] !== "undefined") ? o["cleanup"] : true;
 
 		this.variants = o["variants"] || [];
-		for(var i=0; i<21; i++) {
+		for(var i=0; i<14; i++) {
 			if (!this.variants[i]) this.variants[i] = [];
 		}
 		this.grid = o["grid"];
@@ -450,10 +432,10 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		var s = isWall(x, y + 1);
 		var w = isWall(x - 1, y);
 		
-		// Helper to fallback to default wall tile if specific shape is not set (-1)
+		// Helper to resolve variant
 		var self = this;
 		function r(idx, id) {
-			return self._resolveVariant(idx, id !== -1 ? id : self.wallTile);
+			return self._resolveVariant(idx, id);
 		}
 		
 		// Outer Corners (Exterior/Convex) - Wall sticking out
@@ -481,74 +463,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		if (!e && n && s && w) return r(9, this.tileSideLeft);
 		if (!w && n && s && e) return r(3, this.tileSideRight);
 	
-		return this._resolveVariant(20, this.wallTile); // Default wall tile
-	};
-
-	behinstProto._getDepthTile = function(x, y) {
-		// (x, y) is the floor tile coordinate
-		var isWall = (tx, ty) => {
-			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return true;
-			var tile = this.grid[tx][ty];
-			return tile !== this.FLOOR;
-		};
-
-		var wallNorth = isWall(x, y - 1);
-		var wallWest = isWall(x - 1, y);
-
-		// Inner Corner Shadow (North + West) - check first for priority
-		if (wallNorth && wallWest) {
-			return this._resolveVariant(16, this.tileShadowCornerInTL);
-		}
-
-		// 1. North Wall Shadows (Depth)
-		if (wallNorth) {
-			var wx = x;
-			var wy = y - 1;
-			var n = isWall(wx, wy - 1);
-			var e = isWall(wx + 1, wy);
-			var w = isWall(wx - 1, wy);
-			
-			if (n && e && w) return this._resolveVariant(13, this.tileBelowSideTop);
-			if (n && e && !w) return this._resolveVariant(12, this.tileBelowCornerOutBL);
-			if (n && !e && w) return this._resolveVariant(14, this.tileBelowCornerOutBR);
-		}
-
-		// 2. Shadow below the face (3/4 view corner shadow)
-		if (!wallNorth && isWall(x, y - 2)) {
-			var wx = x;
-			var wy = y - 2;
-			var n = isWall(wx, wy - 1);
-			var e = isWall(wx + 1, wy);
-			var w = isWall(wx - 1, wy);
-			
-			if (n && (e || w)) {
-				if (wallWest) return this._resolveVariant(16, this.tileShadowCornerInTL);
-				return this._resolveVariant(18, this.tileShadowBelowSideTop);
-			}
-		}
-
-		// 4. West Wall Shadow (Side Right)
-		if (wallWest) {
-			return this._resolveVariant(15, this.tileShadowSideRight);
-		}
-
-		// 5. Shadow Side Right (Diagonal from CornerOutBR)
-		if (!wallNorth && !wallWest) {
-			if (isWall(x - 1, y - 1)) {
-				var n = isWall(x - 1, y - 2);
-				var w = isWall(x - 2, y - 1);
-				if (n && w) {
-					return this._resolveVariant(15, this.tileShadowSideRight);
-				}
-			}
-			if (!isWall(x - 1, y - 1) && isWall(x - 1, y - 2)) {
-				var n = isWall(x - 1, y - 3);
-				var w = isWall(x - 2, y - 2);
-				if (n && w) return this._resolveVariant(17, this.tileShadowBelowCornerOutBREnd);
-			}
-		}
-
-		return -1;
+		return this._resolveVariant(13, this.wallTile); // Default wall tile
 	};
 
 	behinstProto._getWallShapeAt = function(x, y) {
@@ -561,62 +476,10 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		};
 
 		if (t === this.FLOOR) {
-			var wallNorth = isWall(x, y - 1);
-			var wallWest = isWall(x - 1, y);
-
-			// Inner Corner Shadow (North + West)
-			if (wallNorth && wallWest && this.tileShadowCornerInTL !== -1) return "ShadowCornerInTL";
-
-			// 1. North Wall Shadows (Depth)
-			if (wallNorth) {
-				var wx = x;
-				var wy = y - 1;
-				var n = isWall(wx, wy - 1);
-				var e = isWall(wx + 1, wy);
-				var w = isWall(wx - 1, wy);
-				
-				if (n && e && w && this.tileBelowSideTop !== -1) return "BelowSideTop";
-				if (n && e && !w && this.tileBelowCornerOutBL !== -1) return "BelowCornerOutBL";
-				if (n && !e && w && this.tileBelowCornerOutBR !== -1) return "BelowCornerOutBR";
-			}
-
-			// 2. Shadow below the face (3/4 view corner shadow)
-			if (!wallNorth && isWall(x, y - 2)) {
-				var wx = x;
-				var wy = y - 2;
-				var n = isWall(wx, wy - 1);
-				var e = isWall(wx + 1, wy);
-				var w = isWall(wx - 1, wy);
-				
-				if (n && (e || w)) {
-					if (wallWest) {
-						if (this.tileShadowCornerInTL !== -1) return "ShadowCornerInTL";
-					} else {
-						if (this.tileShadowBelowSideTop !== -1) return "ShadowBelowSideTop";
-					}
-				}
-			}
-
-			// 4. West Wall Shadow (Side Right)
-			if (wallWest && this.tileShadowSideRight !== -1) return "ShadowSideRight";
-
-			// 5. Shadow Side Right (Diagonal from CornerOutBR)
-			if (!wallNorth && !wallWest) {
-				if (isWall(x - 1, y - 1)) {
-					var n = isWall(x - 1, y - 2);
-					var w = isWall(x - 2, y - 1);
-					if (n && w && this.tileShadowSideRight !== -1) return "ShadowSideRight";
-				}
-				if (!isWall(x - 1, y - 1) && isWall(x - 1, y - 2)) {
-					var n = isWall(x - 1, y - 3);
-					var w = isWall(x - 2, y - 2);
-					if (n && w && this.tileShadowBelowCornerOutBREnd !== -1) return "ShadowBelowCornerOutBREnd";
-				}
-			}
-
 			return "Floor";
 		}
 	
+		// Wall logic starts here
 		var n = isWall(x, y - 1);
 		var e = isWall(x + 1, y);
 		var s = isWall(x, y + 1);
@@ -627,7 +490,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		if (!n && !e && w && s) return "CornerOutTR";
 		if (!s && !w && (e || n)) return "CornerOutBL";
 		if (!s && !e && (w || n)) return "CornerOutBR";
-
+		
 		// Inner Corners (Interior/Concave)
 		if (n && e && s && w) {
 			var ne = isWall(x + 1, y - 1);
@@ -639,7 +502,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 			if (!ne) return "CornerInBL";
 			if (!nw) return "CornerInBR";
 		}
-	
+		
 		// Sides
 		if (!s && n && e && w) return "SideTop";
 		if (!n && s && e && w) return "SideBottom";
@@ -648,6 +511,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 	
 		return "Wall";
 	};
+
 
 	// The comments around these functions ensure they are removed when exporting, since the
 	// debugger code is no longer relevant after publishing.
@@ -931,6 +795,8 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 	};
 
 	behinstProto._cleanupGrid = function() {
+		if (!this.cleanupEnabled) return;
+
 		var changed = true;
 		var maxIterations = 10; // Safety break to prevent infinite loops
 		var iter = 0;
@@ -938,6 +804,11 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 		var isNotWall = (tx, ty) => {
 			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return true;
 			return this.grid[tx][ty] !== this.WALL;
+		};
+
+		var isFloor = (tx, ty) => {
+			if (tx < 0 || tx >= this.mapWidth || ty < 0 || ty >= this.mapHeight) return false;
+			return this.grid[tx][ty] === this.FLOOR;
 		};
 
 		while(changed && iter < maxIterations) {
@@ -960,9 +831,9 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 							continue;
 						}
 
-						// Remove 1-tile thick walls between two floor/void areas
-						var isThinH = isNotWall(x, y - 1) && isNotWall(x, y + 1);
-						var isThinV = isNotWall(x - 1, y) && isNotWall(x + 1, y);
+						// Remove 1-tile thick walls between two floor areas (internal walls only)
+						var isThinH = isFloor(x, y - 1) && isFloor(x, y + 1);
+						var isThinV = isFloor(x - 1, y) && isFloor(x + 1, y);
 
 						if (isThinH || isThinV) {
 							toRemove.push({x: x, y: y});
@@ -994,19 +865,13 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 					var outputTile = -1;
 
 					if (tileType === this.FLOOR) {
-						var depthTile = -1;
-						if (this.autotiling === 1) {
-							depthTile = this._getDepthTile(x, y);
-						}
-						
-						if (depthTile !== -1) outputTile = depthTile;
-						else outputTile = this._resolveVariant(19, this.floorTile);
+						outputTile = this._resolveVariant(12, this.floorTile);
 					}
 					else if (tileType === this.WALL) {
                         if (this.autotiling === 1) {
                             outputTile = this._getWallTile(x, y);
                         } else {
-						    outputTile = this._resolveVariant(20, this.wallTile);
+						    outputTile = this._resolveVariant(13, this.wallTile);
                         }
 					}
 					// If VOID, outputTile remains -1, which will erase the tile.
@@ -1049,13 +914,6 @@ cr.behaviors.DelaunayDungeon = function(runtime)
             case 9: this.tileSideLeft = id; break;
             case 10: this.tileCornerOutTL = id; break;
             case 11: this.tileCornerInTL = id; break;
-            case 12: this.tileBelowCornerOutBL = id; break;
-            case 13: this.tileBelowSideTop = id; break;
-            case 14: this.tileBelowCornerOutBR = id; break;
-            case 15: this.tileShadowSideRight = id; break;
-            case 16: this.tileShadowCornerInTL = id; break;
-            case 17: this.tileShadowBelowCornerOutBREnd = id; break;
-            case 18: this.tileShadowBelowSideTop = id; break;
         }
     };
 
@@ -1142,14 +1000,6 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 	Exps.prototype.TileSideLeft = function (ret) { ret.set_int(this.tileSideLeft); };
 	Exps.prototype.TileCornerOutTL = function (ret) { ret.set_int(this.tileCornerOutTL); };
 	Exps.prototype.TileCornerInTL = function (ret) { ret.set_int(this.tileCornerInTL); };
-
-	Exps.prototype.TileBelowCornerOutBL = function (ret) { ret.set_int(this.tileBelowCornerOutBL); };
-	Exps.prototype.TileBelowSideTop = function (ret) { ret.set_int(this.tileBelowSideTop); };
-	Exps.prototype.TileBelowCornerOutBR = function (ret) { ret.set_int(this.tileBelowCornerOutBR); };
-	Exps.prototype.TileShadowSideRight = function (ret) { ret.set_int(this.tileShadowSideRight); };
-	Exps.prototype.TileShadowCornerInTL = function (ret) { ret.set_int(this.tileShadowCornerInTL); };
-	Exps.prototype.TileShadowBelowCornerOutBREnd = function (ret) { ret.set_int(this.tileShadowBelowCornerOutBREnd); };
-	Exps.prototype.TileShadowBelowSideTop = function (ret) { ret.set_int(this.tileShadowBelowSideTop); };
 
 	Exps.prototype.GetSeed = function (ret) {
 		ret.set_string(this.seed.toString());
