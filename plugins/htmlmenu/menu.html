@@ -1,0 +1,36 @@
+<div class="menu-container">
+    <h3>Game Menu</h3>
+    
+    <!-- Tier 2: The 'data-c2-id' attribute triggers the "On Button Clicked" condition -->
+    <!-- Tier 5: The 'data-sfx-*' attributes trigger the "On Sound Triggered" condition -->
+    <button type="button" data-c2-id="start_game" data-sfx-click="sfx_confirm" data-sfx-hover="sfx_hover">Start Game</button>
+    <button type="button" data-c2-id="load_game" data-sfx-click="sfx_confirm" data-sfx-hover="sfx_hover">Load Game</button>
+    
+    <!-- Tier 1: An element with a standard ID for the "Update Element Content" action -->
+    <div id="status_message">Ready...</div>
+
+    <!-- Tier 3: External Logic Support -->
+    <!-- This script will now be automatically executed when the HTML loads -->
+    
+    <!-- This element will automatically display the value of the C2 global variable 'mytest' -->
+<p>Global Variable (mytest): <span id="mytest">...</span></p>
+
+<!-- This element will sync with the 'player_hp' key from a synced dictionary -->
+<p>Player HP: <span data-sync-id="player_hp">...</span></p>
+
+<!-- This element syncs with 'player_mana' and formats it to two decimal places -->
+<p>Player Mana: <span data-sync-id="player_mana" data-format="0.00">...</span></p>
+
+<!-- This element syncs with 'progress' and formats it as a percentage -->
+<p>Progress: <span data-sync-id="progress" data-format="percent">...</span></p>
+
+<!-- Tier 4: Two-Way Data Binding -->
+<!-- To use this, create a global variable in C2 named 'mytest2' and enable 'Two-Way Binding' in the plugin's properties. -->
+<!-- Changes to this input will update the C2 variable, and changes in C2 will update this input. -->
+<p>Two-Way Variable (mytest2): <input type="text" id="mytest2" /></p>
+    
+    <script>
+        console.log("Menu loaded! You can also link external files here.");
+        // Example: Initialize a custom scrollbar or animation library
+    </script>
+</div>
