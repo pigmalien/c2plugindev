@@ -59,11 +59,17 @@ cr.plugins_.HTMLMenu = function(runtime)
 		this.activeInput = null; // For two-way binding loop prevention
 		this.syncData = {}; // For "Sync from Dictionary" action
 		this.lastSFX = ""; // For Sound Bridge
+		this.lastClickedID = "";
+		this.lastFocusedID = "";
+		this.isInputActive = false; // For Key Guard
+		this.interactionMode = 1; // Default to "Buttons Only"
 
 		// Create the DOM element
 		this.elem = document.createElement("div");
 		this.elem.id = "c2-htmlmenu-" + this.uid;
-		this.elem.style.pointerEvents = "none"; // Container should not block input
+		this.elem.style.position = "absolute"; // Necessary for z-index and positioning
+		// this.elem.style.pointerEvents is now handled by SetInteractionMode
+		this.elem.style.zIndex = "100"; // Ensure it's on top of the canvas
 		this.elem.style.imageRendering = "pixelated"; // Ensure crisp rendering for pixel art games
 
 		// Append to the document body to use absolute page coordinates for positioning
@@ -102,6 +108,9 @@ cr.plugins_.HTMLMenu = function(runtime)
 			request.onload = function () {
 				if (request.status >= 200 && request.status < 400) {
 					self.elem.innerHTML = request.responseText;
+
+					// Set initial interaction mode after content is loaded
+					self._setInteractionModeImpl(self.interactionMode);
 					
 					// Tier 3: Manually execute any <script> tags found in the injected HTML
 					var scripts = self.elem.getElementsByTagName("script");
@@ -119,17 +128,56 @@ cr.plugins_.HTMLMenu = function(runtime)
 			};
 			request.onerror = function () { onError("Network Error"); }; // Network errors (e.g. CORS, no connection)
 			request.send();
+		} else {
+			// If no HTML file, still need to set interaction mode
+			this._setInteractionModeImpl(this.interactionMode);
 		}
 
 		// Tier 2: JS-to-Event-Sheet Bridge (Delegated Listener)
-		this.lastClickedID = "";
 		var self = this;
 		this.jQueryElem.on("click", "[data-c2-id]", function (e) {
 			e.stopPropagation(); // Prevent event from bubbling to other listeners
 			self.lastClickedID = jQuery(this).attr("data-c2-id");
 			self.runtime.trigger(cr.plugins_.HTMLMenu.prototype.cnds.OnButtonClicked, self);
 		});
+		
+		// Focus Bridge (HTML -> C2)
+		this.jQueryElem.on("focusin", "*", function (e) {
+			var target = e.target;
 
+			// Key Guard: check if the focused element is an input type
+			if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
+				self.isInputActive = true;
+			}
+
+			// Ensure the focused element has an ID to report back
+			if (target && target.id) {
+				self.lastFocusedID = target.id;
+				self.runtime.trigger(cr.plugins_.HTMLMenu.prototype.cnds.OnFocusGained, self);
+			}
+		});
+
+		// Focus Lost Bridge (HTML -> C2)
+		this.jQueryElem.on("focusout", "*", function (e) {
+			var target = e.target;
+
+			// Key Guard: if an input loses focus, deactivate the guard
+			if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
+				self.isInputActive = false;
+			}
+
+			// Trigger the "On Focus Lost" condition
+			self.lastFocusedID = target.id || ""; // Report the ID of the element that lost focus
+			self.runtime.trigger(cr.plugins_.HTMLMenu.prototype.cnds.OnFocusLost, self);
+		});
+
+		// Key Guard: Prevent keyboard events from bubbling to C2 when an input is active
+		this.jQueryElem.on("keydown", "input, textarea", function(e) {
+			if (self.isInputActive) {
+				e.stopPropagation();
+			}
+		});
+		
 		// Tier 5: Sound Bridge (HTML -> C2 SFX)
 		// Delegated listener for click sounds. Looks for 'data-sfx-click' attribute.
 		this.jQueryElem.on("mousedown", "[data-sfx-click]", function(e) {
@@ -188,11 +236,6 @@ cr.plugins_.HTMLMenu = function(runtime)
 			});
 		}
 
-		// Prevent clicks on the menu from "bleeding through" to the game canvas
-		this.jQueryElem.on("mousedown touchstart", function (e) {
-			e.stopPropagation();
-		});
-
 		// For tracking changes to avoid unnecessary DOM updates
 		this.last_visible = !this.visible;
 		this.last_left = -1;
@@ -231,6 +274,46 @@ cr.plugins_.HTMLMenu = function(runtime)
 	// called when loading the full state of the game
 	instanceProto.loadFromJSON = function (o)
 	{
+	};
+
+	instanceProto._setInteractionModeImpl = function (mode) {
+		this.interactionMode = mode; // 0=Full Block, 1=Buttons Only, 2=None
+		
+		if (!this.elem) return;
+
+		const interactiveSelector = 'a[href], button, input, textarea, select, [data-c2-id], [data-sfx-click], [data-sfx-hover]';
+		const interactiveElements = this.elem.querySelectorAll(interactiveSelector);
+
+		if (mode === 0) { // Full Block
+			this.elem.style.pointerEvents = "auto";
+			// Reset children to inherit/default
+			for (let i = 0; i < interactiveElements.length; i++) {
+				interactiveElements[i].style.pointerEvents = "";
+			}
+			return;
+		}
+		
+		// For "Buttons Only" or "None", the container itself doesn't receive pointer events.
+		this.elem.style.pointerEvents = "none";
+
+		const childPointerEvents = (mode === 1) ? "auto" : "none"; // "auto" for Buttons Only, "none" for None
+
+		for (let i = 0; i < interactiveElements.length; i++) {
+			interactiveElements[i].style.pointerEvents = childPointerEvents;
+		}
+	};
+
+	instanceProto.getFocusableElements = function () {
+		if (!this.elem) return [];
+		// This selector is based on jQuery UI's :focusable selector, but adapted for querySelectorAll
+		const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+		const elements = Array.from(this.elem.querySelectorAll(focusableSelector));
+		
+		// Filter out elements that are not visible to the user
+		return elements.filter(el => {
+			// offsetParent is null for elements that are not rendered or have display: none
+			return el.offsetParent !== null;
+		});
 	};
 
 	/**
@@ -452,7 +535,17 @@ cr.plugins_.HTMLMenu = function(runtime)
 		return true; // It's a trigger
 	};
 	
+	Cnds.prototype.OnFocusLost = function ()
+	{
+		return true; // It's a trigger
+	};
+
 	Cnds.prototype.OnSoundTriggered = function ()
+	{
+		return true; // It's a trigger
+	};
+
+	Cnds.prototype.OnFocusGained = function ()
 	{
 		return true; // It's a trigger
 	};
@@ -469,6 +562,11 @@ cr.plugins_.HTMLMenu = function(runtime)
 		const success = this.safeUpdateElement(elemId, function(element) {
 			element.innerHTML = content;
 		});
+		
+		// Re-apply interaction mode to ensure new elements adhere to the rules
+		if (success) {
+			this._setInteractionModeImpl(this.interactionMode);
+		}
 
 		if (!success) {
 			console.warn("HTMLMenu: Element with ID '" + elemId + "' not found.");
@@ -499,6 +597,60 @@ cr.plugins_.HTMLMenu = function(runtime)
 			console.error("HTMLMenu: Invalid JSON string provided for 'Sync from Dictionary'.", e);
 		}
 	};
+
+	Acts.prototype.FocusElementByID = function (elemId) {
+		if (!this.elem || !elemId) return;
+		const target = this.elem.querySelector("#" + elemId);
+		if (target && typeof target.focus === 'function') {
+			target.focus();
+		}
+	};
+
+	Acts.prototype.SetInteractionMode = function (mode) {
+		this._setInteractionModeImpl(mode);
+	};
+
+	Acts.prototype.ReleaseFocus = function () {
+		if (!this.elem) return;
+		// Check if the currently active element is a child of our menu
+		if (document.activeElement && this.elem.contains(document.activeElement)) {
+			document.activeElement.blur();
+		}
+	};
+
+	Acts.prototype.FocusNext = function () {
+		const focusable = this.getFocusableElements();
+		if (focusable.length === 0) return;
+
+		const current = document.activeElement;
+		let currentIndex = focusable.indexOf(current);
+
+		// If nothing is focused, or focused element is not in our menu, focus the first one.
+		if (currentIndex === -1) {
+			focusable[0].focus();
+			return;
+		}
+
+		const nextIndex = (currentIndex + 1) % focusable.length;
+		focusable[nextIndex].focus();
+	};
+
+	Acts.prototype.FocusPrevious = function () {
+		const focusable = this.getFocusableElements();
+		if (focusable.length === 0) return;
+
+		const current = document.activeElement;
+		let currentIndex = focusable.indexOf(current);
+
+		// If nothing is focused, or focused element is not in our menu, focus the last one.
+		if (currentIndex === -1) {
+			focusable[focusable.length - 1].focus();
+			return;
+		}
+
+		const prevIndex = (currentIndex - 1 + focusable.length) % focusable.length;
+		focusable[prevIndex].focus();
+	};
 	
 	pluginProto.acts = new Acts();
 	
@@ -515,6 +667,16 @@ cr.plugins_.HTMLMenu = function(runtime)
 		ret.set_string(this.lastSFX);
 	};
 	
+	Exps.prototype.FocusedID = function (ret)
+	{
+		ret.set_string(this.lastFocusedID);
+	};
+	
+	Exps.prototype.IsInputActive = function (ret)
+	{
+		ret.set_int(this.isInputActive ? 1 : 0);
+	};
+
 	pluginProto.exps = new Exps();
 
 }());

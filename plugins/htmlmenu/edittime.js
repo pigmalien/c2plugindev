@@ -1,4 +1,4 @@
-﻿﻿function GetPluginSettings()
+﻿﻿﻿﻿function GetPluginSettings()
 {
 	return {
 		"name":			"HTML Menu",			// as appears in 'insert object' dialog, can be changed as long as "id" stays the same
@@ -46,6 +46,10 @@ AddCondition(0, cf_trigger, "On button clicked", "Menu", "On button clicked", "T
 
 AddCondition(1, cf_trigger, "On sound triggered", "Sound", "On sound triggered", "Triggered when an HTML element with a 'data-sfx' attribute is interacted with.", "OnSoundTriggered");
 
+AddCondition(2, cf_trigger, "On focus gained", "Focus", "On focus gained", "Triggered when a menu element gains focus.", "OnFocusGained");
+
+AddCondition(3, cf_trigger, "On focus lost", "Focus", "On focus lost", "Triggered when a menu element loses focus.", "OnFocusLost");
+
 ////////////////////////////////////////
 // Actions
 
@@ -58,12 +62,31 @@ AddAction(2, af_none, "Force sync now", "Sync", "Force universal sync", "Manuall
 AddStringParam("Dictionary JSON", "The JSON data from a Dictionary object (e.g., Dictionary.AsJSON).");
 AddAction(3, af_none, "Sync from Dictionary", "Sync", "Sync from Dictionary JSON <i>{0}</i>", "Load data from a Dictionary's JSON to be used by the universal sync.", "SyncFromDictionary");
 
+AddStringParam("Element ID", "The ID of the element to focus.");
+AddAction(4, af_none, "Focus element by ID", "Focus", "Set focus to element with ID <b>{0}</b>", "Manually set focus to a specific HTML element.", "FocusElementByID");
+
+AddComboParamOption("Full Block");
+AddComboParamOption("Buttons Only");
+AddComboParamOption("None");
+AddComboParam("Mode", "Choose how the menu interacts with mouse/touch input.", 1);
+AddAction(5, af_none, "Set interaction mode", "Interaction", "Set interaction mode to <b>{0}</b>", "Control how the menu blocks input to the game canvas.", "SetInteractionMode");
+
+AddAction(6, af_none, "Focus next element", "Focus", "Focus next element", "Move focus to the next focusable element in the menu.", "FocusNext");
+
+AddAction(7, af_none, "Focus previous element", "Focus", "Focus previous element", "Move focus to the previous focusable element in the menu.", "FocusPrevious");
+
+AddAction(8, af_none, "Release focus", "Focus", "Release focus", "Manually blur the currently focused HTML element.", "ReleaseFocus");
+
 ////////////////////////////////////////
 // Expressions
 
 AddExpression(0, ef_return_string, "ClickedID", "Menu", "ClickedID", "Get the 'data-c2-id' value from the last clicked button.");
 
 AddExpression(1, ef_return_string, "LastSFX", "Sound", "LastSFX", "Get the name of the sound effect triggered from the HTML.");
+
+AddExpression(2, ef_return_string, "FocusedID", "Focus", "FocusedID", "Get the ID of the element that last gained focus.");
+
+AddExpression(3, ef_return_number, "IsInputActive", "Focus", "IsInputActive", "Returns 1 if an input element is currently active, 0 otherwise.");
 
 ////////////////////////////////////////
 ACESDone();
