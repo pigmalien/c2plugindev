@@ -1,36 +1,120 @@
-<div class="menu-container">
-    <h3>Game Menu</h3>
+<!-- 
+  HTMLMenu Plugin Tutorial
+  Styled with NES.css (https://nostalgic-css.github.io/NES.css/)
+-->
+<div class="menu-body">
+  <div class="nes-container with-title is-centered">
+    <p class="title">HTMLMenu Plugin Tutorial</p>
+    <p>A live demonstration of the plugin's features!</p>
+  </div>
+  
+  <!-- Section 1: C2 -> HTML Data Syncing -->
+  <section class="nes-container with-title">
+    <h3 class="title">1. C2 to HTML Sync</h3>
+    <p>Display data from Construct 2 in your HTML. Enable "Auto-Sync" in plugin properties for this to update live.</p>
     
-    <!-- Tier 2: The 'data-c2-id' attribute triggers the "On Button Clicked" condition -->
-    <!-- Tier 5: The 'data-sfx-*' attributes trigger the "On Sound Triggered" condition -->
-    <button type="button" data-c2-id="start_game" data-sfx-click="sfx_confirm" data-sfx-hover="sfx_hover">Start Game</button>
-    <button type="button" data-c2-id="load_game" data-sfx-click="sfx_confirm" data-sfx-hover="sfx_hover">Load Game</button>
+    <div class="nes-lists">
+      <ul class="nes-list is-disc">
+        <li>Global Variable (<code>player_name</code>): <strong id="player_name">...</strong></li>
+        <li>Dictionary Value (<code>player_hp</code>): <strong data-sync-id="player_hp">...</strong></li>
+        <li>Formatted Number (<code>player_mana</code>): <strong data-sync-id="player_mana" data-format="0.00">...</strong></li>
+        <li>Formatted Percent (<code>progress</code>): <strong data-sync-id="progress" data-format="percent">...</strong></li>
+        <li>Raw HTML (<code>status_icon</code>): <span data-sync-id="status_icon" data-raw="true">...</span>
+          <br><small>C2 variable should contain: <code>&lt;i class="nes-icon is-small heart"&gt;&lt;/i&gt;</code></small>
+        </li>
+      </ul>
+    </div>
+    <p>Use a progress bar!</p>
+    <progress class="nes-progress is-primary" value="0" max="100" data-sync-id="progress_val"></progress>
+  </section>
+  
+  <!-- Section 2: HTML -> C2 Interaction -->
+  <section class="nes-container with-title">
+    <h3 class="title">2. HTML to C2 Interaction</h3>
+    <p>Trigger events in your C2 event sheet from HTML.</p>
     
-    <!-- Tier 1: An element with a standard ID for the "Update Element Content" action -->
-    <div id="status_message">Ready...</div>
-
-    <!-- Tier 3: External Logic Support -->
-    <!-- This script will now be automatically executed when the HTML loads -->
+    <!-- data-c2-id triggers "On Button Clicked" -->
+    <button type="button" class="nes-btn is-primary" data-c2-id="start_game" data-sfx-click="sfx_confirm" data-sfx-hover="sfx_hover">Start Game</button>
     
-    <!-- This element will automatically display the value of the C2 global variable 'mytest' -->
-<p>Global Variable (mytest): <span id="mytest">...</span></p>
-
-<!-- This element will sync with the 'player_hp' key from a synced dictionary -->
-<p>Player HP: <span data-sync-id="player_hp">...</span></p>
-
-<!-- This element syncs with 'player_mana' and formats it to two decimal places -->
-<p>Player Mana: <span data-sync-id="player_mana" data-format="0.00">...</span></p>
-
-<!-- This element syncs with 'progress' and formats it as a percentage -->
-<p>Progress: <span data-sync-id="progress" data-format="percent">...</span></p>
-
-<!-- Tier 4: Two-Way Data Binding -->
-<!-- To use this, create a global variable in C2 named 'mytest2' and enable 'Two-Way Binding' in the plugin's properties. -->
-<!-- Changes to this input will update the C2 variable, and changes in C2 will update this input. -->
-<p>Two-Way Variable (mytest2): <input type="text" id="mytest2" /></p>
+    <!-- data-sfx-* triggers "On Sound Triggered" -->
+    <button type="button" class="nes-btn is-success" data-c2-id="load_game" data-sfx-click="sfx_confirm" data-sfx-hover="sfx_hover">Load Game</button>
     
-    <script>
-        console.log("Menu loaded! You can also link external files here.");
-        // Example: Initialize a custom scrollbar or animation library
-    </script>
+    <p class="nes-text is-error" id="status_message">Click a button!</p>
+  </section>
+  
+  <!-- Section 3: Two-Way Data Binding -->
+  <section class="nes-container with-title">
+    <h3 class="title">3. Two-Way Data Binding</h3>
+    <p>Enable "Two-Way Binding" in properties. An input's <code>id</code> must match a C2 global variable name.</p>
+    <div class="nes-field">
+      <label for="player_class">Player Class (Global Var: <code>player_class</code>)</label>
+      <input type="text" id="player_class" class="nes-input">
+    </div>
+    <div class="nes-select">
+      <select required id="difficulty">
+        <option value="" disabled selected hidden>Difficulty (Global Var: <code>difficulty</code>)</option>
+        <option value="0">Easy</option>
+        <option value="1">Normal</option>
+        <option value="2">Hard</option>
+      </select>
+    </div>
+  </section>
+  
+  <!-- Section 4: GSAP Animations -->
+  <section class="nes-container with-title">
+      <h3 class="title">4. GSAP Animations</h3>
+      <p>Use GSAP actions to animate elements. Make sure <code>gsap.min.js</code> is in your project files!</p>
+      <div class="d-flex align-center justify-around" style="padding: 1rem 0;">
+          <!-- This button will trigger a tween in C2 -->
+          <button type="button" class="nes-btn" data-c2-id="animate_mario" data-sfx-click="sfx_blip">Animate Mario!</button>
+          <!-- This is the target for the animation -->
+          <i class="nes-mario" id="mario_char"></i>
+      </div>
+      <p>You can also do cool text effects:</p>
+      <!-- This is the target for the typewriter effect -->
+      <div class="nes-balloon from-left">
+          <p id="typewriter_target">Hello HTMLMenu!</p>
+      </div>
+  </section>
+  
+  <!-- Section 5: Focus & Keyboard -->
+  <section class="nes-container with-title">
+    <h3 class="title">5. Focus & Keyboard</h3>
+    <p>Manage focus and keyboard input. Use the buttons in the <strong>Flexbox</strong> section below to test focus actions.</p>
+    <div class="nes-field">
+      <label for="name_field">Name:</label>
+      <input type="text" id="name_field" class="nes-input">
+    </div>
+    <div class="nes-field">
+      <label for="email_field">Email:</label>
+      <input type="text" id="email_field" class="nes-input">
+    </div>
+    <p><small>When typing in an input, <code>IsInputActive</code> is true, and keyboard events won't affect C2.</small></p>
+  </section>
+  
+  <!-- Section 6: Layout & Flexbox -->
+  <section class="nes-container with-title">
+    <h3 class="title">6. Layout & Flexbox</h3>
+    <p>Use flexbox for easy alignment. I've added helper classes to <code>style.css</code> like <code>.d-flex</code> and <code>.justify-center</code>.</p>
+    
+    <p>Center a group of buttons:</p>
+    <div class="d-flex justify-center flex-wrap" style="margin-bottom: 1rem;">
+        <button type="button" class="nes-btn is-small" data-c2-id="focus_next">Focus Next</button>
+        <button type="button" class="nes-btn is-small" data-c2-id="focus_prev">Focus Prev</button>
+        <button type="button" class="nes-btn is-small" data-c2-id="release_focus">Release Focus</button>
+    </div>
+  
+    <p>Space items apart:</p>
+    <div class="d-flex justify-between align-center">
+      <i class="nes-icon heart is-small"></i>
+      <progress class="nes-progress is-primary" value="50" max="100" style="width: 70%;"></progress>
+      <i class="nes-icon star is-small"></i>
+    </div>
+  </section>
 </div>
+
+<!-- This script is automatically executed by the plugin -->
+<script>
+    console.log("HTMLMenu Tutorial Loaded!");
+    // You can add custom JS logic here that runs on load.
+</script>

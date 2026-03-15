@@ -1,43 +1,344 @@
-/* The menu container itself should have pointer-events enabled to be interactive */
-.menu-container {
-    pointer-events: auto;
-    font-family: sans-serif;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    border: 2px solid #555;
-    border-radius: 8px;
-    padding: 15px;
+/* 
+  style.css - A manual implementation of NES.css styles for the HTMLMenu tutorial.
+  This file replicates the core look and feel without needing the full nes.min.css library.
+  
+  IMPORTANT: For the font to work, add this to the <head> of your main index.html:
+  <link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
+*/
+
+/* --- Global Styles & Resets --- */
+body {
+    font-family: "Press Start 2P", sans-serif;
+    font-size: 1rem; /* 16px */
+    color: #212529;
+    background-color: #fff;
+    -webkit-font-smoothing: none; /* Disables anti-aliasing for a crisp pixel look */
+    image-rendering: pixelated;
+}
+
+* {
     box-sizing: border-box;
-    width: 100%;
-    height: 100%;
-    overflow: auto; /* Add scrollbars if content overflows */
 }
 
-.menu-container h3 {
-    margin-top: 0;
+/* --- Main Container (replaces .nes-container) --- */
+.nes-container {
+    position: relative;
+    padding: 1.5rem 2rem;
+    border: 4px solid #212529;
+    margin: 2.5rem 1rem 1rem 1rem; /* Extra top margin for title */
+    background-color: #fff;
+}
+
+.nes-container.with-title > .title {
+    display: table;
+    padding: 0 0.5rem;
+    margin: -2.3rem 0 1rem;
+    font-size: 1rem;
+    background-color: #fff;
+    position: relative; /* Keep it in flow but on top */
+    z-index: 1;
+}
+
+.nes-container.with-title.is-centered > .title {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* --- Buttons (.nes-btn) --- */
+.nes-btn {
+    position: relative;
+    display: inline-block;
+    padding: 6px 8px;
+    margin: 4px;
     text-align: center;
-}
-
-.menu-container button {
-    display: block;
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
-    font-size: 16px;
+    vertical-align: middle;
     cursor: pointer;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    color: #212529;
+    background-color: #fff;
+    border: 4px solid #212529;
+    font-family: inherit;
+    font-size: inherit;
 }
 
-.menu-container button:hover {
-    background-color: #45a049;
+.nes-btn::after {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    bottom: -4px;
+    left: -4px;
+    content: "";
+    box-shadow: inset -4px -4px #adafbc;
 }
 
-#status-text {
-    margin-top: 15px;
-    font-style: italic;
-    text-align: center;
-    color: #ccc;
+.nes-btn:hover {
+    background-color: #e7e7e7;
+}
+.nes-btn:hover::after {
+    box-shadow: inset -6px -6px #adafbc;
+}
+
+.nes-btn:active:not(.is-disabled)::after {
+    box-shadow: inset 4px 4px #adafbc;
+}
+
+/* Button Colors */
+.nes-btn.is-primary { color: #fff; background-color: #209cee; }
+.nes-btn.is-primary::after { box-shadow: inset -4px -4px #006bb3; }
+.nes-btn.is-primary:hover { background-color: #108de0; }
+.nes-btn.is-primary:hover::after { box-shadow: inset -6px -6px #006bb3; }
+.nes-btn.is-primary:active:not(.is-disabled)::after { box-shadow: inset 4px 4px #006bb3; }
+
+.nes-btn.is-success { color: #fff; background-color: #92cc41; }
+.nes-btn.is-success::after { box-shadow: inset -4px -4px #4aa52e; }
+.nes-btn.is-success:hover { background-color: #76c442; }
+.nes-btn.is-success:hover::after { box-shadow: inset -6px -6px #4aa52e; }
+.nes-btn.is-success:active:not(.is-disabled)::after { box-shadow: inset 4px 4px #4aa52e; }
+
+.nes-btn.is-small {
+    padding: 4px 6px;
+    font-size: 0.8rem;
+}
+
+/* --- Form Elements --- */
+.nes-field {
+    margin-bottom: 1rem;
+}
+
+.nes-input, .nes-textarea {
+    border: 4px solid #212529;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    margin: 4px 0;
+    background-color: #fff;
+    font-family: inherit;
+}
+
+.nes-select {
+    position: relative;
+    width: 100%;
+    margin: 4px 0;
+}
+
+.nes-select select {
+    border: 4px solid #212529;
+    width: 100%;
+    padding: 0.5rem 2.5rem 0.5rem 1rem;
+    cursor: pointer;
+    border-radius: 0;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    font-family: inherit;
+    background-color: #fff;
+}
+
+.nes-select::after {
+    width: 0; 
+    height: 0; 
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #212529;
+    position: absolute;
+    top: calc(50% - 4px);
+    right: 1rem;
+    pointer-events: none;
+    content: "";
+}
+
+/* --- Lists --- */
+.nes-list.is-disc {
+    list-style: none;
+    padding-left: 30px;
+}
+
+.nes-list.is-disc li {
+    position: relative;
+    margin-bottom: 0.5rem;
+}
+
+.nes-list.is-disc li::before {
+    position: absolute;
+    left: -22px;
+    top: 0.4em;
+    content: "";
+    width: 8px;
+    height: 8px;
+    background-color: #212529;
+}
+
+/* --- Progress Bar --- */
+.nes-progress {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 2rem;
+    border: 4px solid #212529;
+    background-color: #fff;
+    padding: 4px;
+}
+
+.nes-progress::-webkit-progress-bar {
+    background-color: #fff;
+}
+
+.nes-progress::-webkit-progress-value {
+    background-color: #212529;
+}
+
+.nes-progress.is-primary::-webkit-progress-value {
+    background-color: #209cee;
+}
+
+/* --- Text & Misc --- */
+.nes-text.is-error {
+    color: #e76e55;
+}
+
+/* --- Layout & Scrolling --- */
+.menu-body {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+    pointer-events: auto; /* This is crucial to allow scrolling when the parent has pointer-events: none */
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    /* Firefox scrollbar styling */
+    scrollbar-width: auto;
+    scrollbar-color: #212529 #e7e7e7; /* thumb and track color */
+}
+
+/* Webkit (Chrome, Safari) scrollbar styling */
+.menu-body::-webkit-scrollbar {
+    width: 16px;
+}
+.menu-body::-webkit-scrollbar-track {
+    background: #e7e7e7; /* A light grey track */
+}
+.menu-body::-webkit-scrollbar-thumb {
+    background-color: #212529; /* The main dark color */
+}
+
+/* --- Flexbox Utilities --- */
+.d-flex {
+    display: flex;
+}
+.flex-wrap {
+    flex-wrap: wrap;
+}
+.flex-column {
+    flex-direction: column;
+}
+.justify-center {
+    justify-content: center;
+}
+.justify-between {
+    justify-content: space-between;
+}
+.justify-around {
+    justify-content: space-around;
+}
+.align-center {
+    align-items: center;
+}
+
+/* --- Balloon --- */
+.nes-balloon {
+    position: relative;
+    display: inline-block;
+    padding: 1rem 1.5rem;
+    margin: 8px;
+    margin-bottom: 30px;
+    background-color: #fff;
+    border: 4px solid #212529;
+}
+.nes-balloon.from-left::before {
+    position: absolute;
+    content: "";
+    width: 0;
+    height: 0;
+    border: 14px solid transparent;
+    border-top-color: #212529;
+    border-bottom: 0;
+    bottom: -14px;
+    left: 2rem;
+    transform: skewX(-30deg);
+}
+.nes-balloon.from-left::after {
+    position: absolute;
+    content: "";
+    width: 0;
+    height: 0;
+    border: 10px solid transparent;
+    border-top-color: #fff;
+    border-bottom: 0;
+    bottom: -10px;
+    left: calc(2rem + 4px);
+    transform: skewX(-30deg);
+}
+
+/* --- Icons (Directly copied from nes.min.css) --- */
+.nes-icon {
+    position: relative;
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 16px;
+    margin-bottom: 16px;
+    transform: scale(2);
+    transform-origin: top left;
+}
+.nes-icon.is-small {
+    margin: 0;
+    transform: scale(1);
+}
+.nes-icon::before {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    display: block;
+    content: "";
+    background: 0 0;
+}
+.nes-icon.heart::before {
+    width: 1px;
+    height: 1px;
+    color: #f22426;
+    box-shadow: 3px 2px #444, 4px 2px #444, 5px 2px #444, 11px 2px #444, 12px 2px #444, 13px 2px #444, 2px 3px #444, 3px 3px, 4px 3px, 5px 3px, 6px 3px #444, 10px 3px #444, 11px 3px, 12px 3px, 13px 3px #842300, 14px 3px #444, 1px 4px #444, 2px 4px, 3px 4px #fff, 4px 4px #fff, 5px 4px, 6px 4px, 7px 4px #444, 9px 4px #444, 10px 4px, 11px 4px, 12px 4px, 13px 4px, 14px 4px #842300, 15px 4px #444, 1px 5px #444, 2px 5px, 3px 5px #fff, 4px 5px, 5px 5px, 6px 5px, 7px 5px, 8px 5px #444, 9px 5px, 10px 5px, 11px 5px, 12px 5px, 13px 5px, 14px 5px #842300, 15px 5px #444, 1px 6px #444, 2px 6px, 3px 6px, 4px 6px, 5px 6px, 6px 6px, 7px 6px, 8px 6px, 9px 6px, 10px 6px, 11px 6px, 12px 6px, 13px 6px, 14px 6px #842300, 15px 6px #444, 1px 7px #444, 2px 7px, 3px 7px, 4px 7px, 5px 7px, 6px 7px, 7px 7px, 8px 7px, 9px 7px, 10px 7px, 11px 7px, 12px 7px, 13px 7px, 14px 7px #842300, 15px 7px #444, 1px 8px #444, 2px 8px, 3px 8px, 4px 8px, 5px 8px, 6px 8px, 7px 8px, 8px 8px, 9px 8px, 10px 8px, 11px 8px, 12px 8px, 13px 8px, 14px 8px #842300, 15px 8px #444, 2px 9px #444, 3px 9px, 4px 9px, 5px 9px, 6px 9px, 7px 9px, 8px 9px, 9px 9px, 10px 9px, 11px 9px, 12px 9px, 13px 9px #842300, 14px 9px #444, 3px 10px #444, 4px 10px, 5px 10px, 6px 10px, 7px 10px, 8px 10px, 9px 10px, 10px 10px, 11px 10px, 12px 10px #842300, 13px 10px #444, 4px 11px #444, 5px 11px, 6px 11px, 7px 11px, 8px 11px, 9px 11px, 10px 11px, 11px 11px #842300, 12px 11px #444, 5px 12px #444, 6px 12px, 7px 12px, 8px 12px, 9px 12px, 10px 12px #842300, 11px 12px #444, 6px 13px #444, 7px 13px, 8px 13px, 9px 13px #842300, 10px 13px #444, 7px 14px #444, 8px 14px #842300, 9px 14px #444, 8px 15px #444;
+}
+
+.nes-mario {
+    position: relative;
+    display: inline-block;
+    width: 84px;
+    height: 96px;
+}
+.nes-mario::before {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    content: "";
+    background: 0 0;
+    width: 6px;
+    height: 6px;
+    color: #f81c2f;
+    box-shadow: 30px 6px, 36px 6px, 42px 6px, 48px 6px, 54px 6px, 24px 12px, 30px 12px, 36px 12px, 42px 12px, 48px 12px, 54px 12px, 60px 12px, 66px 12px, 72px 12px, 24px 18px #65352b, 30px 18px #65352b, 36px 18px #65352b, 42px 18px #ffbb8e, 48px 18px #ffbb8e, 54px 18px #000, 60px 18px #ffbb8e, 18px 24px #65352b, 24px 24px #ffbb8e, 30px 24px #65352b, 36px 24px #ffbb8e, 42px 24px #ffbb8e, 48px 24px #ffbb8e, 54px 24px #000, 60px 24px #ffbb8e, 66px 24px #ffbb8e, 72px 24px #ffbb8e, 18px 30px #65352b, 24px 30px #ffbb8e, 30px 30px #65352b, 36px 30px #65352b, 42px 30px #ffbb8e, 48px 30px #ffbb8e, 54px 30px #ffbb8e, 60px 30px #000, 66px 30px #ffbb8e, 72px 30px #ffbb8e, 78px 30px #ffbb8e, 18px 36px #65352b, 24px 36px #65352b, 30px 36px #ffbb8e, 36px 36px #ffbb8e, 42px 36px #ffbb8e, 48px 36px #ffbb8e, 54px 36px #000, 60px 36px #000, 66px 36px #000, 72px 36px #000, 30px 42px #ffbb8e, 36px 42px #ffbb8e, 42px 42px #ffbb8e, 48px 42px #ffbb8e, 54px 42px #ffbb8e, 60px 42px #ffbb8e, 66px 42px #ffbb8e, 30px 48px, 36px 48px #1560ad, 42px 48px, 48px 48px, 54px 48px #1560ad, 18px 54px, 24px 54px, 30px 54px, 36px 54px #1560ad, 42px 54px, 48px 54px, 54px 54px #1560ad, 60px 54px, 66px 54px, 72px 54px, 12px 60px, 18px 60px, 24px 60px, 30px 60px, 36px 60px #1560ad, 42px 60px #1560ad, 48px 60px #1560ad, 54px 60px #1560ad, 60px 60px, 66px 60px, 72px 60px, 78px 60px, 12px 66px #aeaeac, 18px 66px #aeaeac, 24px 66px, 30px 66px #1560ad, 36px 66px #fef102, 42px 66px #1560ad, 48px 66px #1560ad, 54px 66px #fef102, 60px 66px #1560ad, 66px 66px, 72px 66px #aeaeac, 78px 66px #aeaeac, 12px 72px #aeaeac, 18px 72px #aeaeac, 24px 72px #aeaeac, 30px 72px #1560ad, 36px 72px #1560ad, 42px 72px #1560ad, 48px 72px #1560ad, 54px 72px #1560ad, 60px 72px #1560ad, 66px 72px #aeaeac, 72px 72px #aeaeac, 78px 72px #aeaeac, 12px 78px #aeaeac, 18px 78px #aeaeac, 24px 78px #1560ad, 30px 78px #1560ad, 36px 78px #1560ad, 42px 78px #1560ad, 48px 78px #1560ad, 54px 78px #1560ad, 60px 78px #1560ad, 66px 78px #1560ad, 72px 78px #aeaeac, 78px 78px #aeaeac, 24px 84px #1560ad, 30px 84px #1560ad, 36px 84px #1560ad, 54px 84px #1560ad, 60px 84px #1560ad, 66px 84px #1560ad, 18px 90px #65352b, 24px 90px #65352b, 30px 90px #65352b, 60px 90px #65352b, 66px 90px #65352b, 72px 90px #65352b, 12px 96px #65352b, 18px 96px #65352b, 24px 96px #65352b, 30px 96px #65352b, 60px 96px #65352b, 66px 96px #65352b, 72px 96px #65352b, 78px 96px #65352b;
+}
+
+/* --- GSAP Typewriter Helper --- */
+.gsap-typewriter-container {
+    display: inline-block;
+    vertical-align: top;
+    min-height: 1.2em;      /* Prevents vertical jumping */
+    white-space: pre-wrap;  /* Preserves formatting without collapse */
+    will-change: content;   /* Hints to the browser to optimize updates */
+    transform: translateZ(0); /* Forces GPU acceleration */
+    backface-visibility: hidden;
 }

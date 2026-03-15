@@ -1,4 +1,4 @@
-﻿﻿﻿﻿function GetPluginSettings()
+﻿﻿﻿﻿﻿﻿﻿﻿function GetPluginSettings()
 {
 	return {
 		"name":			"HTML Menu",			// as appears in 'insert object' dialog, can be changed as long as "id" stays the same
@@ -77,6 +77,53 @@ AddAction(7, af_none, "Focus previous element", "Focus", "Focus previous element
 
 AddAction(8, af_none, "Release focus", "Focus", "Release focus", "Manually blur the currently focused HTML element.", "ReleaseFocus");
 
+AddStringParam("Element ID", "The ID of the element to animate. Leave empty to animate the main container.");
+AddStringParam("Property", "The CSS/GSAP property to tween (e.g., 'x', 'opacity', 'scale').");
+AddAnyTypeParam("Value", "The target value for the property (e.g., 100, '+=100', 1).");
+AddNumberParam("Duration", "The duration of the tween in seconds.", "1");
+AddComboParamOption("Smooth (Standard)");
+AddComboParamOption("Sharp Snap (Pro)");
+AddComboParamOption("Juicy Pop (Menu)");
+AddComboParamOption("Rubber Band (Juice)");
+AddComboParamOption("Heavy Thud (Physical)");
+AddComboParamOption("Retro Step (Terminal)");
+AddComboParamOption("Dramatic Slow (Cinematic)");
+AddComboParamOption("Vibrate (Error/Shake)");
+AddComboParamOption("Slow-Mo (Reveal)");
+AddComboParamOption("Anticipate (Pull Back)");
+AddComboParamOption("Ice Slide (Circ)");
+AddComboParamOption("Linear (Constant)");
+AddComboParam("Ease", "The easing function to use for the animation.", 0);
+AddNumberParam("Repeat count", "Number of times to repeat. Use -1 for infinite looping.", "0");
+AddComboParamOption("No");
+AddComboParamOption("Yes");
+AddComboParam("Yoyo (ping-pong)", "If 'Yes', the tween will reverse direction on every repeat.", 0);
+AddComboParamOption("To (Animate to value)");
+AddComboParamOption("From (Animate from value)");
+AddComboParam("Mode", "Choose the tween direction.", 0);
+AddAction(9, af_none, "Tween property", "GSAP Animation", "Tween <b>{1}</b> of element <i>{0}</i> to <b>{2}</b> over {3}s ({4}, repeat: {5}, yoyo: {6}, mode: {7})", "Animate a property of an HTML element using GSAP, with optional repeating.", "TweenProperty");
+
+AddStringParam("Element ID", "The ID of the element where the text will be typed.");
+AddStringParam("Text", "The text to display with a typewriter effect.");
+AddNumberParam("Duration", "The total time in seconds for the text to appear.", "1.5");
+AddAction(10, af_none, "Typewriter text", "GSAP Animation", "Typewriter effect on element <i>{0}</i> over {2}s", "Animate text content with a typewriter effect using GSAP.", "TypewriterText");
+
+AddStringParam("Element ID", "The ID of the element to animate. Leave empty to animate the main container.", '""');
+AddStringParam("Property", "The CSS/GSAP property to tween (e.g., 'x', 'opacity', 'scale').", '"x"');
+AddAnyTypeParam("Value", "The target value for the property (e.g., 100, '+=100', 1).", "100");
+AddNumberParam("Duration", "The duration of the tween in seconds.", 0.5);
+AddStringParam("Custom Ease", "Type the GSAP ease string (e.g., 'back.out(4)', 'none').", '"power2.out"');
+AddNumberParam("Repeat count", "Number of times to repeat. Use -1 for infinite looping.", "0");
+AddComboParamOption("No");
+AddComboParamOption("Yes");
+AddComboParam("Yoyo (ping-pong)", "If 'Yes', the tween will reverse direction on every repeat.", 0);
+AddComboParamOption("To (Animate to value)");
+AddComboParamOption("From (Animate from value)");
+AddComboParam("Mode", "Choose the tween direction.", 0);
+AddAction(11, af_none, "Tween property (custom)", "GSAP Animation", 
+          "Tween <b>{1}</b> of element <i>{0}</i> to <b>{2}</b> over {3}s (custom ease: {4}, repeat: {5}, yoyo: {6}, mode: {7})", 
+          "Animate a property of an HTML element using a custom GSAP ease string.", "TweenCustom");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -142,6 +189,9 @@ function IDEInstance(instance, type)
 // Called when inserted via Insert Object Dialog for the first time
 IDEInstance.prototype.OnInserted = function()
 {
+	// Add GSAP as a file dependency to ensure it's exported with the project.
+	// The user must add 'gsap.min.js' to the project's 'Files' folder.
+	this.instance.GetProject().AddFileDependency("gsap.min.js");
 }
 
 // Called when double clicked in layout

@@ -64,6 +64,29 @@ cr.plugins_.HTMLMenu = function(runtime)
 		this.isInputActive = false; // For Key Guard
 		this.interactionMode = 1; // Default to "Buttons Only"
 
+		// GSAP Integration
+		this.gsapLoggedWarning = false;
+		this.gsapReady = false;
+
+		// 1. If GSAP is already loaded (by another plugin or index.html)
+		if (typeof window.gsap !== "undefined") {
+			this.gsapReady = true;
+		} else {
+			// 2. Try to manually inject it from the project files
+			var self = this;
+			var script = document.createElement('script');
+			script.type = 'text/javascript';
+			script.src = "gsap.min.js";
+			script.onload = function() {
+				self.gsapReady = true;
+				console.log("HTMLMenu: GSAP library successfully linked.");
+			};
+			script.onerror = function() {
+				console.error("HTMLMenu: Could not find 'gsap.min.js'. Verify it is imported into the 'Files' folder in Construct 2.");
+			};
+			document.head.appendChild(script);
+		}
+
 		// Create the DOM element
 		this.elem = document.createElement("div");
 		this.elem.id = "c2-htmlmenu-" + this.uid;
@@ -252,6 +275,12 @@ cr.plugins_.HTMLMenu = function(runtime)
 	// to release/recycle/reset any references to other objects in this function.
 	instanceProto.onDestroy = function ()
 	{
+		// GSAP Cleanup: kill all tweens associated with this menu instance to prevent memory leaks.
+		if (this.gsapReady && this.elem) {
+			gsap.killTweensOf(this.elem);
+			gsap.killTweensOf(this.elem.querySelectorAll("*"));
+		}
+
 		if (this.jQueryElem)
 			this.jQueryElem.remove();
 		this.elem = null;
@@ -325,7 +354,7 @@ cr.plugins_.HTMLMenu = function(runtime)
 	 */
 	instanceProto.safeUpdateElement = function (elemId, callback) {
 		if (!this.elem || !elemId || !callback) return false;
-		const target = this.elem.querySelector("#" + elemId);
+		const target = this.elem.querySelector("#" + elemId) || this.elem.querySelector("[data-c2-id='" + elemId + "']");
 		if (target) {
 			callback(target);
 			return true;
@@ -346,6 +375,18 @@ cr.plugins_.HTMLMenu = function(runtime)
 			}
 		}
 		return null;
+	};
+
+	/**
+	 * Sanitizes a string to be safely displayed as HTML content.
+	 * Escapes characters that have special meaning in HTML.
+	 * @param {string|number} str The input to sanitize.
+	 * @returns {string} The sanitized string.
+	 */
+	instanceProto.sanitizeHTML = function (str) {
+		if (typeof str !== 'string') str = String(str);
+		// & must be replaced first.
+		return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 	};
 
 	/**
@@ -370,11 +411,13 @@ cr.plugins_.HTMLMenu = function(runtime)
 		
 		for (let i = 0; i < elements.length; i++) {
 			const elem = elements[i];
+			// Skip this element if GSAP is currently animating its text content to prevent blinking.
+			if (elem.hasAttribute("data-is-animating")) continue;
+
 			const syncKey = elem.getAttribute('data-sync-id') || elem.id;
 
 			// Two-way binding: Don't sync forward to the element the user is currently typing in.
-			if (elem === this.activeInput) continue;
-			if (!syncKey) continue;
+			if (elem === this.activeInput || !syncKey) continue;
 
 			let value = undefined;
 
@@ -388,26 +431,31 @@ cr.plugins_.HTMLMenu = function(runtime)
 			}
 
 			if (value !== undefined) {
-				let formattedValue = value;
+				let displayValue = value;
 				const format = elem.getAttribute('data-format');
 				if (format && typeof value === 'number') {
 					if (format === 'percent') {
-						formattedValue = (value * 100).toFixed(0) + '%';
+						displayValue = (value * 100).toFixed(0) + '%';
 					} else if (!isNaN(parseFloat(format))) { // e.g. "0.00"
 						const decimalPlaces = (format.split('.')[1] || '').length;
-						formattedValue = value.toFixed(decimalPlaces);
+						displayValue = value.toFixed(decimalPlaces);
 					}
 				}
 				
 				// Use .value for form elements, .innerHTML for others.
 				var isInput = (elem.tagName === "INPUT" || elem.tagName === "TEXTAREA" || elem.tagName === "SELECT");
 				if (isInput) {
-					if (elem.value !== String(formattedValue)) {
-						elem.value = formattedValue;
+					// For input elements, always set the raw (but formatted) value.
+					if (elem.value !== String(displayValue)) {
+						elem.value = displayValue;
 					}
 				} else {
-					if (elem.innerHTML !== String(formattedValue)) { // Simple optimization
-						elem.innerHTML = formattedValue;
+					// For other elements, sanitize unless 'data-raw' is true.
+					const isRaw = elem.getAttribute('data-raw') === 'true';
+					const finalHTML = isRaw ? displayValue : this.sanitizeHTML(displayValue);
+
+					if (elem.innerHTML !== String(finalHTML)) { // Simple optimization
+						elem.innerHTML = finalHTML;
 					}
 				}
 			}
@@ -600,7 +648,7 @@ cr.plugins_.HTMLMenu = function(runtime)
 
 	Acts.prototype.FocusElementByID = function (elemId) {
 		if (!this.elem || !elemId) return;
-		const target = this.elem.querySelector("#" + elemId);
+		const target = this.elem.querySelector("#" + elemId) || this.elem.querySelector("[data-c2-id='" + elemId + "']");
 		if (target && typeof target.focus === 'function') {
 			target.focus();
 		}
@@ -652,6 +700,177 @@ cr.plugins_.HTMLMenu = function(runtime)
 		focusable[prevIndex].focus();
 	};
 	
+	Acts.prototype.TweenProperty = function (elemId, prop, value, dur, easeIndex, repeatCount, yoyo, mode) {
+		// Re-check for GSAP readiness in case it loaded after onCreate.
+		if (!this.gsapReady) {
+			this.gsapReady = (typeof gsap !== "undefined");
+		}
+
+		if (!this.gsapReady) {
+			if (!this.gsapLoggedWarning) {
+				console.warn("HTMLMenu (GSAP): 'Tween property' action called, but GSAP library is not loaded. \n1. Ensure 'gsap.min.js' is in your project's 'Files' folder. \n2. Check the browser's Network Tab (F12) to see if 'gsap.min.js' is loading correctly (e.g., no 404 errors).");
+				this.gsapLoggedWarning = true; // Prevent spamming the console
+			}
+			return;
+		}
+
+		let target = this.elem;
+		if (elemId) {
+			target = this.elem.querySelector("#" + elemId) || this.elem.querySelector("[data-c2-id='" + elemId + "']");
+		}
+
+		if (!target) {
+			console.warn("HTMLMenu (GSAP): Element with ID '" + elemId + "' not found for tweening.");
+			return;
+		}
+
+		// Map the Dropdown Index to the actual GSAP String
+		var gsapEase;
+		switch (easeIndex) {
+			case 0: gsapEase = "power2.out"; break;          // Smooth (Standard)
+			case 1: gsapEase = "expo.out"; break;            // Sharp Snap (Pro)
+			case 2: gsapEase = "back.out(1.7)"; break;       // Juicy Pop (Menu)
+			case 3: gsapEase = "elastic.out(1, 0.3)"; break; // Rubber Band (Juice)
+			case 4: gsapEase = "bounce.out"; break;          // Heavy Thud (Physical)
+			case 5: gsapEase = "steps(8)"; break;            // Retro Step (Terminal)
+			case 6: gsapEase = "power4.inOut"; break;        // Dramatic Slow (Cinematic)
+			case 7: gsapEase = "elastic.out(2.5, 0.1)"; break; // Vibrate (Error/Shake)
+			case 8: gsapEase = "circ.out"; break;            // Slow-Mo (Reveal)
+			case 9: gsapEase = "back.in(1.7)"; break;        // Anticipate (Pull Back)
+			case 10: gsapEase = "circ.inOut"; break;         // Ice Slide (Circ)
+			case 11: gsapEase = "none"; break;               // Linear (Constant)
+			default: gsapEase = "power2.out";
+		}
+
+		// Convert numeric strings to numbers, but leave strings with operators (like "+=") alone.
+		let parsedValue = value;
+		if (typeof value === 'string') {
+			const num = parseFloat(value);
+			if (!isNaN(num) && isFinite(value)) {
+				parsedValue = num;
+			}
+		}
+
+		// Auto-fix: Convert 'left/top' to 'x/y' to prevent blinking
+		var targetProp = prop;
+		if (prop === "left") targetProp = "x";
+		if (prop === "top") targetProp = "y";
+
+		// Determine method (0 = To, 1 = From)
+		var tweenMethod = (mode === 1) ? "from" : "to";
+
+		gsap[tweenMethod](target, {
+			[targetProp]: parsedValue,
+			duration: dur,
+			ease: gsapEase,
+			overwrite: "auto", // Crucial: Stops fighting between multiple tweens
+			repeat: repeatCount,
+			yoyo: (yoyo === 1)
+		});
+	};
+
+	Acts.prototype.TypewriterText = function (elemId, newText, duration) {
+		// Re-check for GSAP readiness in case it loaded after onCreate.
+		if (!this.gsapReady) {
+			this.gsapReady = (typeof gsap !== "undefined");
+		}
+
+		if (!this.gsapReady) {
+			if (!this.gsapLoggedWarning) {
+				console.warn("HTMLMenu (GSAP): 'Typewriter text' action called, but GSAP library is not loaded. \n1. Ensure 'gsap.min.js' is in your project's 'Files' folder. \n2. Check the browser's Network Tab (F12) to see if 'gsap.min.js' is loading correctly (e.g., no 404 errors).");
+				this.gsapLoggedWarning = true; // Prevent spamming the console
+			}
+			return;
+		}
+
+		const target = this.elem.querySelector("#" + elemId) || this.elem.querySelector("[data-c2-id='" + elemId + "']");
+		if (!target) {
+			console.warn("HTMLMenu (GSAP): Element with ID '" + elemId + "' not found for typewriter effect.");
+			return;
+		}
+
+		// Kill any previous typewriter tween on this specific element to avoid conflicts.
+		if (target._typewriterTween) {
+			target._typewriterTween.kill();
+		}
+
+		// 1. Add anti-blink class and lock sync
+		target.classList.add("gsap-typewriter-container");
+		target.setAttribute("data-is-animating", "true");
+
+		let proxy = { count: 0 };
+		target.textContent = ""; // Start with empty text
+
+		target._typewriterTween = gsap.to(proxy, {
+			count: newText.length,
+			duration: duration,
+			ease: "none", // Use 'none' for a more authentic typewriter feel
+			onUpdate: () => {
+				// Use textContent to avoid HTML parsing overhead
+				target.textContent = newText.substring(0, Math.ceil(proxy.count));
+			},
+			onComplete: () => {
+				delete target._typewriterTween; // Clean up the property when done
+				// 3. Unlock Sync when done
+				target.removeAttribute("data-is-animating");
+			}
+		});
+	};
+
+	Acts.prototype.TweenCustom = function (elemId, prop, value, dur, customEase, repeatCount, yoyo, mode) {
+		// Re-check for GSAP readiness in case it loaded after onCreate.
+		if (!this.gsapReady) {
+			this.gsapReady = (typeof gsap !== "undefined");
+		}
+
+		if (!this.gsapReady) {
+			if (!this.gsapLoggedWarning) {
+				console.warn("HTMLMenu (GSAP): 'Tween property' action called, but GSAP library is not loaded. \n1. Ensure 'gsap.min.js' is in your project's 'Files' folder. \n2. Check the browser's Network Tab (F12) to see if 'gsap.min.js' is loading correctly (e.g., no 404 errors).");
+				this.gsapLoggedWarning = true; // Prevent spamming the console
+			}
+			return;
+		}
+
+		let target = this.elem;
+		if (elemId) {
+			target = this.elem.querySelector("#" + elemId) || this.elem.querySelector("[data-c2-id='" + elemId + "']");
+		}
+
+		if (!target) {
+			console.warn("HTMLMenu (GSAP): Element with ID '" + elemId + "' not found for tweening.");
+			return;
+		}
+
+		// Clean the custom ease string. C2 often wraps string parameters in quotes.
+		const cleanEase = customEase.replace(/['"]+/g, '').trim();
+
+		// Convert numeric strings to numbers, but leave strings with operators (like "+=") alone.
+		let parsedValue = value;
+		if (typeof value === 'string') {
+			const num = parseFloat(value);
+			if (!isNaN(num) && isFinite(value)) {
+				parsedValue = num;
+			}
+		}
+
+		// Auto-fix: Convert 'left/top' to 'x/y' to prevent blinking
+		var targetProp = prop;
+		if (prop === "left") targetProp = "x";
+		if (prop === "top") targetProp = "y";
+
+		// Determine method (0 = To, 1 = From)
+		var tweenMethod = (mode === 1) ? "from" : "to";
+
+		gsap[tweenMethod](target, {
+			[targetProp]: parsedValue,
+			duration: dur,
+			ease: cleanEase,
+			overwrite: "auto", // Crucial: Stops fighting between multiple tweens
+			repeat: repeatCount,
+			yoyo: (yoyo === 1)
+		});
+	};
+
 	pluginProto.acts = new Acts();
 	
 	//////////////////////////////////////
