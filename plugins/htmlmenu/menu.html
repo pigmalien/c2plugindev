@@ -1,120 +1,157 @@
 <!-- 
-  HTMLMenu Plugin Tutorial
-  Styled with NES.css (https://nostalgic-css.github.io/NES.css/)
+  HTMLMenu Plugin Tutorial - daisyUI Version
+  Using Tailwind CSS + daisyUI via CDN for rapid prototyping.
 -->
-<div class="menu-body">
-  <div class="nes-container with-title is-centered">
-    <p class="title">HTMLMenu Plugin Tutorial</p>
-    <p>A live demonstration of the plugin's features!</p>
-  </div>
-  
-  <!-- Section 1: C2 -> HTML Data Syncing -->
-  <section class="nes-container with-title">
-    <h3 class="title">1. C2 to HTML Sync</h3>
-    <p>Display data from Construct 2 in your HTML. Enable "Auto-Sync" in plugin properties for this to update live.</p>
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+</head>
+<div class="menu-body bg-base-200 text-base-content font-sans">
     
-    <div class="nes-lists">
-      <ul class="nes-list is-disc">
-        <li>Global Variable (<code>player_name</code>): <strong id="player_name">...</strong></li>
-        <li>Dictionary Value (<code>player_hp</code>): <strong data-sync-id="player_hp">...</strong></li>
-        <li>Formatted Number (<code>player_mana</code>): <strong data-sync-id="player_mana" data-format="0.00">...</strong></li>
-        <li>Formatted Percent (<code>progress</code>): <strong data-sync-id="progress" data-format="percent">...</strong></li>
-        <li>Raw HTML (<code>status_icon</code>): <span data-sync-id="status_icon" data-raw="true">...</span>
-          <br><small>C2 variable should contain: <code>&lt;i class="nes-icon is-small heart"&gt;&lt;/i&gt;</code></small>
-        </li>
-      </ul>
+    <!-- Title -->
+    <div class="card bg-base-100 shadow-xl m-4">
+        <div class="card-body text-center p-6">
+            <h2 class="card-title justify-center text-2xl font-bold">HTMLMenu Plugin Tutorial</h2>
+            <p>A live demonstration of the plugin's features!</p>
+        </div>
     </div>
-    <p>Use a progress bar!</p>
-    <progress class="nes-progress is-primary" value="0" max="100" data-sync-id="progress_val"></progress>
-  </section>
-  
-  <!-- Section 2: HTML -> C2 Interaction -->
-  <section class="nes-container with-title">
-    <h3 class="title">2. HTML to C2 Interaction</h3>
-    <p>Trigger events in your C2 event sheet from HTML.</p>
     
-    <!-- data-c2-id triggers "On Button Clicked" -->
-    <button type="button" class="nes-btn is-primary" data-c2-id="start_game" data-sfx-click="sfx_confirm" data-sfx-hover="sfx_hover">Start Game</button>
+    <!-- Section 1: C2 -> HTML Data Syncing -->
+    <div class="card bg-base-100 shadow-xl m-4">
+        <div class="card-body">
+            <h3 class="card-title">1. C2 to HTML Sync</h3>
+            <p class="mb-2">Display data from Construct 2. Enable "Auto-Sync".</p>
+            
+            <ul class="list-disc list-inside bg-base-200 p-4 rounded-lg">
+                <li>Global Var (<code>player_name</code>): <strong id="player_name" class="text-primary">...</strong></li>
+                <li>Dictionary (<code>player_hp</code>): <strong data-sync-id="player_hp" class="text-secondary">...</strong></li>
+                <li>Number (<code>player_mana</code>): <strong data-sync-id="player_mana" data-format="0.00" class="text-accent">...</strong></li>
+                <li>Percent (<code>progress</code>): <strong data-sync-id="progress" data-format="percent">...</strong></li>
+                <li>Raw HTML (<code>status_icon</code>): <span data-sync-id="status_icon" data-raw="true">...</span></li>
+            </ul>
+
+            <div class="mt-4">
+                <label class="label"><span class="label-text">Progress Bar</span></label>
+                <progress class="progress progress-primary w-full" value="0" max="100" data-sync-id="progress_val"></progress>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: HTML -> C2 Interaction -->
+    <div class="card bg-base-100 shadow-xl m-4">
+        <div class="card-body">
+            <h3 class="card-title">2. HTML to C2 Interaction</h3>
+            <p>Trigger events in your C2 event sheet.</p>
+            
+            <div class="flex flex-wrap gap-2">
+                <!-- data-c2-id triggers "On Button Clicked" -->
+                <button type="button" class="btn btn-primary" data-c2-id="start_game" data-sfx-click="sfx_confirm" data-sfx-hover="sfx_hover">Start Game</button>
+                <!-- data-sfx-* triggers "On Sound Triggered" -->
+                <button type="button" class="btn btn-secondary" data-c2-id="load_game" data-sfx-click="sfx_confirm" data-sfx-hover="sfx_hover">Load Game</button>
+            </div>
+            
+            <p class="text-error font-bold mt-2" id="status_message">Click a button!</p>
+        </div>
+    </div>
+  
+    <!-- Section 3: Two-Way Data Binding -->
+    <div class="card bg-base-100 shadow-xl m-4">
+        <div class="card-body">
+            <h3 class="card-title">3. Two-Way Data Binding</h3>
+            <p>Inputs match C2 global variable names.</p>
+
+            <div class="form-control w-full">
+                <label class="label" for="player_class"><span class="label-text">Player Class (Global Var: <code>player_class</code>)</span></label>
+                <input type="text" id="player_class" class="input input-bordered w-full" />
+            </div>
+
+            <div class="form-control w-full mt-2">
+                <label class="label" for="difficulty"><span class="label-text">Difficulty (Global Var: <code>difficulty</code>)</span></label>
+                <select id="difficulty" class="select select-bordered">
+                    <option value="" disabled selected>Select Difficulty</option>
+                    <option value="0">Easy</option>
+                    <option value="1">Normal</option>
+                    <option value="2">Hard</option>
+                </select>
+            </div>
+        </div>
+    </div>
     
-    <!-- data-sfx-* triggers "On Sound Triggered" -->
-    <button type="button" class="nes-btn is-success" data-c2-id="load_game" data-sfx-click="sfx_confirm" data-sfx-hover="sfx_hover">Load Game</button>
-    
-    <p class="nes-text is-error" id="status_message">Click a button!</p>
-  </section>
-  
-  <!-- Section 3: Two-Way Data Binding -->
-  <section class="nes-container with-title">
-    <h3 class="title">3. Two-Way Data Binding</h3>
-    <p>Enable "Two-Way Binding" in properties. An input's <code>id</code> must match a C2 global variable name.</p>
-    <div class="nes-field">
-      <label for="player_class">Player Class (Global Var: <code>player_class</code>)</label>
-      <input type="text" id="player_class" class="nes-input">
+    <!-- Section 4: GSAP Animations -->
+    <div class="card bg-base-100 shadow-xl m-4">
+        <div class="card-body">
+            <h3 class="card-title">4. GSAP Animations</h3>
+            <p>Animate elements with GSAP actions.</p>
+            
+            <div class="flex items-center justify-around bg-base-200 p-4 rounded-lg">
+                <button class="btn" data-c2-id="animate_mario" data-sfx-click="sfx_blip">Animate Box!</button>
+                <!-- Animation Target (Generic Box) -->
+                <div id="mario_char" class="w-16 h-16 bg-accent rounded shadow-lg flex items-center justify-center font-bold text-accent-content">BOX</div>
+            </div>
+            
+            <div class="chat chat-start mt-4">
+                <div class="chat-bubble chat-bubble-primary">
+                    <span id="typewriter_target">Hello HTMLMenu!</span>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="nes-select">
-      <select required id="difficulty">
-        <option value="" disabled selected hidden>Difficulty (Global Var: <code>difficulty</code>)</option>
-        <option value="0">Easy</option>
-        <option value="1">Normal</option>
-        <option value="2">Hard</option>
-      </select>
+
+    <!-- Section 5: Focus & Keyboard -->
+    <div class="card bg-base-100 shadow-xl m-4">
+        <div class="card-body">
+            <h3 class="card-title">5. Focus & Keyboard</h3>
+            <div class="form-control">
+                <label class="label" for="name_field"><span class="label-text">Name</span></label>
+                <input type="text" id="name_field" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label" for="email_field"><span class="label-text">Email</span></label>
+                <input type="text" id="email_field" class="input input-bordered" />
+            </div>
+            <p class="text-xs text-base-content/70 mt-2">When typing, keyboard events won't affect C2.</p>
+        </div>
     </div>
-  </section>
-  
-  <!-- Section 4: GSAP Animations -->
-  <section class="nes-container with-title">
-      <h3 class="title">4. GSAP Animations</h3>
-      <p>Use GSAP actions to animate elements. Make sure <code>gsap.min.js</code> is in your project files!</p>
-      <div class="d-flex align-center justify-around" style="padding: 1rem 0;">
-          <!-- This button will trigger a tween in C2 -->
-          <button type="button" class="nes-btn" data-c2-id="animate_mario" data-sfx-click="sfx_blip">Animate Mario!</button>
-          <!-- This is the target for the animation -->
-          <i class="nes-mario" id="mario_char"></i>
-      </div>
-      <p>You can also do cool text effects:</p>
-      <!-- This is the target for the typewriter effect -->
-      <div class="nes-balloon from-left">
-          <p id="typewriter_target">Hello HTMLMenu!</p>
-      </div>
-  </section>
-  
-  <!-- Section 5: Focus & Keyboard -->
-  <section class="nes-container with-title">
-    <h3 class="title">5. Focus & Keyboard</h3>
-    <p>Manage focus and keyboard input. Use the buttons in the <strong>Flexbox</strong> section below to test focus actions.</p>
-    <div class="nes-field">
-      <label for="name_field">Name:</label>
-      <input type="text" id="name_field" class="nes-input">
+
+    <!-- Section 6: Layout & Flexbox -->
+    <div class="card bg-base-100 shadow-xl m-4">
+        <div class="card-body">
+            <h3 class="card-title">6. Layout</h3>
+            <p>Using Tailwind utility classes.</p>
+            
+            <div class="flex justify-center gap-2 mb-4 flex-wrap">
+                <button class="btn btn-sm btn-outline" data-c2-id="focus_next">Focus Next</button>
+                <button class="btn btn-sm btn-outline" data-c2-id="focus_prev">Focus Prev</button>
+                <button class="btn btn-sm btn-outline" data-c2-id="release_focus">Release Focus</button>
+            </div>
+            
+            <div class="flex justify-between items-center p-2 bg-base-200 rounded-lg">
+                <span class="text-2xl">❤️</span>
+                <progress class="progress progress-error w-1/2" value="50" max="100"></progress>
+                <span class="text-2xl">⭐</span>
+            </div>
+        </div>
     </div>
-    <div class="nes-field">
-      <label for="email_field">Email:</label>
-      <input type="text" id="email_field" class="nes-input">
-    </div>
-    <p><small>When typing in an input, <code>IsInputActive</code> is true, and keyboard events won't affect C2.</small></p>
-  </section>
-  
-  <!-- Section 6: Layout & Flexbox -->
-  <section class="nes-container with-title">
-    <h3 class="title">6. Layout & Flexbox</h3>
-    <p>Use flexbox for easy alignment. I've added helper classes to <code>style.css</code> like <code>.d-flex</code> and <code>.justify-center</code>.</p>
-    
-    <p>Center a group of buttons:</p>
-    <div class="d-flex justify-center flex-wrap" style="margin-bottom: 1rem;">
-        <button type="button" class="nes-btn is-small" data-c2-id="focus_next">Focus Next</button>
-        <button type="button" class="nes-btn is-small" data-c2-id="focus_prev">Focus Prev</button>
-        <button type="button" class="nes-btn is-small" data-c2-id="release_focus">Release Focus</button>
-    </div>
-  
-    <p>Space items apart:</p>
-    <div class="d-flex justify-between align-center">
-      <i class="nes-icon heart is-small"></i>
-      <progress class="nes-progress is-primary" value="50" max="100" style="width: 70%;"></progress>
-      <i class="nes-icon star is-small"></i>
-    </div>
-  </section>
+
 </div>
 
 <!-- This script is automatically executed by the plugin -->
 <script>
-    console.log("HTMLMenu Tutorial Loaded!");
-    // You can add custom JS logic here that runs on load.
+    console.log("HTMLMenu daisyUI Tutorial Loaded!");
+</script>
+
+<script>
+    // Example: Making a custom slider handle draggable
+    // This requires the Draggable plugin we imported in the head
+    gsap.registerPlugin(Draggable);
+    
+    Draggable.create("#slider_handle", {
+        type: "x",
+        bounds: "#slider_track",
+        onDrag: function() {
+            // Logic to calculate progress % and perhaps update a C2 variable
+            console.log("Dragging progress...");
+        }
+    });
 </script>

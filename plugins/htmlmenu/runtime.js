@@ -1,4 +1,4 @@
-﻿// ECMAScript 5 strict mode
+﻿﻿// ECMAScript 5 strict mode
 "use strict";
 
 assert2(cr, "cr namespace not created");
@@ -444,7 +444,14 @@ cr.plugins_.HTMLMenu = function(runtime)
 				
 				// Use .value for form elements, .innerHTML for others.
 				var isInput = (elem.tagName === "INPUT" || elem.tagName === "TEXTAREA" || elem.tagName === "SELECT");
-				if (isInput) {
+				if (elem.tagName === "PROGRESS") {
+					// For progress bars, set the value property.
+					const numValue = Number(displayValue);
+					if (!isNaN(numValue) && elem.value !== numValue) {
+						elem.value = numValue;
+					}
+				}
+				else if (isInput) {
 					// For input elements, always set the raw (but formatted) value.
 					if (elem.value !== String(displayValue)) {
 						elem.value = displayValue;
