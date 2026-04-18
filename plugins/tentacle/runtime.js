@@ -223,6 +223,8 @@ cr.plugins_.Tentacle = function(runtime)
 		this.segments[0].y = this.y;
 
 		var i, j, seg1, seg2, dx, dy, dist, diff, offX, offY;
+		var segLen = this.segment_length;
+		var segLenSq = segLen * segLen;
 
 		for (j = 0; j < this.constraint_iterations; j++)
 		{
@@ -233,11 +235,12 @@ cr.plugins_.Tentacle = function(runtime)
 
 				dx = seg2.x - seg1.x;
 				dy = seg2.y - seg1.y;
-				dist = Math.sqrt(dx * dx + dy * dy);
+				var distSq = dx * dx + dy * dy;
 
-				if (dist > this.segment_length)
+				if (distSq > segLenSq)
 				{
-					diff = (this.segment_length - dist) / dist;
+					dist = Math.sqrt(distSq);
+					diff = (segLen - dist) / dist;
 					offX = dx * diff * 0.5;
 					offY = dy * diff * 0.5;
 
@@ -295,35 +298,81 @@ cr.plugins_.Tentacle = function(runtime)
 		glw.setTexture(this.type.texture);
 		glw.setOpacity(this.opacity);
 
-		if (this.segment_count < 2) return;
+		var count = this.segment_count;
+		if (count < 2) return;
 
-		var i, p1, p2, w1, w2, dx, dy, len, p1x, p1y, p2x, p2y;
+		// 1. Calculate Edge Points for all segments (Shared-Edge Bridge)
+		var edgePoints = new Array(count);
+		var i, pPrev, pCurr, pNext, len, nx, ny, w;
 
-		for (i = 0; i < this.segment_count - 1; i++)
+		for (i = 0; i < count; i++)
 		{
-			p1 = this.segments[i];
-			p2 = this.segments[i+1];
-			w1 = p1.width / 2;
-			w2 = p2.width / 2;
+			pCurr = this.segments[i];
+			var dirX = 0, dirY = 0;
 
-			dx = p2.x - p1.x;
-			dy = p2.y - p1.y;
-			len = Math.sqrt(dx * dx + dy * dy);
-			if (len === 0) continue;
+			if (i === 0)
+			{
+				// Base: Use direction to the next segment
+				pNext = this.segments[i + 1];
+				dirX = pNext.x - pCurr.x;
+				dirY = pNext.y - pCurr.y;
+			}
+			else if (i === count - 1)
+			{
+				// Tip: Use direction from the previous segment
+				pPrev = this.segments[i - 1];
+				dirX = pCurr.x - pPrev.x;
+				dirY = pCurr.y - pPrev.y;
+			}
+			else
+			{
+				// Interior: Average the normalized directions to prevent overlapping joints
+				pPrev = this.segments[i - 1];
+				pNext = this.segments[i + 1];
 
-			p1x = -dy / len;
-			p1y = dx / len;
+				var dx1 = pCurr.x - pPrev.x;
+				var dy1 = pCurr.y - pPrev.y;
+				var dlen1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+				if (dlen1 > 0) { dx1 /= dlen1; dy1 /= dlen1; }
 
-			this.quad.tlx = p1.x + p1x * w1; this.quad.tly = p1.y + p1y * w1;
-			this.quad.trx = p2.x + p1x * w2; this.quad.try_ = p2.y + p1y * w2;
-			this.quad.brx = p2.x - p1x * w2; this.quad.bry = p2.y - p1y * w2;
-			this.quad.blx = p1.x - p1x * w1; this.quad.bly = p1.y - p1y * w1;
+				var dx2 = pNext.x - pCurr.x;
+				var dy2 = pNext.y - pCurr.y;
+				var dlen2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+				if (dlen2 > 0) { dx2 /= dlen2; dy2 /= dlen2; }
+
+				dirX = dx1 + dx2;
+				dirY = dy1 + dy2;
+			}
+
+			len = Math.sqrt(dirX * dirX + dirY * dirY);
+			if (len === 0) { nx = 0; ny = 0; }
+			else { nx = -dirY / len; ny = dirX / len; }
+
+			w = pCurr.width / 2;
+			edgePoints[i] = {
+				lx: pCurr.x + nx * w,
+				ly: pCurr.y + ny * w,
+				rx: pCurr.x - nx * w,
+				ry: pCurr.y - ny * w
+			};
+		}
+
+		// 2. Draw bridged quads connecting the pre-calculated edges
+		for (i = 0; i < count - 1; i++)
+		{
+			var e1 = edgePoints[i];
+			var e2 = edgePoints[i + 1];
+
+			this.quad.tlx = e1.lx; this.quad.tly = e1.ly;
+			this.quad.trx = e2.lx; this.quad.try_ = e2.ly;
+			this.quad.brx = e2.rx; this.quad.bry = e2.ry;
+			this.quad.blx = e1.rx; this.quad.bly = e1.ry;
 
 			var u1 = 0, u2 = 1;
 			if (this.uv_mode === 0) // Stretch
 			{
-				u1 = i / (this.segment_count - 1);
-				u2 = (i + 1) / (this.segment_count - 1);
+				u1 = i / (count - 1);
+				u2 = (i + 1) / (count - 1);
 			}
 			this.rcTex.set(u1, 0, u2, 1);
 			
