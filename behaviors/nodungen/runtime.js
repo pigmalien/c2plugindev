@@ -637,7 +637,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 							}
 						}
 					}
-				} else { // Circle (1) or Organic (2)
+				} else if (this.roomShape === 1) { // Circle
 					var centerX = Math.floor(newRoom.cx);
 					var centerY = Math.floor(newRoom.cy);
 					var radius = Math.floor(Math.min(w, h) / 2);
@@ -650,6 +650,27 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 							var dx = i - centerX;
 							var dy = j - centerY;
 							if ((dx*dx) + (dy*dy) <= r2) {
+								this.grid[i][j] = this.FLOOR;
+							}
+						}
+					}
+				} else { // Organic (2)
+					var centerX = Math.floor(newRoom.cx);
+					var centerY = Math.floor(newRoom.cy);
+					var radius = Math.min(w, h) / 2;
+
+					// Seed the area with noise weighted by distance to center
+					for(var i = rx; i < rx + w; i++) {
+						for(var j = ry; j < ry + h; j++) {
+							if (i < 0 || i >= this.mapWidth || j < 0 || j >= this.mapHeight) continue;
+							
+							var dx = i - centerX;
+							var dy = j - centerY;
+							var dist = Math.sqrt(dx*dx + dy*dy);
+							
+							// Probability decreases as we move away from center
+							var prob = 1.0 - (dist / (radius * 1.2));
+							if (this._random() < prob + 0.05) {
 								this.grid[i][j] = this.FLOOR;
 							}
 						}
@@ -687,7 +708,7 @@ cr.behaviors.DelaunayDungeon = function(runtime)
 
 		// 4. Apply Cellular Automata for Organic mode
 		if (this.roomShape === 2) {
-			for(var k=0; k<2; k++) {
+			for(var k=0; k<3; k++) {
 				this._applyCA(this.grid);
 			}
 		}
