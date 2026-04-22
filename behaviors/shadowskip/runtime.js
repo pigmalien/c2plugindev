@@ -54,10 +54,12 @@ cr.behaviors.ShadowSkip = function(runtime)
 		this.leanAmount = this.properties[3];
 		this.isEnabled = (this.properties[4] === 0); // 0=Enabled, 1=Disabled
 		this.flipMode = this.properties[6]; // 0=None, 1=Horizontal
+		this.puppetImagePoint = this.properties[7] || "";
 		
 		// Get the child object type from the container property
 		// [Inference] Construct 2 requires finding the object type by name since ept_object is C3-only.
-		this.puppetType = this.runtime.types[this.properties[5]];
+		var typeName = this.properties[5];
+		this.puppetType = this.runtime.types[typeName.toLowerCase()] || this.runtime.types[typeName];
 
 		this.timer = 0;
 		this.bounce = 0;
@@ -97,6 +99,7 @@ cr.behaviors.ShadowSkip = function(runtime)
 			"ih": this.initialPuppetHeight,
 			"flip": this.isFlipped,
 			"fm": this.flipMode,
+			"pip": this.puppetImagePoint,
 			"ft": this.flipTimer,
 			"wd": this.wasDisabled
 		};
@@ -118,11 +121,12 @@ cr.behaviors.ShadowSkip = function(runtime)
 		this.initialPuppetHeight = o["ih"];
 		this.isFlipped = o["flip"];
 		this.flipMode = o["fm"];
+		this.puppetImagePoint = o["pip"] || "";
 		this.flipTimer = o["ft"] || 0;
 		this.wasDisabled = o["wd"] || false;
 		
 		// Re-get puppetType as it's a reference and not saved directly
-		this.puppetType = this.runtime.types[this.properties[5]];
+		this.puppetType = this.runtime.types[this.properties[5].toLowerCase()] || this.runtime.types[this.properties[5]];
 	};
 
 	behinstProto.tick = function ()
@@ -143,9 +147,17 @@ cr.behaviors.ShadowSkip = function(runtime)
 			if (!this.wasDisabled) {
 				puppet.x = inst.x;
 				puppet.y = inst.y;
-				puppet.width = this.initialPuppetWidth !== -1 ? (this.isFlipped ? -this.initialPuppetWidth : this.initialPuppetWidth) : puppet.width;
-				puppet.height = this.initialPuppetHeight !== -1 ? this.initialPuppetHeight : puppet.height;
 				puppet.angle = 0;
+				if (this.initialPuppetWidth !== -1) {
+					puppet.width = this.isFlipped ? -this.initialPuppetWidth : this.initialPuppetWidth;
+					puppet.height = this.initialPuppetHeight;
+				}
+				puppet.set_bbox_changed();
+
+				if (this.puppetImagePoint !== "" && typeof puppet.getImagePoint === "function") {
+					puppet.x -= (puppet.getImagePoint(this.puppetImagePoint, 1) - inst.x);
+					puppet.y -= (puppet.getImagePoint(this.puppetImagePoint, 0) - inst.y);
+				}
 				puppet.opacity = 1;
 				puppet.set_bbox_changed();
 				inst.opacity = 1;
@@ -156,12 +168,15 @@ cr.behaviors.ShadowSkip = function(runtime)
 		this.wasDisabled = false;
 
 		// Initialize base dimensions if not already done
-		if (this.initialPuppetWidth === -1) {
+		if (this.initialPuppetWidth === -1 && Math.abs(puppet.width) > 0.01) {
 			this.initialPuppetWidth = Math.abs(puppet.width);
 			this.initialPuppetHeight = puppet.height;
 			this.isFlipped = (puppet.width < 0);
 			this.leanRadians = cr.to_radians(this.leanAmount);
 		}
+
+		// Do not update puppet until initial dimensions are captured
+		if (this.initialPuppetWidth === -1) return;
 
 		// 2. Movement Logic
 		var ix = inst.x;
@@ -202,25 +217,35 @@ cr.behaviors.ShadowSkip = function(runtime)
 
 		// 4. SMART UPDATE: Only touch the puppet if it's animating or moving
 		if (isMoving || this.bounce > 0) {
-			puppet.x = ix;
-			puppet.y = iy - this.bounce;
-			
+			var targetY = iy - this.bounce;
 			var s = (this.amplitude > 0) ? (this.bounce / this.amplitude) : 0;
-			var w = this.initialPuppetWidth + (s * (this.initialPuppetWidth * this.squashRatio));
+			var w = Math.max(0.1, this.initialPuppetWidth + (s * (this.initialPuppetWidth * this.squashRatio)));
+			var h = Math.max(0.1, this.initialPuppetHeight - (s * (this.initialPuppetHeight * this.squashRatio)));
 			
+			puppet.x = ix;
+			puppet.y = targetY;
 			puppet.width = this.isFlipped ? -w : w;
-			puppet.height = this.initialPuppetHeight - (s * (this.initialPuppetHeight * this.squashRatio));
-			puppet.angle = Math.sin(this.timer) * this.leanRadians;
-			inst.opacity = 1 - (s * 0.5);
-
+			puppet.height = h;
+			puppet.angle = Math.sin(this.timer) * this.leanRadians * (isMoving ? 1 : Math.min(s, 1));
 			puppet.set_bbox_changed();
-		} else {
-			// Ensure snapped position even when idle
-			if (puppet.x !== ix || puppet.y !== iy) {
-				puppet.x = ix;
-				puppet.y = iy;
+
+			if (this.puppetImagePoint !== "" && typeof puppet.getImagePoint === "function") {
+				puppet.x -= (puppet.getImagePoint(this.puppetImagePoint, 1) - ix);
+				puppet.y -= (puppet.getImagePoint(this.puppetImagePoint, 0) - targetY);
 				puppet.set_bbox_changed();
 			}
+
+			inst.opacity = 1 - (s * 0.5);
+		} else {
+			puppet.x = ix;
+			puppet.y = iy;
+			puppet.angle = 0;
+			puppet.set_bbox_changed();
+			if (this.puppetImagePoint !== "" && typeof puppet.getImagePoint === "function") {
+				puppet.x -= (puppet.getImagePoint(this.puppetImagePoint, 1) - ix);
+				puppet.y -= (puppet.getImagePoint(this.puppetImagePoint, 0) - iy);
+			}
+			puppet.set_bbox_changed();
 		}
 	};
 	

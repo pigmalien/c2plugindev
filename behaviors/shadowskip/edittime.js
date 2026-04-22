@@ -1,4 +1,4 @@
-﻿function GetBehaviorSettings()
+﻿﻿function GetBehaviorSettings()
 {
 	return {
 		"name":			"Shadow Skip",			// as appears in 'add behavior' dialog, can be changed as long as "id" stays the same
@@ -85,7 +85,8 @@ var property_list = [
 	new cr.Property(ept_float, 		"Lean Amount",		5,		"The maximum angle in degrees the child object leans."),
 	new cr.Property(ept_combo,		"Initially enabled", "Enabled",	"Whether the behavior is enabled on start.", "Enabled|Disabled"),
 	new cr.Property(ept_text, 		"Child object",		"Sprite", "The name of the child object in the container that this behavior will animate."),
-	new cr.Property(ept_combo,		"Flip Mode",		"None", "Whether the child object flips when moving horizontally.", "None|Horizontal")
+	new cr.Property(ept_combo,		"Flip Mode",		"None", "Whether the child object flips when moving horizontally.", "None|Horizontal"),
+	new cr.Property(ept_text, 		"Puppet Image Point", "", "Optional: The name or index of an image point on the puppet to align with the shadow's origin.")
 	];
 	
 // Called by IDE when a new behavior type is to be created
