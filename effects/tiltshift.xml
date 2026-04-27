@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<c2effect>
+	<!-- About -->
+	<id>tiltshift</id>
+	<name>Tilt Shift</name>
+	<category>Blur</category>
+	<description>Vertical gradient blur for a toy-model look.</description>
+	<author>Gemini</author>
+
+	<!-- Settings -->
+	<extend-box-horizontal>0</extend-box-horizontal>
+	<extend-box-vertical>0</extend-box-vertical>
+	<blends-background>false</blends-background>
+	<cross-sampling>false</cross-sampling>
+	<animated>true</animated>
+
+<!-- Parameters -->
+	<parameters>
+		<param>
+			<name>Intensity</name>
+			<description>Strength of the blur.</description>
+			<type>float</type>
+			<initial>5.0</initial>
+			<uniform>blurAmount</uniform>
+		</param>
+		<param>
+			<name>Center</name>
+			<description>Vertical position of the blur effect.</description>
+			<type>float</type>
+			<initial>0.5</initial>
+			<uniform>center</uniform>
+		</param>
+		
+		<param>
+			<name>Spread</name>
+			<description>Amount of blur spread.</description>
+			<type>float</type>
+			<initial>0.1</initial>
+			<uniform>spread</uniform>
+		</param>	
+	</parameters>
+	
+</c2effect>
