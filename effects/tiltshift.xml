@@ -1,20 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <c2effect>
-	<!-- About -->
 	<id>tiltshift</id>
 	<name>Tilt Shift</name>
 	<category>Blur</category>
-	<description>Vertical gradient blur for a toy-model look.</description>
+	<description>Vertical and Horizontal gradient blur.</description>
 	<author>Gemini</author>
 
-	<!-- Settings -->
 	<extend-box-horizontal>0</extend-box-horizontal>
 	<extend-box-vertical>0</extend-box-vertical>
 	<blends-background>false</blends-background>
 	<cross-sampling>false</cross-sampling>
 	<animated>true</animated>
 
-<!-- Parameters -->
 	<parameters>
 		<param>
 			<name>Intensity</name>
@@ -24,20 +21,25 @@
 			<uniform>blurAmount</uniform>
 		</param>
 		<param>
-			<name>Center</name>
-			<description>Vertical position of the blur effect.</description>
+			<name>Vertical Center</name>
+			<description>Y position of focus.</description>
 			<type>float</type>
 			<initial>0.5</initial>
 			<uniform>center</uniform>
 		</param>
-		
 		<param>
-			<name>Spread</name>
-			<description>Amount of blur spread.</description>
+			<name>Vertical Spread</name>
+			<description>How wide the vertical focus is.</description>
 			<type>float</type>
 			<initial>0.1</initial>
 			<uniform>spread</uniform>
-		</param>	
+		</param>
+		<param>
+			<name>Horizontal Spread</name>
+			<description>How wide the horizontal focus is.</description>
+			<type>float</type>
+			<initial>0.3</initial>
+			<uniform>hSpread</uniform>
+		</param>
 	</parameters>
-	
 </c2effect>
