@@ -71,6 +71,10 @@ cr.behaviors.MobsMovement = function(runtime)
 		this.wanderRate = this.properties[8];
 		this.stuckPadding = this.properties[9];
 		this.stuckWait = this.properties[10];
+		this.sideAnimIdx = this.properties[11];
+		this.upAnimIdx = this.properties[12];
+		this.dirBias = this.properties[13];
+		this.lastAnimIdx = -1;
 		
 		this.wanderTimer = Math.random() * this.wanderRate;
 		this.wanderX = this.inst.x;
@@ -206,14 +210,16 @@ cr.behaviors.MobsMovement = function(runtime)
 		var dt = this.runtime.getDt(this.inst);
 		var uid = this.inst.uid;
 		var force = this.type.forces[uid];
+		var forceMagnitude = (force) ? Math.sqrt(force.x * force.x + force.y * force.y) : 0;
 
-		if (!force) return;
+		if (!force) {
+			forceMagnitude = 0;
+		}
 
 		if (this.flipTimer > 0)
 			this.flipTimer -= dt;
 
-		// Normalize the final force vector to ensure consistent speed.
-		var forceMagnitude = Math.sqrt(force.x * force.x + force.y * force.y);
+		// --- Movement and Animation Logic ---
 		if (forceMagnitude > 0) {
 			// Scale speed by force magnitude if less than 1 to prevent jitter when forces are weak
 			var currentSpeed = this.maxSpeed * Math.min(forceMagnitude, 1);
@@ -305,7 +311,44 @@ cr.behaviors.MobsMovement = function(runtime)
 				}
 			}
 
+			// --- Animation Logic ---
+			var targetAnimIdx = this.sideAnimIdx;
+
+			if (currentSpeed < 0.1) {
+				// Idle Check
+				this.inst.anim_playing = false;
+				this.inst.cur_frame = 0;
+			} else {
+				this.inst.anim_playing = true;
+
+				// Directional Switch (Stability Bias)
+				if (finalForceY < -0.1 && Math.abs(finalForceY) > Math.abs(finalForceX) * this.dirBias) {
+					targetAnimIdx = this.upAnimIdx;
+				} else {
+					targetAnimIdx = this.sideAnimIdx;
+					// X-Axis Mirroring
+					if (finalForceX < -0.1) {
+						this.runtime.mirror = true;
+					} else if (finalForceX > 0.1) {
+						this.runtime.mirror = false;
+					}
+				}
+
+				// Efficiency Check
+				if (targetAnimIdx !== this.lastAnimIdx) {
+					if (this.inst.type.animations && this.inst.type.animations[targetAnimIdx]) {
+						this.inst.cur_animation = this.inst.type.animations[targetAnimIdx];
+						this.inst.frame_changed = true;
+						this.lastAnimIdx = targetAnimIdx;
+					}
+				}
+			}
+
 			this.inst.set_bbox_changed();
+		} else {
+			// Handle absolute idle when no force is present
+			this.inst.anim_playing = false;
+			this.inst.cur_frame = 0;
 		}
 	};
 
@@ -625,6 +668,12 @@ cr.behaviors.MobsMovement = function(runtime)
 			{
 				this.wanderTimer = 0; // Force immediate new target selection
 			}
+			else if (this.mode === 0) // Switched to Follow
+			{
+				this.stuckTimer = this.stuckWait;
+				this.lastStuckCheckX = this.inst.x;
+				this.lastStuckCheckY = this.inst.y;
+			}
 		}
 	};
 
@@ -639,6 +688,16 @@ cr.behaviors.MobsMovement = function(runtime)
 		// Prevent long waits if the new value is smaller than the current timer
 		if (this.stuckTimer > w)
 			this.stuckTimer = w;
+	};
+
+	Acts.prototype.SetSideAnimIndex = function (idx)
+	{
+		this.sideAnimIdx = Math.floor(idx);
+	};
+
+	Acts.prototype.SetUpAnimIndex = function (idx)
+	{
+		this.upAnimIdx = Math.floor(idx);
 	};
 	
 	behaviorProto.acts = new Acts();

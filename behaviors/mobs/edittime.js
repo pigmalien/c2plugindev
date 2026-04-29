@@ -92,6 +92,12 @@ AddAction(13, af_none, "Set stuck padding", "Parameters", "Set stuck padding to 
 AddNumberParam("Wait", "The new stuck wait time in seconds.");
 AddAction(14, af_none, "Set stuck wait", "Parameters", "Set stuck wait to {0}", "Set the time between stuck checks.", "SetStuckWait");
 
+AddNumberParam("Index", "The animation index for side/down movement.");
+AddAction(15, af_none, "Set side animation index", "Animations", "Set side animation index to {0}", "Set the animation index used for sideways and downward movement.", "SetSideAnimIndex");
+
+AddNumberParam("Index", "The animation index for upward movement.");
+AddAction(16, af_none, "Set up animation index", "Animations", "Set up animation index to {0}", "Set the animation index used for upward movement.", "SetUpAnimIndex");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -127,7 +133,10 @@ var property_list = [
 	new cr.Property(ept_float, 	"Wander radius",	100,	"The maximum distance from the starting point to wander."),
 	new cr.Property(ept_float, 	"Wander rate",		1.0,	"How often (in seconds) to pick a new wander position."),
 	new cr.Property(ept_float, 	"Stuck padding",	5,		"The distance in pixels the object must move within the 'Stuck wait' time to not be considered stuck."),
-	new cr.Property(ept_float, 	"Stuck wait",		1.0,	"The time in seconds to wait before checking if the object is stuck.")
+	new cr.Property(ept_float, 	"Stuck wait",		1.0,	"The time in seconds to wait before checking if the object is stuck."),
+	new cr.Property(ept_integer, "Side animation index", 0, "The animation index used for sideways and downward movement."),
+	new cr.Property(ept_integer, "Up animation index", 1, "The animation index used for upward movement."),
+	new cr.Property(ept_float, 	"Direction bias",	1.3,	"How much stronger vertical movement must be to switch to the Up animation (prevents jitter).")
 	];
 	
 // Called by IDE when a new behavior type is to be created
