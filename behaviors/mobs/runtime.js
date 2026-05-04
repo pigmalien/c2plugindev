@@ -93,6 +93,8 @@ cr.behaviors.MobsMovement = function(runtime)
 		this.lastStuckCheckX = this.inst.x;
 		this.lastStuckCheckY = this.inst.y;
 		this.flipTimer = 0;
+		this.wasVisible = this.inst.visible;
+		this.myForceVector = {x: 0, y: 0}; // For GC optimization: each instance pre-allocates its force vector
 	};
 	
 	behinstProto.onDestroy = function ()
@@ -100,6 +102,7 @@ cr.behaviors.MobsMovement = function(runtime)
 		// called when associated object is being destroyed
 		// note runtime may keep the object and behavior alive after this call for recycling;
 		// release, recycle or reset any references here as necessary
+		delete this.type.forces[this.inst.uid]; // Clean up the reference to this instance's force vector
 	};
 	
 	// called when saving the full state of the game
@@ -142,10 +145,23 @@ cr.behaviors.MobsMovement = function(runtime)
 	behinstProto.tick = function ()
 	{
 		// This is the first instance being ticked this frame.
-		if (!this.isActive)
+		if (!this.isActive || !this.inst.visible)
+		{
+			this.wasVisible = false;
 			return;
+		}
 			
 		var dt = this.runtime.getDt(this.inst);
+
+		// Reset state if we just spawned from a pool (transitioned from invisible to visible)
+		if (!this.wasVisible)
+		{
+			this.stuckTimer = this.stuckWait;
+			this.lastStuckCheckX = this.inst.x;
+			this.lastStuckCheckY = this.inst.y;
+			this.wanderTimer = Math.random() * this.wanderRate;
+		}
+		this.wasVisible = true;
 
 		// Stuck check logic (only in follow mode)
 		if (this.mode === 0 && this.stuckWait > 0)
@@ -202,7 +218,7 @@ cr.behaviors.MobsMovement = function(runtime)
 	{
 		// Apply the pre-calculated forces.
 		// tick2 runs after tick, ensuring all forces are calculated before they are applied.
-		if (!this.isActive)
+		if (!this.isActive || !this.inst.visible)
 			return;
 			
 		this.isMoving = false;
@@ -357,13 +373,6 @@ cr.behaviors.MobsMovement = function(runtime)
 		var movers = this.type.objtype.instances;
 		var forces = this.type.forces;
 
-		// Clear previous forces
-		for (var uid in forces) {
-			if (forces.hasOwnProperty(uid)) {
-				delete forces[uid];
-			}
-		}
-
 		var globalTargetX, globalTargetY;
 		if (this.type.targetMode === 1) {
 			globalTargetX = this.type.targetX;
@@ -383,6 +392,9 @@ cr.behaviors.MobsMovement = function(runtime)
 		for (var i = 0; i < movers.length; i++) {
 			var moverA = movers[i];
 			
+			// Optimization: Skip calculations for pooled/invisible objects
+			if (!moverA.visible) continue;
+
 			// Find the correct behavior instance for this mover
 			var behA = null;
 			for (var b = 0; b < moverA.behavior_insts.length; b++) {
@@ -427,6 +439,9 @@ cr.behaviors.MobsMovement = function(runtime)
 
 				var moverB = movers[j];
 				
+				// Optimization: Skip if other mover is pooled/invisible
+				if (!moverB.visible) continue;
+
 				// Find the behavior instance for moverB
 				var behB = null;
 				for (var b = 0; b < moverB.behavior_insts.length; b++) {
@@ -482,7 +497,11 @@ cr.behaviors.MobsMovement = function(runtime)
 				}
 			}
 
-			forces[moverA.uid] = { x: totalForceX, y: totalForceY };
+			// Store the calculated force in the instance's pre-allocated vector
+			var behA_force = behA.myForceVector;
+			behA_force.x = totalForceX;
+			behA_force.y = totalForceY;
+			forces[moverA.uid] = behA_force; // Store a reference to the instance's force vector
 		}
 	};
 
