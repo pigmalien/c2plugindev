@@ -163,8 +163,8 @@ cr.behaviors.MobsMovement = function(runtime)
 		}
 		this.wasVisible = true;
 
-		// Stuck check logic (only in follow mode)
-		if (this.mode === 0 && this.stuckWait > 0)
+		// Stuck check logic
+		if (this.stuckWait > 0)
 		{
 			this.stuckTimer -= dt;
 	
@@ -182,6 +182,11 @@ cr.behaviors.MobsMovement = function(runtime)
 					if (force) {
 						var forceMagnitude = Math.sqrt(force.x * force.x + force.y * force.y);
 						if (forceMagnitude > 0.1) {
+							// If wandering and stuck, force a new wander target immediately
+							if (this.mode === 1) {
+								this.wanderTimer = 0;
+							}
+
 							this.runtime.trigger(cr.behaviors.MobsMovement.prototype.cnds.OnStuck, this.inst);
 						}
 					}

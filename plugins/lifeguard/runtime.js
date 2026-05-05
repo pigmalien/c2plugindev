@@ -156,6 +156,11 @@ cr.plugins_.Lifeguard = function(runtime)
             inst.x = x;
             inst.y = y;
             inst.visible = true;
+            
+            // [Inference] Manually resetting basic visual state to mimic a fresh creation
+            if (inst.cur_animation) inst.cur_frame = 0;
+            if (inst.anim_playing) inst.anim_playing = true;
+            
             inst.set_bbox_changed();
             
             pool.currentActive++;

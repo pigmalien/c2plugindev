@@ -118,6 +118,11 @@ AddAction(7, af_none, "Set Color", "Appearance", "Set color to ({0}, {1}, {2})",
 AddNumberParam("Value", "The value to snap to.");
 AddAction(8, af_none, "Snap Value", "General", "Snap value to {0}", "Set the value instantly without animation.", "SnapValue");
 
+AddComboParamOption("Green to Red");
+AddComboParamOption("Red to Green");
+AddComboParam("Direction", "Choose the color direction.");
+AddAction(9, af_none, "Set Auto Color Direction", "Appearance", "Set auto color direction to {0}", "Set the direction of the automatic color gradient.", "SetAutoColorDirection");
+
 ////////////////////////////////////////
 // Expressions
 
@@ -158,7 +163,8 @@ var property_list = [
 	new cr.Property(ept_combo, 	"Animation Mode",	"Smooth", "Choose animation mode.", "Linear|Smooth"),
 	new cr.Property(ept_float, 	"Lerp Speed",		0.1,	"Linear: Units/sec. Smooth: Tightness (0-1)."),
 	new cr.Property(ept_combo, 	"Use Segments",		"No",	"Toggle whether to use segments.", "No|Yes"),
-	new cr.Property(ept_float, 	"Max Value",		100,	"The maximum value for the gauge (for color calculation).")
+	new cr.Property(ept_float, 	"Max Value",		100,	"The maximum value for the gauge (for color calculation)."),
+	new cr.Property(ept_combo,	"Auto Color Direction", "Green to Red", "The direction of the automatic color gradient.", "Green to Red|Red to Green")
 	];
 	
 // Called by IDE when a new object type is to be created

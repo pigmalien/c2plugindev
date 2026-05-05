@@ -58,6 +58,7 @@ cr.plugins_.RadialGauge = function(runtime)
 		this.lerpSpeed = this.properties[4];
 		this.useSegments = (this.properties[5] === 1); // 0=No, 1=Yes
 		this.maxValue = this.properties[6];
+		this.autoColorDirection = this.properties[7]; // 0=Green to Red, 1=Red to Green
 
 		this.segmentCount = 10;
 		this.colorMode = 0; // 0 = Auto, 1 = Fixed
@@ -184,9 +185,16 @@ cr.plugins_.RadialGauge = function(runtime)
 				
 				if (isLit) {
 					if (this.colorMode === 0) {
-						// Auto: Green to Red
-						var r = Math.floor(cr.lerp(0, 255, ratio));
-						var g = Math.floor(cr.lerp(255, 0, ratio));
+						var r, g;
+						if (this.autoColorDirection === 0) {
+							// Auto: Green to Red
+							r = Math.floor(cr.lerp(0, 255, ratio));
+							g = Math.floor(cr.lerp(255, 0, ratio));
+						} else {
+							// Auto: Red to Green
+							r = Math.floor(cr.lerp(255, 0, ratio));
+							g = Math.floor(cr.lerp(0, 255, ratio));
+						}
 						ctx.strokeStyle = "rgb(" + r + "," + g + ",0)";
 					} else {
 						ctx.strokeStyle = this.fixedColor;
@@ -217,8 +225,14 @@ cr.plugins_.RadialGauge = function(runtime)
 		
 		// Dynamic color: Green to Red
 		if (this.colorMode === 0) {
-			var r = Math.floor(cr.lerp(0, 255, ratio));
-			var g = Math.floor(cr.lerp(255, 0, ratio));
+			var r, g;
+			if (this.autoColorDirection === 0) {
+				r = Math.floor(cr.lerp(0, 255, ratio));
+				g = Math.floor(cr.lerp(255, 0, ratio));
+			} else {
+				r = Math.floor(cr.lerp(255, 0, ratio));
+				g = Math.floor(cr.lerp(0, 255, ratio));
+			}
 			ctx.strokeStyle = "rgb(" + r + "," + g + ",0)";
 		} else {
 			ctx.strokeStyle = this.fixedColor;
@@ -397,6 +411,13 @@ cr.plugins_.RadialGauge = function(runtime)
 	Acts.prototype.SetColor = function (r, g, b)
 	{
 		this.fixedColor = "rgb(" + Math.floor(r) + "," + Math.floor(g) + "," + Math.floor(b) + ")";
+		this.needsRedraw = true;
+		this.runtime.redraw = true;
+	};
+
+	Acts.prototype.SetAutoColorDirection = function (mode)
+	{
+		this.autoColorDirection = mode;
 		this.needsRedraw = true;
 		this.runtime.redraw = true;
 	};
