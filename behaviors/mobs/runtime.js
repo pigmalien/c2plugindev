@@ -79,6 +79,8 @@ cr.behaviors.MobsMovement = function(runtime)
 		this.wanderTimer = Math.random() * this.wanderRate;
 		this.wanderX = this.inst.x;
 		this.wanderY = this.inst.y;
+		this.wanderCenterX = this.inst.x;
+		this.wanderCenterY = this.inst.y;
 		
 		// object is sealed after this call, so make sure any properties you'll ever need are created, e.g.
 		// This will be calculated once per tick for this instance
@@ -120,7 +122,9 @@ cr.behaviors.MobsMovement = function(runtime)
 			"st": this.stuckTimer,
 			"scx": this.lastStuckCheckX,
 			"scy": this.lastStuckCheckY,
-			"ft": this.flipTimer
+			"ft": this.flipTimer,
+			"wcx": this.wanderCenterX,
+			"wcy": this.wanderCenterY
 		};
 	};
 	
@@ -138,6 +142,8 @@ cr.behaviors.MobsMovement = function(runtime)
 		this.lastStuckCheckX = o["scx"] || 0;
 		this.lastStuckCheckY = o["scy"] || 0;
 		this.flipTimer = o["ft"] || 0;
+		this.wanderCenterX = o["wcx"] || this.inst.x;
+		this.wanderCenterY = o["wcy"] || this.inst.y;
 		// note you MUST use double-quote syntax (e.g. o["property"]) to prevent
 		// Closure Compiler renaming and breaking the save format
 	};
@@ -184,7 +190,7 @@ cr.behaviors.MobsMovement = function(runtime)
 						if (forceMagnitude > 0.1) {
 							// If wandering and stuck, force a new wander target immediately
 							if (this.mode === 1) {
-								this.wanderTimer = 0;
+								this.updateWanderTarget();
 							}
 
 							this.runtime.trigger(cr.behaviors.MobsMovement.prototype.cnds.OnStuck, this.inst);
@@ -204,11 +210,7 @@ cr.behaviors.MobsMovement = function(runtime)
 		{
 			this.wanderTimer -= dt;
 			if (this.wanderTimer <= 0) {
-				this.wanderTimer = this.wanderRate + (Math.random() * 0.5); // Add slight variance
-				var angle = Math.random() * Math.PI * 2;
-				var dist = Math.random() * this.wanderRadius;
-				this.wanderX = this.inst.x + Math.cos(angle) * dist;
-				this.wanderY = this.inst.y + Math.sin(angle) * dist;
+				this.updateWanderTarget();
 			}
 		}
 
@@ -217,6 +219,15 @@ cr.behaviors.MobsMovement = function(runtime)
 			this.type.lastTick = this.runtime.tickcount;
 			this.calculateAllForces();
 		}
+	};
+
+	behinstProto.updateWanderTarget = function ()
+	{
+		this.wanderTimer = this.wanderRate + (Math.random() * 0.5); // Add slight variance
+		var angle = Math.random() * Math.PI * 2;
+		var dist = Math.random() * this.wanderRadius;
+		this.wanderX = this.wanderCenterX + Math.cos(angle) * dist;
+		this.wanderY = this.wanderCenterY + Math.sin(angle) * dist;
 	};
 
 	behinstProto.tick2 = function ()
@@ -690,7 +701,7 @@ cr.behaviors.MobsMovement = function(runtime)
 			this.mode = m;
 			if (this.mode === 1) // Wander
 			{
-				this.wanderTimer = 0; // Force immediate new target selection
+				this.updateWanderTarget(); // Force immediate new target selection
 			}
 			else if (this.mode === 0) // Switched to Follow
 			{
@@ -722,6 +733,27 @@ cr.behaviors.MobsMovement = function(runtime)
 	Acts.prototype.SetUpAnimIndex = function (idx)
 	{
 		this.upAnimIdx = Math.floor(idx);
+	};
+
+	Acts.prototype.PickNewWanderPosition = function ()
+	{
+		this.updateWanderTarget();
+	};
+
+	Acts.prototype.SetWanderCenter = function (x, y)
+	{
+		this.wanderCenterX = x;
+		this.wanderCenterY = y;
+	};
+
+	Acts.prototype.SetWanderCenterToObject = function (obj)
+	{
+		if (!obj) return;
+		var inst = obj.getFirstPicked(this.inst);
+		if (!inst) return;
+
+		this.wanderCenterX = inst.x;
+		this.wanderCenterY = inst.y;
 	};
 	
 	behaviorProto.acts = new Acts();

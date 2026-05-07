@@ -98,6 +98,15 @@ AddAction(15, af_none, "Set side animation index", "Animations", "Set side anima
 AddNumberParam("Index", "The animation index for upward movement.");
 AddAction(16, af_none, "Set up animation index", "Animations", "Set up animation index to {0}", "Set the animation index used for upward movement.", "SetUpAnimIndex");
 
+AddAction(17, af_none, "Pick new wander position", "Wander", "Pick new wander position", "Force the object to choose a new random wander destination immediately.", "PickNewWanderPosition");
+
+AddNumberParam("X", "The X coordinate of the wander center.");
+AddNumberParam("Y", "The Y coordinate of the wander center.");
+AddAction(18, af_none, "Set wander center", "Wander", "Set wander center to ({0}, {1})", "Set the center point around which the object wanders.", "SetWanderCenter");
+
+AddObjectParam("Object", "The object to use as the wander center.");
+AddAction(19, af_none, "Set wander center to object", "Wander", "Set wander center to {0}", "Set the wander center to the current position of an object.", "SetWanderCenterToObject");
+
 ////////////////////////////////////////
 // Expressions
 
