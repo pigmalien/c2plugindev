@@ -98,25 +98,29 @@ cr.plugins_.Lifeguard = function(runtime)
 	function Acts() {};
 
     // SetupPool action
-	Acts.prototype.SetupPool = function (objType, initialCount)
+	Acts.prototype.SetupPool = function (objType, initialCount, layerParam)
 	{
         if (!objType) return;
+        
+        // Fallback: if the layer isn't found, default to the first layer (index 0)
+        var layer = this.runtime.getLayer(layerParam);
+        if (!layer) layer = this.runtime.getLayer(0);
 
         // Use a property on the object type itself to store the pool.
         if (!objType.hasOwnProperty("gm_pool")) {
             objType.gm_pool = { 
                 array: [], 
                 currentActive: 0, 
-                initialCount: initialCount 
+                initialCount: initialCount,
+                layer: layer
             };
         }
 
         var pool = objType.gm_pool;
-        var layer = this.runtime.getLayer(0); // Get the first layer as a default
         
         // Create the initial instances for the pool.
         for (var i = 0; i < initialCount; i++) {
-            var inst = this.runtime.createInstance(objType, layer);
+            var inst = this.runtime.createInstance(objType, pool.layer);
             if (inst) {
                 inst.visible = false;
                 // Move off-screen immediately to prevent collisions
@@ -148,6 +152,18 @@ cr.plugins_.Lifeguard = function(runtime)
             if (pool.array[i].visible === false) {
                 inst = pool.array[i];
                 break;
+            }
+        }
+        
+        // If no inactive instance was found, create a new one dynamically
+        if (!inst) {
+            // Final safety check for the layer during dynamic spawning
+            var layer = pool.layer || this.runtime.getLayer(0);
+            inst = this.runtime.createInstance(objType, layer);
+            
+            if (inst) {
+                inst.lifeguard_pooled = true;
+                pool.array.push(inst);
             }
         }
 

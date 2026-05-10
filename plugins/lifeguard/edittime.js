@@ -48,7 +48,8 @@ AddCondition(2, cf_trigger, "On global event", "Global Events", "On global event
 // ACT: Setup Pool
 AddObjectParam("Object Type to Pool", "Choose the object type (e.g., Bullet) to set up for pooling.");
 AddNumberParam("Initial Quantity", "The number of instances to pre-create and store in the pool.", "10");
-AddAction(1, af_none, "Setup pool", "Pooling", "Setup pool for {0} with initial count {1}", "Pre-creates and initializes the pool for an object type.", "SetupPool");
+AddLayerParam("Layer", "The layer to create the pooled objects on.");
+AddAction(1, af_none, "Setup pool", "Pooling", "Setup pool for {0} (count: {1}) on layer {2}", "Pre-creates and initializes the pool for an object type.", "SetupPool");
 
 // ACT: Spawn Instance
 AddObjectParam("Object Type to Spawn", "Choose the object type to retrieve from the pool.");
