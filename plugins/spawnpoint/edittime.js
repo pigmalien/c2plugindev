@@ -24,6 +24,8 @@ AddCondition(2, cf_trigger, "On point set", "Spawning", "On point set", "Trigger
 // Actions
 AddComboParamOption("Spawn outside area");
 AddComboParamOption("Spawn inside area");
+AddComboParamOption("Spawn outside circle");
+AddComboParamOption("Spawn inside circle");
 AddComboParam("Mode", "Set the spawn point mode.");
 AddAction(0, af_none, "Set mode", "Mode", "Set mode to {0}", "Set the spawn point mode.", "SetMode");
 

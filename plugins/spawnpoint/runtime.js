@@ -114,8 +114,8 @@ cr.plugins_.SpawnPoint = function(runtime)
 	};
 
 	function Cnds() {};
-	Cnds.prototype.IsSpawningOutside = function () { return this.spawn_mode === 0; };
-	Cnds.prototype.IsSpawningInside = function () { return this.spawn_mode === 1; };
+	Cnds.prototype.IsSpawningOutside = function () { return this.spawn_mode === 0 || this.spawn_mode === 2; };
+	Cnds.prototype.IsSpawningInside = function () { return this.spawn_mode === 1 || this.spawn_mode === 3; };
 	Cnds.prototype.OnSetPoint = function () { return true; };
 	pluginProto.cnds = new Cnds();
 	
@@ -165,9 +165,22 @@ cr.plugins_.SpawnPoint = function(runtime)
 					break;
 			}
 		} 
-		else { // Spawn inside area
+		else if (this.spawn_mode === 1) { // Spawn inside area (Rectangle)
 			x = this.random() * this.area_w + this.area_x;
 			y = this.random() * this.area_h + this.area_y;
+		}
+		else if (this.spawn_mode === 2) { // Spawn outside circle
+			var angle = this.random() * 2 * Math.PI;
+			// dist = radius + random distance spread up to padding
+			var dist = this.area_w + (this.random() * this.padding);
+			x = this.area_x + Math.cos(angle) * dist;
+			y = this.area_y + Math.sin(angle) * dist;
+		}
+		else if (this.spawn_mode === 3) { // Spawn inside circle
+			var angle = this.random() * 2 * Math.PI;
+			var dist = Math.sqrt(this.random()) * this.area_w;
+			x = this.area_x + Math.cos(angle) * dist;
+			y = this.area_y + Math.sin(angle) * dist;
 		}
 		
 		// Handle potential NaN results if width/height/spread are invalid
