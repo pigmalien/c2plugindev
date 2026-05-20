@@ -76,6 +76,9 @@ AddAction(4, af_none, "Set min speed", "Parameters", "Set min speed to {0}", "Se
 AddNumberParam("Deceleration", "The new deceleration rate in pixels per second squared.");
 AddAction(5, af_none, "Set deceleration", "Parameters", "Set deceleration to {0}", "Set the deceleration rate for the object.", "SetDeceleration");
 AddNumberParam("Speed", "The new rotation speed (e.g., 2 for normal).");
+AddNumberParam("Acceleration", "The new acceleration rate in pixels per second squared.");
+AddAction(13, af_none, "Set acceleration", "Parameters", "Set acceleration to {0}", "Set the acceleration rate for the object.", "SetAcceleration");
+
 AddAction(6, af_none, "Set rotation speed", "Parameters", "Set rotation speed to {0}", "Set the rotation speed for the object.", "SetRotationSpeed");
 AddNumberParam("Radius", "The new effective radius in pixels.");
 AddAction(7, af_none, "Set effective radius", "Parameters", "Set effective radius to {0}", "Set the distance at which speed scaling is maxed out.", "SetEffectiveRadius");
@@ -107,6 +110,9 @@ AddAction(12, af_none, "Clear obstacles", "Obstacles", "Clear all obstacles", "R
 AddExpression(0, ef_return_number, "CurrentSpeed", "Movement", "CurrentSpeed", "Return the current speed of the object in pixels per second.");
 AddExpression(1, ef_return_number, "AngleOfMotion", "Movement", "AngleOfMotion", "Return the current angle of motion in degrees.");
 
+AddExpression(2, ef_return_number, "Acceleration", "Parameters", "Acceleration", "Return the current acceleration rate.");
+
+
 ////////////////////////////////////////
 ACESDone();
 
@@ -123,6 +129,7 @@ var property_list = [
 	new cr.Property(ept_float, 	"Max speed",		100,	"Maximum speed in pixels per second."),
 	new cr.Property(ept_float, 	"Min speed",		20,		"Minimum speed when the object is close to the target."),
 	new cr.Property(ept_float, 	"Deceleration",		75,		"Rate of deceleration (friction) in pixels/sec^2."),
+	new cr.Property(ept_float, 	"Acceleration",		0,		"Rate of acceleration in pixels/sec^2. 0 for instant speed change."),
 	new cr.Property(ept_float, 	"Rotation speed",	2,		"How quickly the object rotates to face the target in 'Steering' mode (higher is faster)."),
 	new cr.Property(ept_combo,	"Flip",				"None",	"Automatically flip the object horizontally. Best used when 'Rotation speed' is 0.", "None|Horizontal"),
 	new cr.Property(ept_float, 	"Effective radius",	300,	"The distance from the target at which speed scaling is maxed out."),

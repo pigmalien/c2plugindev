@@ -755,6 +755,11 @@ cr.behaviors.MobsMovement = function(runtime)
 		this.wanderCenterX = inst.x;
 		this.wanderCenterY = inst.y;
 	};
+
+	Acts.prototype.SetWanderRadius = function (r)
+	{
+		this.wanderRadius = r;
+	};
 	
 	behaviorProto.acts = new Acts();
 

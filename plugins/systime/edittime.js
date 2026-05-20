@@ -162,6 +162,14 @@ AddExpression(4, ef_return_number, "TotalChainProgress", "Chain Timer", "TotalCh
 AddStringParam("Name", "The name of the chain.");
 AddExpression(5, ef_return_number, "ChainIndex", "Chain Timer", "ChainIndex", "Get the current index of the chain.");
 
+AddStringParam("Name", "The name of the timer.");
+AddStringParam("Format", "The format string (e.g., 'HH:MM:SS', 'MM:SS', 'SS:CC').", "\"MM:SS\"");
+AddExpression(6, ef_return_string, "TimeRemainingFormatted", "Timer", "TimeRemainingFormatted", "Get the formatted time remaining.");
+
+AddStringParam("Name", "The name of the timer.");
+AddStringParam("Format", "The format string (e.g., 'HH:MM:SS', 'MM:SS', 'SS:CC').", "\"MM:SS\"");
+AddExpression(7, ef_return_string, "TimeElapsedFormatted", "Timer", "TimeElapsedFormatted", "Get the formatted time elapsed.");
+
 ////////////////////////////////////////
 ACESDone();
 

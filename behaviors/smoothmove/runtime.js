@@ -56,14 +56,17 @@ cr.behaviors.SmoothMove = function(runtime)
 		this.movementMode = this.properties[1]; // 0=Steering, 1=Direct
 		this.maxSpeed = this.properties[2];
 		this.minSpeed = this.properties[3];
-		this.deceleration = this.properties[4];
-		this.rotationSpeed = this.properties[5];
-		this.flipMode = this.properties[6]; // 0=None, 1=Horizontal
-		this.effectiveRadius = this.properties[7];
-		this.stopOnSolids = (this.properties[8] === 1); // 0=No, 1=Yes
-		this.avoidance = this.properties[9];
+		this.deceleration = this.properties[4]; // Original index
+		this.acceleration = this.properties[5]; // New property at index 5
+		this.rotationSpeed = this.properties[6]; // Shifted from 5 to 6
+		this.flipMode = this.properties[7]; // Shifted from 6 to 7
+		this.effectiveRadius = this.properties[8]; // Shifted from 7 to 8
+		this.stopOnSolids = (this.properties[9] === 1); // Shifted from 8 to 9
+		this.avoidance = this.properties[10]; // Shifted from 9 to 10
 		
 		// object is sealed after this call, so make sure any properties you'll ever need are created, e.g.
+		this.currentSpeed = 0; // Current magnitude of velocity
+		this.currentAngleOfMotion = 0; // Current direction of velocity
 		this.velocity = { x: 0, y: 0 };
 		this.hasPositionTarget = false;
 		this.targetX = 0;
@@ -93,6 +96,8 @@ cr.behaviors.SmoothMove = function(runtime)
 			"max": this.maxSpeed,
 			"min": this.minSpeed,
 			"dec": this.deceleration,
+			"acc": this.acceleration, // New property
+			"cspeed": this.currentSpeed, // New property
 			"rot": this.rotationSpeed,
 			"rad": this.effectiveRadius,
 			"vel": this.velocity,
@@ -115,6 +120,8 @@ cr.behaviors.SmoothMove = function(runtime)
 		this.maxSpeed = o["max"];
 		this.minSpeed = o["min"];
 		this.deceleration = o["dec"];
+		this.acceleration = o["acc"] || 0; // New property, default to 0 for old saves
+		this.currentSpeed = o["cspeed"] || 0; // New property, default to 0 for old saves
 		this.rotationSpeed = o["rot"];
 		this.effectiveRadius = o["rad"];
 		this.velocity = o["vel"];
@@ -130,10 +137,11 @@ cr.behaviors.SmoothMove = function(runtime)
 
 	behinstProto.tick = function ()
 	{
-		var dt = this.runtime.getDt(this.inst);
-		var inst = this.inst;
-		var vel = this.velocity;
-		var targetObj = this.runtime.getObjectByUID(this.type.targetUid);
+		const dt = this.runtime.getDt(this.inst);
+		const inst = this.inst;
+		const vel = this.velocity; // This is the current velocity vector, its magnitude will be this.currentSpeed
+		
+		const targetObj = this.runtime.getObjectByUID(this.type.targetUid);
 		var hasTarget = targetObj || this.hasPositionTarget;
 
 		// If following an object, update the target coordinates.
@@ -142,18 +150,14 @@ cr.behaviors.SmoothMove = function(runtime)
 			this.targetY = targetObj.y;
 		}
 		
+		let desiredSpeed = 0; // The speed we *want* to reach this frame
+		let desiredAngle = this.currentAngleOfMotion; // The angle we *want* to face this frame
+
 		// Do nothing if behavior is inactive.
 		if (!this.enabled)
 		{
-			// Decelerate to a stop if inactive
-			const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
-            if (speed > 0) {
-                const friction = this.deceleration * dt;
-                const newSpeed = Math.max(0, speed - friction);
-                const ratio = newSpeed / speed;
-                vel.x *= ratio;
-                vel.y *= ratio;
-            }
+			// Decelerate to a stop if inactive. If deceleration is 0, stop instantly.
+            this.currentSpeed = (this.deceleration > 0) ? Math.max(0, this.currentSpeed - this.deceleration * dt) : 0;
 		}
 		else if (hasTarget) // Is enabled and has a target to move to
 		{
@@ -162,16 +166,15 @@ cr.behaviors.SmoothMove = function(runtime)
 
             // If very close to the target, snap to position and stop.
             // This prevents jittering or orbiting the target point.
-            // A threshold of 0.5 pixels is small enough to be unnoticeable.
-            if (distance < 0.5)
+            if (distance < 0.5) // A threshold of 0.5 pixels is small enough to be unnoticeable.
             {
-                vel.x = 0;
-                vel.y = 0;
+                this.currentSpeed = 0; // Fix: Explicitly zero speed to stop movement
                 inst.x = this.targetX;
                 inst.y = this.targetY;
                 inst.set_bbox_changed();
             }
-			else {
+			else // Not at target, calculate movement
+			{
 				const targetAngle = cr.angleTo(inst.x, inst.y, this.targetX, this.targetY);
 				let moveAngle = targetAngle;
 				
@@ -203,27 +206,37 @@ cr.behaviors.SmoothMove = function(runtime)
 					inst.angle = cr.anglelerp(inst.angle, moveAngle, this.rotationSpeed * dt);
 				}
 
-				// Calculate speed based on distance.
+				// Calculate desired speed based on distance.
 				const speedRatio = Math.min(distance / this.effectiveRadius, 1.0);
-				let targetSpeed = cr.lerp(this.minSpeed, this.maxSpeed, speedRatio);
-				targetSpeed = Math.min(targetSpeed, distance / dt); // Prevent overshooting
+				desiredSpeed = cr.lerp(this.minSpeed, this.maxSpeed, speedRatio);
+				desiredSpeed = Math.min(desiredSpeed, distance / dt); // Prevent overshooting
 
-				// Smoothly interpolate velocity angle
-				var currentSpeedSq = vel.x * vel.x + vel.y * vel.y;
-				var finalAngle = moveAngle;
-				
-				if (currentSpeedSq > 0) {
-					var currentAngle = Math.atan2(vel.y, vel.x);
-					// Use a smoothing factor (e.g. 10) to prevent snapping
-					finalAngle = cr.anglelerp(currentAngle, moveAngle, 3 * dt);
+				// Apply acceleration/deceleration to currentSpeed
+				if (this.acceleration > 0 && this.currentSpeed < desiredSpeed) {
+					this.currentSpeed = Math.min(desiredSpeed, this.currentSpeed + this.acceleration * dt);
+				} else if (this.deceleration > 0 && this.currentSpeed > desiredSpeed) {
+					this.currentSpeed = Math.max(desiredSpeed, this.currentSpeed - this.deceleration * dt);
+				} else {
+					this.currentSpeed = desiredSpeed; // If no accel/decel, snap to desired speed
 				}
 
-				vel.x = Math.cos(finalAngle) * targetSpeed;
-				vel.y = Math.sin(finalAngle) * targetSpeed;
+				// Smoothly interpolate current angle of motion
+				if (this.currentSpeed > 0) {
+					this.currentAngleOfMotion = cr.anglelerp(this.currentAngleOfMotion, moveAngle, 3 * dt);
+				} else {
+					this.currentAngleOfMotion = moveAngle; // If not moving, snap direction
+				}
 			}
         }
 		else // Is enabled but has no target
-		{ /* No target, do nothing, allow deceleration from !enabled case if needed */ }
+		{ 
+			// Decelerate to a stop if target is lost. If deceleration is 0, stop instantly.
+			this.currentSpeed = (this.deceleration > 0) ? Math.max(0, this.currentSpeed - this.deceleration * dt) : 0;
+		}
+
+		// Update velocity vector based on currentSpeed and currentAngleOfMotion
+		vel.x = Math.cos(this.currentAngleOfMotion) * this.currentSpeed;
+		vel.y = Math.sin(this.currentAngleOfMotion) * this.currentSpeed;
 
 		// --- Handle flipping ---
 		if (this.flipMode === 1 && this.rotationSpeed === 0) // 1=Horizontal, and only if not rotating
@@ -237,21 +250,18 @@ cr.behaviors.SmoothMove = function(runtime)
 			// Flip based on horizontal velocity (with a small threshold to prevent rapid flipping)
 			// Hysteresis: only flip if velocity is significantly in the opposite direction
 			var threshold = 0.5;
-			if (inst.width > 0 && vel.x < -threshold)
-				inst.width = -this.lastKnownWidth;
-			else if (inst.width < 0 && vel.x > threshold)
-				inst.width = this.lastKnownWidth;
+			if (inst.width > 0 && vel.x < -threshold) inst.width = -this.lastKnownWidth;
+			else if (inst.width < 0 && vel.x > threshold) inst.width = this.lastKnownWidth;
 		}
 
 		// --- Limit Velocity (Safety check) ---
-        const speedSq = vel.x * vel.x + vel.y * vel.y;
-        const maxSpeedSq = this.maxSpeed * this.maxSpeed;
-        if (speedSq > maxSpeedSq) {
-            const ratio = this.maxSpeed / Math.sqrt(speedSq);
-            vel.x *= ratio;
-            vel.y *= ratio;
-        }
-
+		// Ensure currentSpeed does not exceed maxSpeed (can happen if acceleration is very high)
+		if (this.currentSpeed > this.maxSpeed) {
+			this.currentSpeed = this.maxSpeed;
+			// Re-normalize velocity vector if speed was capped
+			vel.x = Math.cos(this.currentAngleOfMotion) * this.currentSpeed;
+			vel.y = Math.sin(this.currentAngleOfMotion) * this.currentSpeed;
+		}
 		// --- Apply Final Velocity to Position ---
 		if (vel.x !== 0 || vel.y !== 0)
 		{
@@ -363,6 +373,7 @@ cr.behaviors.SmoothMove = function(runtime)
 				{"name": "Max speed", "value": this.maxSpeed},
 				{"name": "Min speed", "value": this.minSpeed},
 				{"name": "Deceleration", "value": this.deceleration},
+				{"name": "Acceleration", "value": this.acceleration}, // New debugger value
 				{"name": "Rotation speed", "value": this.rotationSpeed},
 				{"name": "Effective radius", "value": this.effectiveRadius},
 				{"name": "Stop on solids", "value": this.stopOnSolids},
@@ -381,6 +392,7 @@ cr.behaviors.SmoothMove = function(runtime)
 			case "Max speed": 		 this.maxSpeed = value; break;
 			case "Min speed": 		 this.minSpeed = value; break;
 			case "Deceleration": 	 this.deceleration = value; break;
+			case "Acceleration": 	 this.acceleration = value; break; // New debugger edit
 			case "Rotation speed": 	 this.rotationSpeed = value; break;
 			case "Effective radius": this.effectiveRadius = value; break;
 			case "Stop on solids":	 this.stopOnSolids = value; break;
@@ -395,7 +407,7 @@ cr.behaviors.SmoothMove = function(runtime)
 	
 	Cnds.prototype.IsEnabled = function () { return this.enabled; };
 
-	Cnds.prototype.IsMoving = function () { return this.velocity.x !== 0 || this.velocity.y !== 0; };
+	Cnds.prototype.IsMoving = function () { return this.currentSpeed > 0; }; // Use currentSpeed
 
 	behaviorProto.cnds = new Cnds();
 
@@ -437,6 +449,7 @@ cr.behaviors.SmoothMove = function(runtime)
 	Acts.prototype.SetMinSpeed = function (s) { this.minSpeed = s; };
 	Acts.prototype.SetDeceleration = function (d) { this.deceleration = d; };
 	Acts.prototype.SetRotationSpeed = function (r) { this.rotationSpeed = r; };
+	Acts.prototype.SetAcceleration = function (a) { this.acceleration = a; }; // New action
 	Acts.prototype.SetEffectiveRadius = function (r) { this.effectiveRadius = r; };
 	Acts.prototype.SetStopOnSolids = function (s) { this.stopOnSolids = (s === 1); };
 	Acts.prototype.SetAvoidance = function (a) { this.avoidance = a; };
@@ -459,16 +472,21 @@ cr.behaviors.SmoothMove = function(runtime)
 	// Expressions
 	function Exps() {};
 	
+	// Use currentSpeed for expression
 	Exps.prototype.CurrentSpeed = function (ret)
 	{
-		var speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
-		ret.set_float(speed);
+		ret.set_float(this.currentSpeed);
 	};
 	
+	// Use currentAngleOfMotion for expression
 	Exps.prototype.AngleOfMotion = function (ret)
 	{
-		var angle = cr.to_degrees(Math.atan2(this.velocity.y, this.velocity.x));
+		var angle = cr.to_degrees(this.currentAngleOfMotion);
 		ret.set_float(angle);
+	};
+
+	Exps.prototype.Acceleration = function (ret) { // New expression
+		ret.set_float(this.acceleration);
 	};
 	
 	behaviorProto.exps = new Exps();

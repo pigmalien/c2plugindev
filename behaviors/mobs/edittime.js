@@ -107,6 +107,9 @@ AddAction(18, af_none, "Set wander center", "Wander", "Set wander center to ({0}
 AddObjectParam("Object", "The object to use as the wander center.");
 AddAction(19, af_none, "Set wander center to object", "Wander", "Set wander center to {0}", "Set the wander center to the current position of an object.", "SetWanderCenterToObject");
 
+AddNumberParam("Radius", "The new wander radius in pixels.");
+AddAction(20, af_none, "Set wander radius", "Wander", "Set wander radius to {0}", "Set the maximum distance the object will wander from its center.", "SetWanderRadius");
+
 ////////////////////////////////////////
 // Expressions
 

@@ -180,6 +180,26 @@ cr.plugins_.SysTime = function(runtime)
 		}
 	};
 	
+	instanceProto.doFormatTime = function (seconds, format)
+	{
+		var h = Math.floor(seconds / 3600);
+		var m = Math.floor((seconds % 3600) / 60);
+		var s = Math.floor(seconds % 60);
+		var cs = Math.floor((seconds % 1) * 100);
+
+		var res = format;
+		// Pad with leading zeros for double-letter tokens
+		res = res.replace(/HH/g, (h < 10 ? "0" + h : h));
+		res = res.replace(/MM/g, (m < 10 ? "0" + m : m));
+		res = res.replace(/SS/g, (s < 10 ? "0" + s : s));
+		res = res.replace(/CC/g, (cs < 10 ? "0" + cs : cs));
+		// Single letter tokens for unpadded values
+		res = res.replace(/H/g, h);
+		res = res.replace(/M/g, m);
+		res = res.replace(/S/g, s);
+		return res;
+	};
+	
 	// only called if a layout object in WebGL mode - draw to the WebGL context
 	// 'glw' is not a WebGL context, it's a wrapper - you can find its methods in GLWrap.js in the install
 	// directory or just copy what other plugins do.
@@ -496,6 +516,29 @@ cr.plugins_.SysTime = function(runtime)
 			val = this.chains[name].currentIndex;
 		}
 		ret.set_int(val);
+	};
+
+	Exps.prototype.TimeRemainingFormatted = function (ret, name, format)
+	{
+		name = name.toLowerCase();
+		var val = 0;
+		if (this.timers.hasOwnProperty(name)) {
+			var t = this.timers[name];
+			val = t.duration - t.elapsed;
+			if (val < 0) val = 0;
+		}
+		// Note: we use the raw seconds value for formatting regardless of the 'Precision' property
+		ret.set_string(this.doFormatTime(val, format));
+	};
+	
+	Exps.prototype.TimeElapsedFormatted = function (ret, name, format)
+	{
+		name = name.toLowerCase();
+		var val = 0;
+		if (this.timers.hasOwnProperty(name)) {
+			val = this.timers[name].elapsed;
+		}
+		ret.set_string(this.doFormatTime(val, format));
 	};
 
 	pluginProto.exps = new Exps();
