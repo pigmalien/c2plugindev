@@ -98,13 +98,12 @@ cr.plugins_.Lifeguard = function(runtime)
 	function Acts() {};
 
     // SetupPool action
-	Acts.prototype.SetupPool = function (objType, initialCount, layerParam)
+	Acts.prototype.SetupPool = function (objType, initialCount)
 	{
         if (!objType) return;
         
-        // Fallback: if the layer isn't found, default to the first layer (index 0)
-        var layer = this.runtime.getLayer(layerParam);
-        if (!layer) layer = this.runtime.getLayer(0);
+        // Auto-detect the layer from existing layout instances, fallback to index 0 if none found
+        var layer = (objType.instances.length > 0) ? objType.instances[0].layer : this.runtime.getLayer(0);
 
         // Use a property on the object type itself to store the pool.
         if (!objType.hasOwnProperty("gm_pool")) {
@@ -114,6 +113,9 @@ cr.plugins_.Lifeguard = function(runtime)
                 initialCount: initialCount,
                 layer: layer
             };
+        } else {
+            // Update the layer reference to match the current layout context
+            objType.gm_pool.layer = layer;
         }
 
         var pool = objType.gm_pool;
