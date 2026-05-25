@@ -666,6 +666,10 @@ cr.behaviors.MyCam = function(runtime)
 		this.gridSnapping = (s === 1);
 	};
 	
+	Acts.prototype.SetAutoZoom = function (s) {
+		this.autoZoom = (s === 1);
+	};
+	
 	behaviorProto.acts = new Acts();
 
 	//////////////////////////////////////

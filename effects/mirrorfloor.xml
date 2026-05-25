@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<c2effect>
+	<id>mirrorfloor</id>
+	<name>Mirror Floor</name>
+	<category>Visual</category>
+	<description>Flips the background texture vertically.</description>
+	<author>Gemini</author>
+
+	<extend-box-horizontal>0</extend-box-horizontal>
+	<extend-box-vertical>0</extend-box-vertical>
+	<blends-background>true</blends-background>
+	<cross-sampling>false</cross-sampling>
+	<animated>true</animated>
+
+	<parameters>
+		<param>
+			<name>Reflection Line</name>
+			<description>The Y anchor where the reflection starts flipping (0.0 to 1.0).</description>
+			<type>float</type>
+			<initial>0.5</initial>
+			<uniform>mirrorY</uniform>
+		</param>
+		<param>
+			<name>Opacity</name>
+			<description>How visible the reflection is (0.0 to 1.0).</description>
+			<type>float</type>
+			<initial>0.5</initial>
+			<uniform>opacity</uniform>
+		</param>
+	</parameters>
+</c2effect>

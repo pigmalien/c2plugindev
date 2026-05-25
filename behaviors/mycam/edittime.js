@@ -85,6 +85,11 @@ AddComboParamOption("Enabled");
 AddComboParam("Grid Snapping", "Enable or disable Zelda-style room snapping.");
 AddAction(10, af_none, "Set grid snapping", "Grid Snapping", "Set {my} grid snapping to <b>{0}</b>", "Enable or disable Zelda-style room snapping.", "SetGridSnapping");
 
+AddComboParamOption("Disabled");
+AddComboParamOption("Enabled");
+AddComboParam("Auto Zoom", "Enable or disable automatic zooming based on speed.");
+AddAction(11, af_none, "Set auto-zoom", "Zooming", "Set {my} auto-zoom to <b>{0}</b>", "Enable or disable automatic zooming based on speed.", "SetAutoZoom");
+
 ////////////////////////////////////////
 // Expressions
 AddExpression(0, ef_return_number, "CameraX", "Position", "CameraX", "The camera's current target X coordinate.");
