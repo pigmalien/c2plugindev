@@ -390,11 +390,12 @@ cr.behaviors.MobsMovement = function(runtime)
 		var forces = this.type.forces;
 
 		var globalTargetX, globalTargetY;
+		var target = null;
 		if (this.type.targetMode === 1) {
 			globalTargetX = this.type.targetX;
 			globalTargetY = this.type.targetY;
 		} else {
-			var target = this.runtime.getObjectByUID(this.type.targetUid);
+			target = this.runtime.getObjectByUID(this.type.targetUid);
 			if (target) {
 				globalTargetX = target.x;
 				globalTargetY = target.y;
@@ -441,13 +442,16 @@ cr.behaviors.MobsMovement = function(runtime)
 			// A. Steering Force (towards target)
 			var dx = targetX - moverA.x;
 			var dy = targetY - moverA.y;
-			var distToTarget = Math.sqrt(dx * dx + dy * dy);
-			
-			// Scale steering by distance if close (arrival behavior) to stop jitter at target
-			var steerAmount = (distToTarget < 10 ? distToTarget / 10 : 1);
-			var angleToTarget = Math.atan2(dy, dx);
-			totalForceX += Math.cos(angleToTarget) * steerAmount;
-			totalForceY += Math.sin(angleToTarget) * steerAmount;
+			var distSqToTarget = (dx * dx + dy * dy);
+
+			if (distSqToTarget > 0.01) {
+				var distToTarget = Math.sqrt(distSqToTarget);
+				// Scale steering by distance if close (arrival behavior) to stop jitter at target
+				var steerAmount = (distToTarget < 10 ? distToTarget / 10 : 1);
+				var angleToTarget = Math.atan2(dy, dx);
+				totalForceX += Math.cos(angleToTarget) * steerAmount;
+				totalForceY += Math.sin(angleToTarget) * steerAmount;
+			}
 
 			// B. Repulsion Force (from other movers)
 			for (var j = 0; j < movers.length; j++) {
@@ -481,9 +485,11 @@ cr.behaviors.MobsMovement = function(runtime)
 
 				var distSq = (dx * dx) + (dy * dy);
 
-				if (distSq > 0 && distSq < behA.repulsionRadiusSq) {
+				if (distSq > 0.001 && distSq < behA.repulsionRadiusSq) {
 					var dist = Math.sqrt(distSq);
-					var forceMagnitude = (behA.repulsionRadius - dist) / behA.repulsionRadius;
+					// Inverse linear repulsion
+					var forceMagnitude = (1.0 - (dist / behA.repulsionRadius)) * behA.repulsionForce;
+					
 					totalForceX -= (dx / dist) * forceMagnitude * behA.repulsionForce;
 					totalForceY -= (dy / dist) * forceMagnitude * behA.repulsionForce;
 				}
