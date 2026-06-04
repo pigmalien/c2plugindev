@@ -1,4 +1,4 @@
-﻿function GetPluginSettings()
+function GetPluginSettings()
 {
 	return {
 		"name":			"Game Master",			// as appears in 'insert object' dialog, can be changed as long as "id" stays the same
@@ -110,9 +110,7 @@ ACESDone();
 // new cr.Property(ept_combo,		name,	"Item 1",		description, "Item 1|Item 2|Item 3")	// a dropdown list (initial_value is string of initially selected item)
 // new cr.Property(ept_link,		name,	link_text,		description, "firstonly")		// has no associated value; simply calls "OnPropertyChanged" on click
 
-var property_list = [
-	new cr.Property(ept_integer, 	"My property",		77,		"An example property.")
-	];
+var property_list = [];
 	
 // Called by IDE when a new object type is to be created
 function CreateIDEObjectType()
