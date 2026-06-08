@@ -160,7 +160,12 @@ cr.plugins_.Lifeguard = function(runtime)
         // If no inactive instance was found, create a new one dynamically
         if (!inst) {
             // Final safety check for the layer during dynamic spawning
-            var layer = pool.layer || this.runtime.getLayer(0);
+            var layer = pool.layer;
+            
+            // [Inference] Verify the layer belongs to the current layout to prevent spawning into destroyed layouts
+            if (!layer || layer.layout !== this.runtime.running_layout) {
+                layer = this.runtime.getLayer(0);
+            }
             inst = this.runtime.createInstance(objType, layer);
             
             if (inst) {
