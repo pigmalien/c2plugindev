@@ -24,6 +24,11 @@ AddAction(1, af_none, "Add solid", "Raycasting", "Add solid {0}", "Add an object
 
 AddAction(2, af_none, "Clear solids", "Raycasting", "Clear solids", "Remove all added solid objects.", "ClearSolids");
 
+AddNumberParam("Angle", "The angle in degrees to cast the ray.", "0");
+AddNumberParam("Distance", "The maximum distance in pixels for the ray.", "1000");
+AddObjectParam("Objects", "The object type to check for collision.");
+AddAction(3, af_none, "Cast ray (multi-hit)", "Raycasting", "Cast ray (multi-hit) at angle {0} for distance {1} against {2}", "Fires a ray and triggers 'On any ray hit' for every instance hit.", "CastRayAll");
+
 ////////////////////////////////////////
 // Conditions
 AddCondition(0, cf_trigger, "On ray hit", "Raycasting", "On ray hit", "Triggered when a ray cast hits an object.", "OnRayHit");
@@ -32,6 +37,7 @@ AddCondition(2, cf_trigger, "On ray failed", "Raycasting", "On ray failed", "Tri
 AddCondition(3, cf_trigger, "On solid hit", "Raycasting", "On solid hit", "Triggered when the ray hits a solid object.", "OnRayHitSolid");
 AddObjectParam("Target", "The object to check line of sight to.");
 AddCondition(4, cf_none, "Has line of sight", "Line of Sight", "Has line of sight to {0}", "Check if the object has a clear line of sight to a target.", "HasLOS");
+AddCondition(5, cf_trigger, "On multi-hit", "Raycasting", "On multi-hit", "Triggered for every object hit during a multi-hit ray cast.", "OnMultiHit");
 
 ////////////////////////////////////////
 // Expressions

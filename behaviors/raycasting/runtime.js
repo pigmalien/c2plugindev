@@ -1,4 +1,4 @@
-﻿﻿"use strict";
+﻿﻿﻿﻿"use strict";
 assert2(cr, "cr namespace not created");
 assert2(cr.behaviors, "cr.behaviors not created");
 (function ()
@@ -65,6 +65,7 @@ assert2(cr.behaviors, "cr.behaviors not created");
     Cnds.prototype.DidHit = function() { return this.didHit; };
     Cnds.prototype.OnRayFailed = function() { return true; };
     Cnds.prototype.OnRayHitSolid = function() { return true; };
+    Cnds.prototype.OnMultiHit = function() { return true; };
     
     Cnds.prototype.HasLOS = function (obj) {
         if (!obj) return false;
@@ -263,6 +264,83 @@ assert2(cr.behaviors, "cr.behaviors not created");
             this.runtime.trigger(cr.behaviors.Raycasting.prototype.cnds.OnRayHit, this.inst);
         }
 
+        if (!this.didHit) {
+            this.runtime.trigger(cr.behaviors.Raycasting.prototype.cnds.OnRayFailed, this.inst);
+        }
+    };
+
+    Acts.prototype.CastRayAll = function(angle, distance, obj) {
+        if (!obj) return;
+
+        var startX = this.inst.x;
+        var startY = this.inst.y;
+        var rad = cr.to_radians(angle);
+        var endX = startX + Math.cos(rad) * distance;
+        var endY = startY + Math.sin(rad) * distance;
+
+        this.didHit = false;
+        this.hitUID = -1;
+
+        // 1. Find the closest solid distance to truncate the multi-hit ray
+        var maxDistSq = distance * distance;
+        var closestSolidHit = null;
+        var closestSolidType = null;
+
+        for (var k = 0; k < this.type.solidTypes.length; k++) {
+            var solidType = this.type.solidTypes[k];
+            var solids = solidType.instances;
+            for (var i = 0; i < solids.length; i++) {
+                var inst = solids[i];
+                if (inst === this.inst) continue;
+                var res = check_intersection(startX, startY, endX, endY, inst);
+                if (res) {
+                    var dSq = distanceSqTo(startX, startY, res.x, res.y);
+                    if (dSq < maxDistSq) {
+                        maxDistSq = dSq;
+                        closestSolidHit = res;
+                        closestSolidType = solidType;
+                    }
+                }
+            }
+        }
+
+        // 2. Find all target objects within that range
+        var candidates = obj.getCurrentSol().getObjects();
+        var hits = [];
+        for (var i = 0; i < candidates.length; i++) {
+            var inst = candidates[i];
+            if (inst === this.inst) continue;
+            var res = check_intersection(startX, startY, endX, endY, inst);
+            if (res) {
+                var dSq = distanceSqTo(startX, startY, res.x, res.y);
+                if (dSq <= maxDistSq) {
+                    hits.push({ inst: inst, x: res.x, y: res.y, dSq: dSq });
+                }
+            }
+        }
+
+        // 3. Sort hits by distance (nearest first)
+        hits.sort(function(a, b) { return a.dSq - b.dSq; });
+
+        // 4. Trigger events for each hit
+        for (var i = 0; i < hits.length; i++) {
+            var h = hits[i];
+            this.didHit = true;
+            this.hitX = h.x;
+            this.hitY = h.y;
+            this.hitDist = Math.sqrt(h.dSq);
+            this.hitUID = h.inst.uid;
+
+            // Pick the specific instance in the SOL
+            var sol = obj.getCurrentSol();
+            sol.select_all = false;
+            sol.instances.length = 1;
+            sol.instances[0] = h.inst;
+
+            this.runtime.trigger(cr.behaviors.Raycasting.prototype.cnds.OnMultiHit, this.inst);
+        }
+
+        // Handle failure trigger if no targets were hit
         if (!this.didHit) {
             this.runtime.trigger(cr.behaviors.Raycasting.prototype.cnds.OnRayFailed, this.inst);
         }
