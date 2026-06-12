@@ -5,6 +5,7 @@
   * [Pro Line of Sight](behaviors/visionfield.md)
   * [Delaunay Dungeon](behaviors/nodungen.md)
   * [RPG Stats](behaviors/rpgstats.md)
+  * [Rpg Points](behaviors/rpghpmp.md)
   * [Mobs Movement](behaviors/mobs.md)
   * [Autodungen](behaviors/autodungen.md)
   * [Shake](behaviors/shake.md)
