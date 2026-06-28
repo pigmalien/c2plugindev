@@ -186,13 +186,7 @@ function IDEInstance(instance, type)
 	// this.myValue = 0...
 }
 
-// Called when inserted via Insert Object Dialog for the first time
-IDEInstance.prototype.OnInserted = function()
-{
-	// Add GSAP as a file dependency to ensure it's exported with the project.
-	// The user must add 'gsap.min.js' to the project's 'Files' folder.
-	this.instance.GetProject().AddFileDependency("gsap.min.js");
-}
+
 
 // Called when double clicked in layout
 IDEInstance.prototype.OnDoubleClicked = function()
