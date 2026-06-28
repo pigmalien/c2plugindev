@@ -6,21 +6,15 @@ An immersive, production-grade Construct 2 plugin that overlays responsive HTML/
 Table of Contents
 -----------------
 
-1.  [Core Architecture & Lifecycle](#1-core-architecture--lifecycle "null")
+1. [Core Architecture & Lifecycle](#_1-core-architecture-amp-lifecycle)
+2. [Plugin Properties](#_2-plugin-properties)
+3. [Universal Sync & Data Binding (Tier 4)](#_3-universal-sync-amp-data-binding-tier-4)
+4. [Input Guarding & Interaction Modes](#_4-input-guarding-amp-interaction-modes)
+5. [GSAP Animation Engine](#_5-gsap-animation-engine)
+6. [Events, Conditions, & Expressions Reference](#_6-events-conditions-amp-expressions-reference)
+7. [Sound & Interaction Bridge](#_7-sound-amp-interaction-bridge)
+8. [Setup & Best Practices](#_8-setup-amp-best-practices)
 
-2.  [Plugin Properties](#2-plugin-properties "null")
-
-3.  [Universal Sync & Data Binding (Tier 4)](#3-universal-sync--data-binding-tier-4 "null")
-
-4.  [Input Guarding & Interaction Modes](#4-input-guarding--interaction-modes "null")
-
-5.  [GSAP Animation Engine](#5-gsap-animation-engine "null")
-
-6.  [Events, Conditions, & Expressions Reference](#6-events-conditions--expressions-reference "null")
-
-7.  [Sound & Interaction Bridge](#7-sound--interaction-bridge "null")
-
-8.  [Setup & Best Practices](#8-setup--best-practices "null")
 
 1\. Core Architecture & Lifecycle
 ---------------------------------
